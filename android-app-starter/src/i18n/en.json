@@ -90,7 +90,9 @@
     "taskTitle": "Title",
     "taskPlaceholder": "Example: Buy bread",
     "dueDate": "Date",
-    "remove": "Remove task"
+    "remove": "Remove task",
+    "deleteTitle": "Delete task?",
+    "deleteMessage": "This task will be removed from your account."
   },
   "media": {
     "title": "Media",

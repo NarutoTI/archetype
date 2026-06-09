@@ -66,6 +66,23 @@ export const alertService = {
     );
   },
 
+  async presentAlertConfirmDanger(
+    header: string,
+    message: string,
+    confirmText = i18n.global.t('common.ok'),
+    cancelText = i18n.global.t('common.cancel'),
+    confirmHandler?: () => void | Promise<void>,
+  ) {
+    return this.presentAlertConfirmWithColor(
+      header,
+      message,
+      confirmText,
+      cancelText,
+      confirmHandler,
+      'danger',
+    );
+  },
+
   async presentAlertConfirmWithColor(
     header: string,
     message: string,
@@ -88,7 +105,7 @@ export const alertService = {
           },
           {
             text: confirmText,
-            role: 'confirm',
+            role: color === 'danger' ? 'destructive' : 'confirm',
             cssClass: `alert-button-${color}`,
             handler: async () => {
               await confirmHandler?.();

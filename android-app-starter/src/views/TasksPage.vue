@@ -54,9 +54,9 @@
             <ion-button
               slot="end"
               fill="clear"
-              color="medium"
+              color="danger"
               :aria-label="$t('tasks.remove')"
-              @click="taskStore.removeTask(task.id)"
+              @click="confirmRemoveTask(task.id)"
             >
               <ion-icon slot="icon-only" :icon="trashOutline" />
             </ion-button>
@@ -128,10 +128,13 @@ import {
 } from '@ionic/vue';
 import { addOutline, trashOutline } from 'ionicons/icons';
 import { onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { alertService } from '@/services/alert.service';
 import { useTaskStore } from '@/stores/taskStore';
 import { dateToISOString, formatISODateToLocalString } from '@/utils/date.utils';
 
 const taskStore = useTaskStore();
+const { t } = useI18n();
 const isAddModalOpen = ref(false);
 const draftTitle = ref('');
 const draftDueDate = ref(dateToISOString(new Date()));
@@ -153,6 +156,16 @@ const closeAddModal = () => {
 const confirmAdd = async () => {
   await taskStore.addTask(draftTitle.value, draftDueDate.value);
   closeAddModal();
+};
+
+const confirmRemoveTask = async (id: string) => {
+  await alertService.presentAlertConfirmDanger(
+    t('tasks.deleteTitle'),
+    t('tasks.deleteMessage'),
+    t('common.delete'),
+    t('common.cancel'),
+    () => taskStore.removeTask(id),
+  );
 };
 </script>
 

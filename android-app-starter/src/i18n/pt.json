@@ -90,7 +90,9 @@
     "taskTitle": "Título",
     "taskPlaceholder": "Ex.: Comprar pão",
     "dueDate": "Data",
-    "remove": "Remover tarefa"
+    "remove": "Remover tarefa",
+    "deleteTitle": "Excluir tarefa?",
+    "deleteMessage": "Esta tarefa será removida da sua conta."
   },
   "media": {
     "title": "Mídia",

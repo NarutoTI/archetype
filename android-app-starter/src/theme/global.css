@@ -12,11 +12,25 @@
   --background: var(--accent-color, var(--ion-color-primary));
   --background-hover: var(--accent-color-shade, var(--ion-color-primary-shade));
   --background-activated: var(--accent-color-shade, var(--ion-color-primary-shade));
+  --background-focused: var(--accent-color-shade, var(--ion-color-primary-shade));
   --color: var(--accent-color-contrast, var(--ion-color-primary-contrast));
   --border-radius: 4px;
+  --padding-start: 16px;
+  --padding-end: 16px;
   --box-shadow: none;
   font-weight: 600;
   letter-spacing: 0;
+}
+
+.modal-primary-action::part(native) {
+  background: var(--accent-color, var(--ion-color-primary));
+  color: var(--accent-color-contrast, var(--ion-color-primary-contrast));
+  border-radius: 4px;
+}
+
+.modal-primary-action:hover::part(native),
+.modal-primary-action:active::part(native) {
+  background: var(--accent-color-shade, var(--ion-color-primary-shade));
 }
 
 .alert-success,
