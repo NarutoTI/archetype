@@ -28,7 +28,8 @@
     </div>
 
     <div v-if="images.length > 0" class="image-grid">
-      <div v-for="(image, index) in images" :key="`${image.length}-${index}`" class="image-item">
+      <!-- Images are positional (stored as <index>.jpg), so the index is their identity. -->
+      <div v-for="(image, index) in images" :key="index" class="image-item">
         <img :src="image" :alt="`Image ${index + 1}`" class="image-preview" @click="emit('click-image', index)" />
         <ion-button
           class="delete-button"
@@ -60,8 +61,13 @@ import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource, type GalleryPhoto, type GalleryPhotos } from '@capacitor/camera';
 import { IonButton, IonIcon, IonNote, IonSpinner } from '@ionic/vue';
 import { addOutline, cameraOutline, imagesOutline, trashOutline } from 'ionicons/icons';
+import { useI18n } from 'vue-i18n';
 import { capacitorService } from '@/services/capacitor.service';
+import { toastService } from '@/services/toast.service';
 import { fetchUriAsBlob, resolveMediaUri } from '@/utils/mediaUri.utils';
+import { logger } from '@/utils/logger';
+
+const MAX_WEB_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
 const props = withDefaults(defineProps<{
   images: string[];
@@ -79,10 +85,22 @@ const emit = defineEmits<{
   'processing-images': [isProcessing: boolean];
 }>();
 
+const { t } = useI18n();
 const fileInput = ref<HTMLInputElement | null>(null);
 const isProcessing = ref(false);
 const isNativePlatform = computed(() => Capacitor.isNativePlatform());
 const remainingImageSlots = computed(() => Math.max(props.maxImages - props.images.length, 0));
+
+// Capacitor Camera rejects when the user dismisses the native picker; that is
+// not an error worth surfacing.
+const isUserCancellation = (error: unknown): boolean =>
+  String((error as Error)?.message || '').toLowerCase().includes('cancel');
+
+const handleCameraError = async (error: unknown) => {
+  if (isUserCancellation(error)) return;
+  logger.error('ImageGallery: camera/gallery picker failed', error);
+  await toastService.presentToastError(t('media.imageAddError'));
+};
 
 const openFilePicker = () => {
   if (!props.disabled) fileInput.value?.click();
@@ -115,6 +133,8 @@ const takePicture = async () => {
     });
     const blob = await readPhotoBlob(photo.webPath, photo.path);
     if (blob) emit('add-images', [blob]);
+  } catch (error) {
+    await handleCameraError(error);
   } finally {
     setProcessing(false);
   }
@@ -135,18 +155,30 @@ const chooseFromGallery = async () => {
     );
     const validBlobs = blobs.filter((blob): blob is Blob => !!blob);
     if (validBlobs.length) emit('add-images', validBlobs);
+  } catch (error) {
+    await handleCameraError(error);
   } finally {
     setProcessing(false);
   }
 };
 
-const onFileSelect = (event: Event) => {
+const onFileSelect = async (event: Event) => {
   const input = event.target as HTMLInputElement;
   const files = input.files ? Array.from(input.files) : [];
-  const images = files
-    .filter((file) => file.type.startsWith('image/') && file.size <= 10 * 1024 * 1024)
-    .slice(0, remainingImageSlots.value);
   input.value = '';
+
+  const imageFiles = files.filter(
+    (file) => file.type.startsWith('image/') && file.size <= MAX_WEB_IMAGE_SIZE_BYTES,
+  );
+  const images = imageFiles.slice(0, remainingImageSlots.value);
+
+  // Tell the user when something was silently dropped by the filters above.
+  if (imageFiles.length < files.length) {
+    await toastService.presentToastWarning(t('media.someFilesSkipped'));
+  } else if (images.length < imageFiles.length) {
+    await toastService.presentToastWarning(t('media.imageLimitReached', { max: props.maxImages }));
+  }
+
   if (images.length) emit('add-images', images);
 };
 </script>

@@ -8,7 +8,9 @@
     "cancel": "Cancel",
     "save": "Save",
     "delete": "Delete",
+    "edit": "Edit",
     "close": "Close",
+    "loading": "Loading",
     "yes": "Yes",
     "no": "No",
     "optional": "optional",
@@ -83,7 +85,9 @@
   "tasks": {
     "title": "Tasks",
     "new": "New task",
-    "empty": "No tasks yet. Tap + to create one.",
+    "edit": "Edit task",
+    "empty": "No tasks yet.",
+    "emptyHint": "Tap + to create your first task.",
     "pending": "Pending",
     "completed": "Completed",
     "upcoming": "{count} upcoming",
@@ -92,7 +96,9 @@
     "dueDate": "Date",
     "remove": "Remove task",
     "deleteTitle": "Delete task?",
-    "deleteMessage": "This task will be removed from your account."
+    "deleteMessage": "This task will be removed from your account.",
+    "reminderTitle": "Task due today",
+    "reminderBody": "{title}"
   },
   "media": {
     "title": "Media",
@@ -122,7 +128,19 @@
     "cameraPermissionRequiredDescription": "Enable camera permission in settings to take photos.",
     "cameraPermissionGranted": "Camera permission granted.",
     "cameraPermissionDenied": "Camera permission not granted.",
-    "sharedImagesImported": "{count} image(s) imported."
+    "sharedImagesImported": "{count} image(s) imported.",
+    "imageAddError": "Could not add the image.",
+    "imageDeleteError": "Could not remove the image.",
+    "imageLimitReached": "Image limit reached ({max}).",
+    "someFilesSkipped": "Some files were skipped (only images up to 10 MB)."
+  },
+  "location": {
+    "demoEntry": "Pick a location (demo)",
+    "chooseLocation": "Choose location",
+    "searchLocation": "Search address or place",
+    "tapToSelect": "Tap the map to select a point",
+    "confirmLocation": "Confirm",
+    "selected": "Location selected: {address}"
   },
   "notifications": {
     "title": "Notifications",
@@ -148,7 +166,13 @@
     "testNotification": "Test notification",
     "openNotificationSettings": "Open app settings",
     "debugNotificationStatus": "Notification status",
-    "debugLocationStatus": "Location status"
+    "debugLocationStatus": "Location status",
+    "testAlerts": "Test alerts",
+    "testAlertDanger": "Danger alert",
+    "testAlertSuccess": "Success alert",
+    "testAlertWarning": "Warning alert",
+    "testAlertInfo": "Info alert",
+    "testAlertMessage": "This is a sample alert for testing."
   },
   "version": {
     "checkForUpdates": "Check for updates",

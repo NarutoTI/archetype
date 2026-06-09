@@ -33,9 +33,11 @@
 
         <input ref="fileInput" class="file-input" type="file" multiple @change="onFileSelect" />
 
-        <p v-if="attachments.length === 0" class="empty-copy">
-          {{ $t('media.noFiles') }}
-        </p>
+        <EmptyState
+          v-if="attachments.length === 0"
+          :icon="documentAttachOutline"
+          :title="$t('media.noFiles')"
+        />
 
         <ion-list v-else inset>
           <ion-item v-for="attachment in attachments" :key="attachment.storedName">
@@ -95,14 +97,16 @@ import {
 import { attachOutline, documentAttachOutline, openOutline, trashOutline } from 'ionicons/icons';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import EmptyState from '@/views/components/EmptyState.vue';
 import ImageGallery from '@/views/components/ImageGallery.vue';
 import ImageLightbox from '@/views/components/ImageLightbox.vue';
 import { FileValidationError, fileService } from '@/services/file.service';
-import { imageService } from '@/services/image.service';
+import { ImageLimitError, imageService } from '@/services/image.service';
 import { shareIntakeService } from '@/services/share-intake.service';
 import { toastService } from '@/services/toast.service';
 import { useUserStore } from '@/stores/userStore';
 import type { Attachment, AttachmentDraft } from '@/types/Attachment';
+import { logger } from '@/utils/logger';
 
 const MEDIA_COLLECTION = 'starter-demo';
 const MEDIA_ENTITY_ID = 'gallery';
@@ -148,7 +152,16 @@ const persistAttachmentMetadata = async () => {
   });
 };
 
-const addImages = async (blobs: Blob[]) => {
+const getImageErrorMessage = (error: unknown) => {
+  if (error instanceof ImageLimitError) {
+    return t('media.imageLimitReached', { max: error.maxImages });
+  }
+  return t('media.imageAddError');
+};
+
+// Returns false instead of rethrowing: this is also an emit handler, where a
+// rejected promise would surface as an unhandled rejection.
+const addImages = async (blobs: Blob[]): Promise<boolean> => {
   isProcessing.value = true;
   try {
     const resized = await Promise.all(blobs.map((blob) => imageService.resizeImage(blob)));
@@ -157,6 +170,11 @@ const addImages = async (blobs: Blob[]) => {
       maxImages: userStore.maxGalleryImages,
     });
     await loadImages();
+    return true;
+  } catch (error) {
+    logger.error('MediaPage: failed to add images', error);
+    await toastService.presentToastError(getImageErrorMessage(error));
+    return false;
   } finally {
     isProcessing.value = false;
   }
@@ -168,8 +186,13 @@ const openLightbox = (index: number) => {
 };
 
 const deleteImage = async (index: number) => {
-  await imageService.deleteImage(MEDIA_ENTITY_ID, index, MEDIA_COLLECTION);
-  await loadImages();
+  try {
+    await imageService.deleteImage(MEDIA_ENTITY_ID, index, MEDIA_COLLECTION);
+    await loadImages();
+  } catch (error) {
+    logger.error('MediaPage: failed to delete image', error);
+    await toastService.presentToastError(t('media.imageDeleteError'));
+  }
 };
 
 const openFilePicker = () => {
@@ -248,9 +271,12 @@ const claimShareIfPending = async () => {
   const pending = await shareIntakeService.claimPending();
   if (!pending?.images?.length) return;
 
-  await addImages(pending.images);
+  const imported = await addImages(pending.images);
+  if (imported) {
+    await toastService.presentToastSuccess(t('media.sharedImagesImported', { count: pending.images.length }));
+  }
+  // Always ack: retrying a share that failed (e.g. gallery limit) would loop forever.
   await shareIntakeService.ackConsumed();
-  await toastService.presentToastSuccess(t('media.sharedImagesImported', { count: pending.images.length }));
 };
 
 onMounted(async () => {
@@ -283,11 +309,5 @@ onMounted(async () => {
 
 .file-input {
   display: none;
-}
-
-.empty-copy {
-  color: var(--ion-color-medium);
-  text-align: center;
-  margin: 12px 0;
 }
 </style>

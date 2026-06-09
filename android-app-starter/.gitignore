@@ -31,8 +31,6 @@ npm-debug.log*
 /plugins
 /www
 /.browserslistrc
-/.eslintignore
-/.eslintrc.cjs
 /android/app/src/main/assets
 /android/.gradle
 /android/build

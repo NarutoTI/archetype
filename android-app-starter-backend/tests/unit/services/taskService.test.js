@@ -38,7 +38,7 @@ describe('taskService', () => {
           title: 'A',
           dueDate: '2026-06-09',
           completed: false,
-          createdAt: '2026-06-09',
+          createdAt: 122,
           updatedAt: 123
         }])
       }))
@@ -56,7 +56,7 @@ describe('taskService', () => {
       title: 'A',
       dueDate: '2026-06-09',
       completed: false,
-      createdAt: '2026-06-09',
+      createdAt: 122,
       updatedAt: 123
     }]);
   });
@@ -74,7 +74,9 @@ describe('taskService', () => {
       userId: 'user-1',
       title: 'Do it',
       dueDate: '2026-06-09',
-      completed: false
+      completed: false,
+      createdAt: expect.any(Number),
+      updatedAt: expect.any(Number)
     }));
     expect(created.id).toBe(taskId.toString());
   });

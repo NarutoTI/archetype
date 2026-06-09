@@ -3,5 +3,6 @@ export interface Task {
   title: string;
   dueDate: string;
   completed: boolean;
-  createdAt: string;
+  /** Epoch milliseconds, set by the backend. */
+  createdAt: number;
 }

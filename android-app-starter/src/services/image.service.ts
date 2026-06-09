@@ -7,6 +7,14 @@ const MAX_IMAGE_SIZE = 1024;
 const IMAGE_QUALITY = 0.8;
 const IMAGE_FORMAT = 'jpeg';
 
+// Typed error so callers can show a specific message (mirrors FileValidationError).
+export class ImageLimitError extends Error {
+  constructor(public maxImages: number) {
+    super(`Maximum of ${maxImages} images reached`);
+    this.name = 'ImageLimitError';
+  }
+}
+
 class ImageService {
   async resizeImage(input: Blob, opts: { skipIfSmaller?: boolean } = {}): Promise<Blob> {
     try {
@@ -132,7 +140,7 @@ class ImageService {
     const maxImages = options.maxImages ?? DEFAULT_MAX_IMAGES;
     const existingImages = await this.getImageCount(entityId, collection);
     if (existingImages >= maxImages) {
-      throw new Error(`Maximum of ${maxImages} images reached`);
+      throw new ImageLimitError(maxImages);
     }
 
     const index = existingImages;
@@ -150,7 +158,7 @@ class ImageService {
     const maxImages = options.maxImages ?? DEFAULT_MAX_IMAGES;
     const existingImages = await this.getImageCount(entityId, collection);
     if (existingImages + blobs.length > maxImages) {
-      throw new Error(`Maximum of ${maxImages} images reached`);
+      throw new ImageLimitError(maxImages);
     }
 
     const dir = this.getImageDir(entityId, collection);

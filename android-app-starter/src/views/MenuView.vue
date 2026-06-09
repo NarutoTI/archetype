@@ -82,6 +82,14 @@
           <ion-icon :icon="locationOutline" slot="start" color="tertiary" />
           <ion-label>{{ $t('settings.debugLocationStatus') }}</ion-label>
         </ion-item>
+        <ion-item button @click="isLocationPickerOpen = true">
+          <ion-icon :icon="mapOutline" slot="start" color="primary" />
+          <ion-label>{{ $t('location.demoEntry') }}</ion-label>
+        </ion-item>
+        <ion-item v-if="isDevelopmentMode" button @click="testAlerts">
+          <ion-icon :icon="alertCircleOutline" slot="start" color="tertiary" />
+          <ion-label>{{ $t('settings.testAlerts') }}</ion-label>
+        </ion-item>
       </ion-list>
 
       <ion-list inset>
@@ -94,6 +102,12 @@
           <ion-label>{{ $t('auth.signOut') }}</ion-label>
         </ion-item>
       </ion-list>
+
+      <MapLocationPicker
+        :is-open="isLocationPickerOpen"
+        @select="onLocationSelected"
+        @close="isLocationPickerOpen = false"
+      />
     </ion-content>
   </ion-page>
 </template>
@@ -115,34 +129,43 @@ import {
   IonToolbar,
 } from '@ionic/vue';
 import {
+  alertCircleOutline,
   bugOutline,
   cloudDownloadOutline,
   fingerPrintOutline,
   languageOutline,
   locationOutline,
   logOutOutline,
+  mapOutline,
   moonOutline,
   notificationsOutline,
   personCircleOutline,
   settingsOutline,
   trashOutline,
 } from 'ionicons/icons';
+import { actionSheetController } from '@ionic/vue';
 import { onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import MapLocationPicker from '@/views/components/MapLocationPicker.vue';
 import { authService } from '@/services/auth.service';
 import { biometricService } from '@/services/biometric.service';
 import { capacitorService } from '@/services/capacitor.service';
-import { LocationService } from '@/services/location.service';
+import { LocationService, type AppLocation } from '@/services/location.service';
 import { notificationService } from '@/services/notification.service';
+import { toastService } from '@/services/toast.service';
 import { versionService } from '@/services/version.service';
 import { alertService } from '@/services/alert.service';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useUserStore } from '@/stores/userStore';
 
 const router = useRouter();
+const { t } = useI18n();
 const settingsStore = useSettingsStore();
 const userStore = useUserStore();
 const biometricAvailable = ref(false);
+const isLocationPickerOpen = ref(false);
+const isDevelopmentMode = import.meta.env.DEV;
 
 const testNotification = async () => {
   await notificationService.testNotification();
@@ -168,6 +191,52 @@ const debugLocationStatus = async () => {
     String(settingsStore.language === 'pt' ? 'Localização' : 'Location'),
     await LocationService.debugLocationStatus(),
   );
+};
+
+const onLocationSelected = async (location: AppLocation) => {
+  isLocationPickerOpen.value = false;
+  await toastService.presentToastSuccess(
+    t('location.selected', { address: LocationService.formatLocationForDisplay(location) }),
+  );
+};
+
+// Development helper to preview every alert color in one place.
+const testAlerts = async () => {
+  const actionSheet = await actionSheetController.create({
+    header: t('settings.testAlerts'),
+    buttons: [
+      {
+        text: `🚨 ${t('settings.testAlertDanger')}`,
+        handler: () => {
+          void alertService.presentAlertError(t('settings.testAlertDanger'), t('settings.testAlertMessage'));
+        },
+      },
+      {
+        text: `✅ ${t('settings.testAlertSuccess')}`,
+        handler: () => {
+          void alertService.presentAlertSuccess(t('settings.testAlertSuccess'), t('settings.testAlertMessage'));
+        },
+      },
+      {
+        text: `⚠️ ${t('settings.testAlertWarning')}`,
+        handler: () => {
+          void alertService.presentAlertWarning(t('settings.testAlertWarning'), t('settings.testAlertMessage'));
+        },
+      },
+      {
+        text: `ℹ️ ${t('settings.testAlertInfo')}`,
+        handler: () => {
+          void alertService.presentAlertInfo(t('settings.testAlertInfo'), t('settings.testAlertMessage'));
+        },
+      },
+      {
+        text: t('common.cancel'),
+        role: 'cancel',
+      },
+    ],
+  });
+
+  await actionSheet.present();
 };
 
 const signOut = async () => {

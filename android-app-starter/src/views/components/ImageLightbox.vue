@@ -52,9 +52,10 @@
         </ion-buttons>
 
         <div class="thumbnail-container">
+          <!-- Images are positional in the gallery, so the index is their identity. -->
           <button
             v-for="(image, index) in images"
-            :key="`${image.length}-${index}`"
+            :key="index"
             type="button"
             class="thumbnail"
             :class="{ active: index === currentIndex }"
@@ -90,6 +91,7 @@
 </template>
 
 <script setup lang="ts">
+import { Capacitor } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import {
   IonButton,
@@ -240,7 +242,9 @@ const downloadImage = async () => {
   if (!currentImage.value) return;
 
   try {
-    if ((window as any).Capacitor) {
+    // window.Capacitor also exists on web builds; only the native platforms
+    // should write through the Filesystem plugin.
+    if (Capacitor.isNativePlatform()) {
       await downloadImageMobile();
     } else {
       await downloadImageWeb();

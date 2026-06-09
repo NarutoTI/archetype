@@ -4,10 +4,6 @@ import logger from '../config/logger.js';
 
 const taskRepository = new CrudRepository('tasks');
 
-function getLocalDateString() {
-  return new Date().toLocaleDateString('sv-SE');
-}
-
 function normalizeTask(task) {
   if (!task) return null;
 
@@ -84,13 +80,15 @@ export async function findByIdForUser(id, userId) {
 
 export async function createTask(userId, data) {
   try {
+    // Both timestamps are epoch milliseconds; `dueDate` stays a local
+    // 'YYYY-MM-DD' string because it is a user-facing calendar date.
     const now = Date.now();
     const task = {
       userId: String(userId),
       title: data.title.trim(),
       dueDate: data.dueDate,
       completed: false,
-      createdAt: getLocalDateString(),
+      createdAt: now,
       updatedAt: now
     };
 

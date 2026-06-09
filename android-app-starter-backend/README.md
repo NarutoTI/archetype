@@ -17,9 +17,19 @@ Backend Node.js + Express + MongoDB para o Android App Starter.
 ## Rodando
 
 ```bash
+docker compose up -d   # sobe o MongoDB local (root/example, porta 27017)
 npm install
 cp .env.example .env
 npm run dev
+```
+
+O `MONGODB_URI` do `.env.example` já aponta para o Mongo do `docker-compose.yml`.
+Se preferir um Mongo próprio, ajuste a URI.
+
+## Testes
+
+```bash
+npm test -- --run
 ```
 
 ## Variáveis principais
@@ -61,6 +71,10 @@ Rotas protegidas por JWT:
 - `POST /api/tasks`: cria tarefa com `title` e `dueDate` (`YYYY-MM-DD`).
 - `PUT /api/tasks/:id`: atualiza `title`, `dueDate` ou `completed`.
 - `DELETE /api/tasks/:id`: remove uma tarefa do usuário.
+
+Convenção de datas: `dueDate` é uma data de calendário local (`YYYY-MM-DD`,
+sem timezone); `createdAt` e `updatedAt` são timestamps em epoch ms gerados
+pelo servidor.
 
 Esse módulo é uma vertical slice de referência. Ao criar um domínio real,
 remova `src/routes/taskRoutes.js`, `src/controllers/taskController.js`,

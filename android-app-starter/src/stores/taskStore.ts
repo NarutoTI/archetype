@@ -1,45 +1,56 @@
 import { defineStore } from 'pinia';
-import { Preferences } from '@capacitor/preferences';
-import { computed, ref, triggerRef } from 'vue';
-import taskService from '@/services/task.service';
-import { dateToISOString, isSameOrFutureDate } from '@/utils/date.utils';
+import { computed, ref } from 'vue';
+import i18n from '@/i18n';
+import { useEntityYearCache } from '@/composables/useEntityYearCache';
+import taskService, { type UpdateTaskPayload } from '@/services/task.service';
+import { notificationService } from '@/services/notification.service';
+import { dateToISOString, isPastDateTime, isSameOrFutureDate } from '@/utils/date.utils';
 import { logger } from '@/utils/logger';
 import type { Task } from '@/types/Task';
 import { useUserStore } from '@/stores/userStore';
 
 const TASK_CACHE_PREFIX = 'starter-tasks-cache';
-const TASK_CACHE_YEARS_SUFFIX = 'years';
+// Local notification fired on the task due date. Device-local by design:
+// reminders are not synced across devices in this starter.
+const TASK_REMINDER_TIME = '09:00';
 
 const getTaskYear = (task: Pick<Task, 'dueDate'>): number => Number(task.dueDate.slice(0, 4));
+
+const taskReminderKey = (id: string) => `task-reminder-${id}`;
 
 export const useTaskStore = defineStore('tasks', () => {
   const userStore = useUserStore();
   let initializePromise: Promise<void> | null = null;
   let allTasksSyncPromise: Promise<Task[]> | null = null;
-  const inFlightYearFetches = new Map<number, Promise<Task[]>>();
 
-  const yearCache = ref<Map<number, Task[]>>(new Map());
+  // All cache mechanics (memory buckets, Preferences persistence, fetch
+  // dedupe) live in the generic composable. This store keeps domain rules,
+  // network/loading policy and view state only.
+  const cache = useEntityYearCache<Task>({
+    cachePrefix: TASK_CACHE_PREFIX,
+    getScope: () => {
+      const user = userStore.currentUser;
+      return user?.id || user?.email || 'anonymous';
+    },
+    getItemYear: getTaskYear,
+    getItemId: (task) => task.id,
+    compareItems: (a, b) => a.dueDate.localeCompare(b.dueDate),
+  });
+
   const isLoading = ref(false);
   const isLoaded = ref(false);
   const selectedDate = ref(dateToISOString(new Date()));
   const selectedDateYear = computed(() => Number(selectedDate.value.slice(0, 4)));
 
-  const loadedYears = computed(() => [...yearCache.value.keys()].sort((a, b) => a - b));
+  // `cache.items` is already globally sorted by dueDate (the bucket comparator
+  // aligns with the year partition); filter() returns fresh arrays, so the
+  // store state is never mutated by these derivations.
+  const tasks = cache.items;
 
-  const tasks = computed(() =>
-    [...yearCache.value.values()]
-      .flat()
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
-  );
-
-  const pendingTasks = computed(() =>
-    [...tasks.value]
-      .filter((task) => !task.completed)
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
-  );
+  const pendingTasks = computed(() => tasks.value.filter((task) => !task.completed));
 
   const completedTasks = computed(() =>
-    [...tasks.value]
+    tasks.value
       .filter((task) => task.completed)
       .sort((a, b) => b.dueDate.localeCompare(a.dueDate)),
   );
@@ -48,90 +59,6 @@ export const useTaskStore = defineStore('tasks', () => {
     pendingTasks.value.filter((task) => isSameOrFutureDate(task.dueDate)).length,
   );
 
-  const cacheScope = computed(() => {
-    const user = userStore.currentUser;
-    return user?.id || user?.email || 'anonymous';
-  });
-
-  const buildCacheKey = (year: number | typeof TASK_CACHE_YEARS_SUFFIX) =>
-    `${TASK_CACHE_PREFIX}:${cacheScope.value}:${year}`;
-
-  const groupTasksByYear = (items: Task[]) => {
-    const grouped = new Map<number, Task[]>();
-    for (const task of items) {
-      const year = getTaskYear(task);
-      if (!Number.isInteger(year)) continue;
-      const yearTasks = grouped.get(year) || [];
-      yearTasks.push(task);
-      grouped.set(year, yearTasks);
-    }
-
-    for (const yearTasks of grouped.values()) {
-      yearTasks.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-    }
-
-    return grouped;
-  };
-
-  const saveLoadedYearsToStorage = async () => {
-    await Preferences.set({
-      key: buildCacheKey(TASK_CACHE_YEARS_SUFFIX),
-      value: JSON.stringify(loadedYears.value),
-    });
-  };
-
-  const loadLoadedYearsFromStorage = async (): Promise<number[]> => {
-    try {
-      const { value } = await Preferences.get({ key: buildCacheKey(TASK_CACHE_YEARS_SUFFIX) });
-      if (!value) return [];
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed)
-        ? parsed.map(Number).filter((year) => Number.isInteger(year))
-        : [];
-    } catch (error) {
-      logger.error('TaskStore: failed to load cached years', error);
-      return [];
-    }
-  };
-
-  const saveCacheToStorage = async (year: number) => {
-    const yearTasks = yearCache.value.get(year) || [];
-    if (yearTasks.length) {
-      await Preferences.set({
-        key: buildCacheKey(year),
-        value: JSON.stringify(yearTasks),
-      });
-    } else {
-      await Preferences.remove({ key: buildCacheKey(year) });
-    }
-    await saveLoadedYearsToStorage();
-  };
-
-  const loadCacheFromStorage = async (year: number): Promise<Task[] | null> => {
-    try {
-      const { value } = await Preferences.get({ key: buildCacheKey(year) });
-      if (!value) return null;
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed as Task[] : null;
-    } catch (error) {
-      logger.error(`TaskStore: failed to load cache for year ${year}`, error);
-      return null;
-    }
-  };
-
-  const replaceAllCaches = async (items: Task[]) => {
-    const previousYears = loadedYears.value;
-    yearCache.value = groupTasksByYear(items);
-    const nextYears = loadedYears.value;
-    const removedYears = previousYears.filter((year) => !nextYears.includes(year));
-    await Promise.all([
-      ...nextYears.map((year) => saveCacheToStorage(year)),
-      ...removedYears.map((year) => Preferences.remove({ key: buildCacheKey(year) })),
-    ]);
-    await saveLoadedYearsToStorage();
-    logger.log(`TaskStore synced ${items.length} task(s) from backend`);
-  };
-
   const loadAllFromServer = async (silent = false): Promise<Task[]> => {
     if (allTasksSyncPromise) return allTasksSyncPromise;
     if (!silent) isLoading.value = true;
@@ -139,7 +66,8 @@ export const useTaskStore = defineStore('tasks', () => {
     allTasksSyncPromise = (async () => {
       try {
         const data = await taskService.getAll();
-        await replaceAllCaches(data);
+        await cache.replaceAll(data);
+        logger.log(`TaskStore synced ${data.length} task(s) from backend`);
         return data;
       } finally {
         if (!silent) isLoading.value = false;
@@ -150,46 +78,33 @@ export const useTaskStore = defineStore('tasks', () => {
     return allTasksSyncPromise;
   };
 
+  // Network fetch for one year. Concurrent callers share the same request via
+  // the cache dedupe; each caller still controls its own loading flag.
+  const fetchYear = async (year: number, silent: boolean): Promise<Task[]> => {
+    if (!silent) isLoading.value = true;
+    try {
+      return await cache.fetchYear(year, () => taskService.getTasksForYear(year));
+    } finally {
+      if (!silent) isLoading.value = false;
+    }
+  };
+
   const loadYear = async (year: number, force = false, silent = false): Promise<Task[]> => {
-    if (!force && yearCache.value.has(year)) {
-      return yearCache.value.get(year) || [];
+    if (!force && cache.hasYear(year)) {
+      return cache.getYear(year);
     }
 
     if (!force) {
-      const cachedTasks = await loadCacheFromStorage(year);
+      const cachedTasks = await cache.loadYearFromStorage(year);
       if (cachedTasks?.length) {
-        yearCache.value.set(year, cachedTasks);
-        triggerRef(yearCache);
-        void taskService.getTasksForYear(year)
-          .then(async (freshTasks) => {
-            yearCache.value.set(year, freshTasks);
-            triggerRef(yearCache);
-            await saveCacheToStorage(year);
-          })
+        await cache.setYear(year, cachedTasks, { persist: false });
+        void fetchYear(year, true)
           .catch((error) => logger.error(`TaskStore background sync failed for year ${year}`, error));
         return cachedTasks;
       }
     }
 
-    const pendingFetch = inFlightYearFetches.get(year);
-    if (pendingFetch) return pendingFetch;
-
-    if (!silent) isLoading.value = true;
-    const fetchPromise = (async () => {
-      try {
-        const data = await taskService.getTasksForYear(year);
-        yearCache.value.set(year, data);
-        triggerRef(yearCache);
-        await saveCacheToStorage(year);
-        return data;
-      } finally {
-        inFlightYearFetches.delete(year);
-        if (!silent) isLoading.value = false;
-      }
-    })();
-
-    inFlightYearFetches.set(year, fetchPromise);
-    return fetchPromise;
+    return fetchYear(year, silent);
   };
 
   const initialize = async () => {
@@ -197,22 +112,10 @@ export const useTaskStore = defineStore('tasks', () => {
     if (initializePromise) return initializePromise;
 
     initializePromise = (async () => {
-      const cachedYears = await loadLoadedYearsFromStorage();
-      if (cachedYears.length) {
-        const cacheEntries = await Promise.all(
-          cachedYears.map(async (year) => [year, await loadCacheFromStorage(year)] as const),
-        );
-
-        for (const [year, yearTasks] of cacheEntries) {
-          if (yearTasks?.length) yearCache.value.set(year, yearTasks);
-        }
-        triggerRef(yearCache);
-        isLoaded.value = true;
-        void loadAllFromServer(true).catch((error) => logger.error('TaskStore background sync failed', error));
-        return;
+      const restored = await cache.initializeFromStorage();
+      if (!restored) {
+        await loadYear(selectedDateYear.value);
       }
-
-      await loadYear(selectedDateYear.value);
       isLoaded.value = true;
       void loadAllFromServer(true).catch((error) => logger.error('TaskStore background sync failed', error));
     })();
@@ -224,102 +127,81 @@ export const useTaskStore = defineStore('tasks', () => {
     }
   };
 
-  const addTaskToLocalCache = async (task: Task) => {
-    const year = getTaskYear(task);
-    const yearTasks = yearCache.value.get(year) || [];
-    yearCache.value.set(year, [...yearTasks, task].sort((a, b) => a.dueDate.localeCompare(b.dueDate)));
-    triggerRef(yearCache);
-    await saveCacheToStorage(year);
+  // Best-effort device reminder for pending tasks with a future due date.
+  // Notification failures must never block task CRUD, hence the broad catch.
+  const syncTaskReminder = async (task: Task) => {
+    try {
+      const shouldRemind = !task.completed && !isPastDateTime(task.dueDate, TASK_REMINDER_TIME);
+      if (shouldRemind) {
+        await notificationService.scheduleNotification({
+          key: taskReminderKey(task.id),
+          title: i18n.global.t('tasks.reminderTitle'),
+          body: i18n.global.t('tasks.reminderBody', { title: task.title }),
+          date: task.dueDate,
+          time: TASK_REMINDER_TIME,
+        });
+      } else {
+        await cancelTaskReminder(task.id);
+      }
+    } catch (error) {
+      logger.warn(`TaskStore: reminder sync failed for task ${task.id}`, error);
+    }
   };
 
-  const updateTaskInLocalCache = async (task: Task) => {
-    const targetYear = getTaskYear(task);
-    const touchedYears = new Set<number>([targetYear]);
-
-    for (const [year, yearTasks] of yearCache.value.entries()) {
-      const index = yearTasks.findIndex((item) => item.id === task.id);
-      if (index < 0) continue;
-
-      touchedYears.add(year);
-      const nextTasks = yearTasks.filter((item) => item.id !== task.id);
-      if (nextTasks.length) {
-        yearCache.value.set(year, nextTasks);
-      } else {
-        yearCache.value.delete(year);
-      }
-    }
-
-    const targetTasks = yearCache.value.get(targetYear) || [];
-    yearCache.value.set(
-      targetYear,
-      [...targetTasks, task].sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+  const cancelTaskReminder = async (id: string) => {
+    await notificationService.cancelNotification(
+      notificationService.generateNotificationId(taskReminderKey(id)),
     );
-
-    triggerRef(yearCache);
-    await Promise.all([...touchedYears].map((year) => saveCacheToStorage(year)));
-  };
-
-  const removeTaskFromLocalCache = async (id: string) => {
-    const touchedYears: number[] = [];
-    for (const [year, yearTasks] of yearCache.value.entries()) {
-      if (!yearTasks.some((task) => task.id === id)) continue;
-      const nextTasks = yearTasks.filter((task) => task.id !== id);
-      if (nextTasks.length) {
-        yearCache.value.set(year, nextTasks);
-      } else {
-        yearCache.value.delete(year);
-      }
-      touchedYears.push(year);
-    }
-
-    if (touchedYears.length) {
-      triggerRef(yearCache);
-      await Promise.all(touchedYears.map((year) => saveCacheToStorage(year)));
-    }
   };
 
   const addTask = async (title: string, dueDate: string) => {
     if (!title.trim()) return;
     const createdTask = await taskService.createTask({ title, dueDate });
-    await addTaskToLocalCache(createdTask);
+    await cache.upsertItem(createdTask);
+    await syncTaskReminder(createdTask);
+  };
+
+  const updateTask = async (id: string, payload: UpdateTaskPayload): Promise<Task> => {
+    const updatedTask = await taskService.updateTask(id, payload);
+    await cache.upsertItem(updatedTask);
+    await syncTaskReminder(updatedTask);
+    return updatedTask;
   };
 
   const toggleTaskCompleted = async (id: string) => {
     const currentTask = tasks.value.find((task) => task.id === id);
     if (!currentTask) return;
-    const updatedTask = await taskService.updateTask(id, { completed: !currentTask.completed });
-    await updateTaskInLocalCache(updatedTask);
+    await updateTask(id, { completed: !currentTask.completed });
   };
 
   const removeTask = async (id: string) => {
     await taskService.deleteTask(id);
-    await removeTaskFromLocalCache(id);
+    await cache.removeItem(id);
+    await cancelTaskReminder(id).catch((error) =>
+      logger.warn(`TaskStore: reminder cancel failed for task ${id}`, error));
   };
 
   const reset = async () => {
-    const years = loadedYears.value;
-    yearCache.value.clear();
-    triggerRef(yearCache);
+    await cache.clear();
     isLoaded.value = false;
-    await Promise.all(years.map((year) => Preferences.remove({ key: buildCacheKey(year) })));
-    await Preferences.remove({ key: buildCacheKey(TASK_CACHE_YEARS_SUFFIX) });
   };
 
   return {
-    yearCache,
+    yearCache: cache.yearCache,
     tasks,
     pendingTasks,
     completedTasks,
     upcomingCount,
     isLoading,
     isLoaded,
-    loadedYears,
+    loadedYears: cache.loadedYears,
     selectedDate,
     selectedDateYear,
     initialize,
     loadYear,
     loadAllFromServer,
     addTask,
+    updateTask,
     toggleTaskCompleted,
     removeTask,
     reset,

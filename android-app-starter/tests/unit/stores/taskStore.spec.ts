@@ -11,6 +11,12 @@ const taskServiceMock = vi.hoisted(() => ({
   deleteTask: vi.fn(),
 }));
 
+const notificationServiceMock = vi.hoisted(() => ({
+  scheduleNotification: vi.fn(async () => 1),
+  cancelNotification: vi.fn(async () => undefined),
+  generateNotificationId: vi.fn((key: string) => key.length),
+}));
+
 vi.mock('@capacitor/preferences', () => ({
   Preferences: {
     get: vi.fn(async ({ key }: { key: string }) => ({ value: storage.get(key) ?? null })),
@@ -27,6 +33,10 @@ vi.mock('@/services/task.service', () => ({
   default: taskServiceMock,
 }));
 
+vi.mock('@/services/notification.service', () => ({
+  notificationService: notificationServiceMock,
+}));
+
 import { useTaskStore } from '@/stores/taskStore';
 
 const task = (overrides: Partial<Task> = {}): Task => ({
@@ -34,7 +44,7 @@ const task = (overrides: Partial<Task> = {}): Task => ({
   title: 'A',
   dueDate: '2026-06-10',
   completed: false,
-  createdAt: '2026-06-09',
+  createdAt: 1700000000000,
   ...overrides,
 });
 
@@ -47,6 +57,8 @@ describe('taskStore', () => {
     taskServiceMock.createTask.mockReset();
     taskServiceMock.updateTask.mockReset();
     taskServiceMock.deleteTask.mockReset();
+    notificationServiceMock.scheduleNotification.mockClear();
+    notificationServiceMock.cancelNotification.mockClear();
     taskServiceMock.getAll.mockImplementation(() => new Promise<Task[]>(() => {}));
     taskServiceMock.getTasksForYear.mockResolvedValue([]);
     taskServiceMock.createTask.mockImplementation(async (payload) => task({
@@ -112,6 +124,36 @@ describe('taskStore', () => {
 
     expect(taskServiceMock.deleteTask).toHaveBeenCalledWith('1');
     expect(store.tasks).toHaveLength(0);
+  });
+
+  it('updateTask() moves a task across year caches when the due date changes year', async () => {
+    taskServiceMock.getTasksForYear.mockResolvedValue([task({ id: '1', dueDate: '2026-06-10' })]);
+    taskServiceMock.updateTask.mockResolvedValue(task({ id: '1', dueDate: '2027-03-05' }));
+
+    const store = useTaskStore();
+    await store.initialize();
+    await store.updateTask('1', { dueDate: '2027-03-05' });
+
+    expect(store.yearCache.has(2026)).toBe(false);
+    expect(store.yearCache.get(2027)?.map((item) => item.id)).toEqual(['1']);
+    expect(storage.has('starter-tasks-cache:anonymous:2027')).toBe(true);
+    expect(storage.has('starter-tasks-cache:anonymous:2026')).toBe(false);
+  });
+
+  it('addTask() schedules a reminder and removeTask() cancels it', async () => {
+    taskServiceMock.getTasksForYear.mockResolvedValue([]);
+    taskServiceMock.createTask.mockResolvedValue(task({ id: 'created', dueDate: '2099-01-01' }));
+
+    const store = useTaskStore();
+    await store.initialize();
+    await store.addTask('Future', '2099-01-01');
+
+    expect(notificationServiceMock.scheduleNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'task-reminder-created', date: '2099-01-01' }),
+    );
+
+    await store.removeTask('created');
+    expect(notificationServiceMock.cancelNotification).toHaveBeenCalled();
   });
 
   it('derived computed never mutates the source year cache arrays', async () => {

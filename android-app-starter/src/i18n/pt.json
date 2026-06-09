@@ -8,7 +8,9 @@
     "cancel": "Cancelar",
     "save": "Salvar",
     "delete": "Excluir",
+    "edit": "Editar",
     "close": "Fechar",
+    "loading": "Carregando",
     "yes": "Sim",
     "no": "Não",
     "optional": "opcional",
@@ -83,7 +85,9 @@
   "tasks": {
     "title": "Tarefas",
     "new": "Nova tarefa",
-    "empty": "Nenhuma tarefa ainda. Toque em + para criar.",
+    "edit": "Editar tarefa",
+    "empty": "Nenhuma tarefa ainda.",
+    "emptyHint": "Toque em + para criar sua primeira tarefa.",
     "pending": "Pendentes",
     "completed": "Concluídas",
     "upcoming": "{count} a vencer",
@@ -92,7 +96,9 @@
     "dueDate": "Data",
     "remove": "Remover tarefa",
     "deleteTitle": "Excluir tarefa?",
-    "deleteMessage": "Esta tarefa será removida da sua conta."
+    "deleteMessage": "Esta tarefa será removida da sua conta.",
+    "reminderTitle": "Tarefa vence hoje",
+    "reminderBody": "{title}"
   },
   "media": {
     "title": "Mídia",
@@ -122,7 +128,19 @@
     "cameraPermissionRequiredDescription": "Ative a permissão da câmera nas configurações para tirar fotos.",
     "cameraPermissionGranted": "Permissão da câmera concedida.",
     "cameraPermissionDenied": "Permissão da câmera não concedida.",
-    "sharedImagesImported": "{count} imagem(ns) importada(s)."
+    "sharedImagesImported": "{count} imagem(ns) importada(s).",
+    "imageAddError": "Não foi possível adicionar a imagem.",
+    "imageDeleteError": "Não foi possível remover a imagem.",
+    "imageLimitReached": "Limite de imagens atingido ({max}).",
+    "someFilesSkipped": "Alguns arquivos foram ignorados (apenas imagens até 10 MB)."
+  },
+  "location": {
+    "demoEntry": "Escolher localização (demo)",
+    "chooseLocation": "Escolher localização",
+    "searchLocation": "Buscar endereço ou lugar",
+    "tapToSelect": "Toque no mapa para selecionar um ponto",
+    "confirmLocation": "Confirmar",
+    "selected": "Localização selecionada: {address}"
   },
   "notifications": {
     "title": "Notificações",
@@ -148,7 +166,13 @@
     "testNotification": "Testar notificação",
     "openNotificationSettings": "Abrir configurações do app",
     "debugNotificationStatus": "Status das notificações",
-    "debugLocationStatus": "Status da localização"
+    "debugLocationStatus": "Status da localização",
+    "testAlerts": "Testar alertas",
+    "testAlertDanger": "Alerta de erro",
+    "testAlertSuccess": "Alerta de sucesso",
+    "testAlertWarning": "Alerta de aviso",
+    "testAlertInfo": "Alerta informativo",
+    "testAlertMessage": "Este é um alerta de exemplo para teste."
   },
   "version": {
     "checkForUpdates": "Verificar atualizações",
