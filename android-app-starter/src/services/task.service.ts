@@ -1,43 +1,35 @@
-import { Preferences } from '@capacitor/preferences';
-import { dateToISOString } from '@/utils/date.utils';
-import { logger } from '@/utils/logger';
+import api from '@/services/api.service';
 import type { Task } from '@/types/Task';
 
-const TASKS_STORAGE_KEY = 'example-tasks';
+export type CreateTaskPayload = Pick<Task, 'title' | 'dueDate'>;
+export type UpdateTaskPayload = Partial<Pick<Task, 'title' | 'dueDate' | 'completed'>>;
 
 class TaskService {
   async getAll(): Promise<Task[]> {
-    const { value } = await Preferences.get({ key: TASKS_STORAGE_KEY });
-    if (!value) return [];
-
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed as Task[] : [];
-    } catch (error) {
-      logger.error('TaskService: failed to parse stored tasks', error);
-      return [];
-    }
+    const response = await api.get('/tasks');
+    return response.data.tasks || [];
   }
 
-  async saveAll(tasks: Task[]): Promise<void> {
-    await Preferences.set({
-      key: TASKS_STORAGE_KEY,
-      value: JSON.stringify(tasks),
+  async getTasksForYear(year: number): Promise<Task[]> {
+    const response = await api.get(`/tasks/year/${year}`);
+    return response.data.tasks || [];
+  }
+
+  async createTask(payload: CreateTaskPayload): Promise<Task> {
+    const response = await api.post('/tasks', {
+      title: payload.title.trim(),
+      dueDate: payload.dueDate,
     });
+    return response.data.task;
   }
 
-  create(title: string, dueDate: string): Task {
-    return {
-      id: crypto.randomUUID(),
-      title: title.trim(),
-      dueDate,
-      completed: false,
-      createdAt: dateToISOString(new Date()),
-    };
+  async updateTask(id: string, payload: UpdateTaskPayload): Promise<Task> {
+    const response = await api.put(`/tasks/${id}`, payload);
+    return response.data.task;
   }
 
-  async clear(): Promise<void> {
-    await Preferences.remove({ key: TASKS_STORAGE_KEY });
+  async deleteTask(id: string): Promise<void> {
+    await api.delete(`/tasks/${id}`);
   }
 }
 

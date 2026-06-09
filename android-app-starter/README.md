@@ -9,7 +9,9 @@ Starter Ionic Vue + Capacitor para novos apps Android.
 - Biometria opcional no boot do app.
 - Serviços base de alert, toast, API, versionamento, localização, notificações locais, imagem/galeria, arquivos e share intent Android.
 - Shell com tabs: `Tasks`, `Media`, `Notifications` e `Menu`.
-- Fatia vertical de exemplo `Tasks` com tipo, serviço, store, tela e teste.
+- Tela `Media` com galeria, lightbox com zoom e exemplo de arquivos anexos.
+- Fatia vertical de exemplo `Tasks` com tipo, serviço, store com cache local,
+  tela, teste e backend opcional.
 
 ## Rodando
 
@@ -53,12 +55,22 @@ O `.gitignore` já cobre esses casos. Depois de alterar web assets, rode
 `Tasks` existe para demonstrar o molde do projeto:
 
 - tipo em `src/types/Task.ts`;
-- serviço local-first em `src/services/task.service.ts`;
-- store Pinia com `initialize()` em `src/stores/taskStore.ts`;
+- serviço HTTP em `src/services/task.service.ts`;
+- store Pinia com `initialize()`, cache por ano em memória e `Preferences` em
+  `src/stores/taskStore.ts`;
 - tela Ionic em `src/views/TasksPage.vue`;
 - teste em `tests/unit/stores/taskStore.spec.ts`.
 
-Quando o domínio real entrar, remova esses arquivos e a rota/tab `tasks`.
+O backend complementar fica em `android-app-starter-backend`:
+
+- `GET /api/tasks`;
+- `GET /api/tasks/year/:year`;
+- `POST /api/tasks`;
+- `PUT /api/tasks/:id`;
+- `DELETE /api/tasks/:id`.
+
+Quando o domínio real entrar, remova esses arquivos, a rota/tab `tasks` e os
+endpoints de Tasks do backend.
 
 ## Variáveis principais
 

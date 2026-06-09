@@ -17,4 +17,15 @@
  * @property {string|null} picture - Avatar URL
  */
 
+/**
+ * @typedef {Object} Task
+ * @property {string|null} _id - MongoDB ObjectId
+ * @property {string} userId - Owner user id
+ * @property {string} title - Short task title
+ * @property {string} dueDate - Local due date in YYYY-MM-DD format
+ * @property {boolean} completed - Completion flag
+ * @property {string} createdAt - Local creation date in YYYY-MM-DD format
+ * @property {number} updatedAt - Last update timestamp in epoch milliseconds
+ */
+
 export {};

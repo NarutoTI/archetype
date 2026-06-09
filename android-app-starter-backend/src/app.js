@@ -70,11 +70,13 @@ async function startServer() {
 
     const authRoutes = (await import('./routes/auth/authRoutes.js')).default;
     const userRoutes = (await import('./routes/userRoutes.js')).default;
+    const taskRoutes = (await import('./routes/taskRoutes.js')).default;
     const versionRoutes = (await import('./routes/version.routes.js')).default;
 
     app.use('/auth', authRoutes);
     app.use('/api', versionRoutes);
     app.use('/api', userRoutes);
+    app.use('/api', taskRoutes);
 
     app.use((err, _req, res, _next) => {
       logger.error({ err }, 'Unhandled error');

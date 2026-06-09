@@ -28,6 +28,8 @@ async function createIndexes() {
   await db.collection('users').createIndex({ email: 1 }, { unique: true });
   await db.collection('users').createIndex({ provider: 1 });
   await db.collection('versions').createIndex({ platform: 1 }, { unique: true });
+  await db.collection('tasks').createIndex({ userId: 1, dueDate: 1 });
+  await db.collection('tasks').createIndex({ userId: 1, completed: 1 });
   logger.info('Database indexes created successfully');
 }
 

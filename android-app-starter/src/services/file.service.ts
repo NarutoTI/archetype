@@ -183,6 +183,35 @@ class FileService {
     }
   }
 
+  async deleteFile(itemId: string, attachment: Attachment, collection = 'default'): Promise<void> {
+    await Filesystem.deleteFile({
+      path: this.getAttachmentPath(itemId, attachment.storedName, collection),
+      directory: Directory.Data,
+    });
+  }
+
+  async deleteFiles(itemId: string, attachments: Attachment[], collection = 'default'): Promise<void> {
+    await Promise.all(
+      attachments.map((attachment) =>
+        this.deleteFile(itemId, attachment, collection).catch(() => {
+          // Missing files should not block metadata cleanup in the caller.
+        }),
+      ),
+    );
+  }
+
+  async deleteAllFiles(itemId: string, collection = 'default'): Promise<void> {
+    try {
+      await Filesystem.rmdir({
+        path: this.getItemDir(itemId, collection),
+        directory: Directory.Data,
+        recursive: true,
+      });
+    } catch {
+      // Directory may not exist.
+    }
+  }
+
   async openFile(attachment: AttachmentDraft): Promise<void> {
     if (!attachment.dataUrl) {
       throw new Error('File content is not available on this device');

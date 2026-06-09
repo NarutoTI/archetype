@@ -11,6 +11,10 @@ export const useUserStore = defineStore('user', () => {
     return useSettingsStore().preferences.maxGalleryImages;
   });
 
+  const maxAttachmentFiles = computed(() => {
+    return useSettingsStore().preferences.maxAttachmentFiles;
+  });
+
   const setCurrentUser = (user: User | null) => {
     currentUser.value = user;
   };
@@ -23,6 +27,7 @@ export const useUserStore = defineStore('user', () => {
     currentUser,
     isAuthenticated,
     maxGalleryImages,
+    maxAttachmentFiles,
     setCurrentUser,
     reset,
   };
