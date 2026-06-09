@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Android App Starter</string>
+    <string name="title_activity_main">Android App Starter</string>
+    <string name="package_name">com.example.androidstarter</string>
+    <string name="custom_url_scheme">androidstarter</string>
+</resources>

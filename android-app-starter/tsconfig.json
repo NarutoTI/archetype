@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "strict": true,
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "isolatedModules": true, 
+    "esModuleInterop": true, //permite usar módulos ES6+ como CommonJS (compatibilidade)
+    "lib": ["ESNext", "DOM"], //tipos globais disponíveis
+    "skipLibCheck": true, //não verifica os tipos de arquivos .d.ts por performance
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

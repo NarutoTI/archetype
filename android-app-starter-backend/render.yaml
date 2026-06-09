@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: android-app-starter-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      #- key: LOG_LEVEL
+      #  value: important
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+    # Configure secrets such as MONGODB_URI, JWT_SECRET, GOOGLE_* and SMTP_* in the Render dashboard.

@@ -1,0 +1,10 @@
+{
+  "iconPath": "public/favicon.png",
+  "splashBackgroundColor": "#ffffff",
+  "splashBackgroundColorDark": "#000000",
+  "iconBackgroundColor": "#ffffff",
+  "iconBackgroundColorDark": "#000000",
+  "generateSplashScreens": true,
+  "generateIcons": true,
+  "platforms": ["android", "ios", "pwa"]
+} 

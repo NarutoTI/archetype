@@ -1,0 +1,160 @@
+{
+  "app": {
+    "name": "Android App Starter"
+  },
+  "common": {
+    "locale": "en-US",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "optional": "optional",
+    "language": "Language",
+    "menu": "Menu",
+    "user": "User"
+  },
+  "auth": {
+    "loginTitle": "Sign in to continue",
+    "login": "Login",
+    "register": "Register",
+    "name": "Name",
+    "birthDate": "Birth date",
+    "phone": "Phone",
+    "phonePlaceholder": "Example: +1 555 123 4567",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "forgotPassword": "Forgot password",
+    "resetPassword": "Reset password",
+    "resetPasswordInstructions": "Enter your email to receive a reset link.",
+    "sendResetEmail": "Send link",
+    "resendConfirmation": "Resend confirmation",
+    "resendConfirmationInstructions": "Enter your email to receive a new confirmation.",
+    "sendConfirmationEmail": "Send confirmation",
+    "loginWithGoogle": "Continue with Google",
+    "or": "or",
+    "signOut": "Sign out",
+    "loginSuccess": "Signed in",
+    "loginFailed": "Could not sign in.",
+    "registrationSuccess": "Account created. Check your email.",
+    "redirectingToProvider": "Redirecting...",
+    "processing": "Processing authentication...",
+    "callbackError": "Authentication error",
+    "callbackFailed": "Could not complete authentication.",
+    "invalidEmail": "Invalid email",
+    "invalidBirthDate": "Invalid date",
+    "invalidPhone": "Invalid phone",
+    "EMAIL_NOT_VERIFIED": "Email is not confirmed yet.",
+    "USER_ALREADY_EXISTS": "An account already exists with this email.",
+    "INVALID_CREDENTIALS": "Invalid email or password.",
+    "PASSWORD_RESET_EMAIL_SENT": "If the email exists, reset instructions will be sent.",
+    "PASSWORD_RESET_SUCCESS": "Password reset successfully.",
+    "CONFIRMATION_EMAIL_SENT": "Confirmation email sent."
+  },
+  "account": {
+    "deleteTitle": "Delete account",
+    "deleteDescription": "We will send a confirmation email before deleting your account.",
+    "deleteButton": "Request deletion",
+    "deleteRequested": "Check your email to confirm deletion.",
+    "deleteAccountError": "Could not request account deletion.",
+    "processingDeletion": "Processing deletion...",
+    "deletionErrorTitle": "Deletion error",
+    "deletionSuccessTitle": "Account deleted",
+    "deletionSuccessMessage": "Account deleted successfully.",
+    "instructionsTitle": "Deletion instructions",
+    "instructionsText": "Account deletion is confirmed by email to protect the user."
+  },
+  "biometric": {
+    "enable": "Biometrics",
+    "enabled": "Biometrics enabled",
+    "disabled": "Biometrics disabled",
+    "enableTitle": "Enable biometrics?",
+    "enableMessage": "Use biometrics to protect app access on this device.",
+    "enableButton": "Enable",
+    "notNowButton": "Not now",
+    "authenticateToLogin": "Authenticate to login",
+    "authenticationRequired": "Authentication required",
+    "authenticatePrompt": "Confirm your identity to open the app"
+  },
+  "tasks": {
+    "title": "Tasks",
+    "new": "New task",
+    "empty": "No tasks yet. Tap + to create one.",
+    "pending": "Pending",
+    "completed": "Completed",
+    "upcoming": "{count} upcoming",
+    "taskTitle": "Title",
+    "taskPlaceholder": "Example: Buy bread",
+    "dueDate": "Date",
+    "remove": "Remove task"
+  },
+  "media": {
+    "title": "Media",
+    "takePhoto": "Take photo",
+    "choosePhotos": "Choose photos",
+    "addImage": "Add image",
+    "processingImage": "Processing image...",
+    "imageInfo": "{count}/{max} images",
+    "cameraPermissionRequired": "Camera permission",
+    "cameraPermissionRequiredDescription": "Enable camera permission in settings to take photos.",
+    "cameraPermissionGranted": "Camera permission granted.",
+    "cameraPermissionDenied": "Camera permission not granted.",
+    "sharedImagesImported": "{count} image(s) imported."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "scheduleTest": "Schedule test",
+    "scheduled": "Notification scheduled.",
+    "clearAll": "Clear notifications",
+    "permissionNeeded": "Permission needed",
+    "permissionRequired": "Enable notifications to receive reminders.",
+    "grantPermission": "Allow",
+    "openSettings": "Open settings",
+    "permissionGranted": "Permission granted.",
+    "permissionDenied": "Permission not granted.",
+    "notSupported": "Notifications are not available on this device.",
+    "testTitle": "Test",
+    "testBody": "Example local notification."
+  },
+  "settings": {
+    "title": "Settings",
+    "theme": "Theme",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "testNotification": "Test notification",
+    "openNotificationSettings": "Open app settings",
+    "debugNotificationStatus": "Notification status",
+    "debugLocationStatus": "Location status"
+  },
+  "version": {
+    "checkForUpdates": "Check for updates",
+    "updateAvailable": "Update available",
+    "updateMessage": "Current version: {current}. New version: {latest}.",
+    "later": "Later",
+    "updateNow": "Update",
+    "upToDate": "App is up to date.",
+    "errorChecking": "Could not check updates.",
+    "errorOpeningStore": "Could not open the store."
+  },
+  "services": {
+    "api": {
+      "authError": "Session expired",
+      "authErrorMessage": "Sign in again to continue."
+    }
+  },
+  "errors": {
+    "networkError": "Network error.",
+    "backend": {
+      "VALIDATION_ERROR": "Invalid data.",
+      "UNAUTHORIZED": "Unauthorized.",
+      "FORBIDDEN": "Access denied.",
+      "NOT_FOUND": "Not found.",
+      "INTERNAL_SERVER_ERROR": "Internal server error."
+    }
+  }
+}

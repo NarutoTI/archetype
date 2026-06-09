@@ -1,0 +1,160 @@
+{
+  "app": {
+    "name": "Android App Starter"
+  },
+  "common": {
+    "locale": "pt-BR",
+    "ok": "OK",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "delete": "Excluir",
+    "close": "Fechar",
+    "yes": "Sim",
+    "no": "Não",
+    "optional": "opcional",
+    "language": "Idioma",
+    "menu": "Menu",
+    "user": "Usuário"
+  },
+  "auth": {
+    "loginTitle": "Entre para continuar",
+    "login": "Login",
+    "register": "Cadastro",
+    "name": "Nome",
+    "birthDate": "Data de nascimento",
+    "phone": "Telefone",
+    "phonePlaceholder": "Ex.: +55 11 99999-9999",
+    "email": "Email",
+    "password": "Senha",
+    "signIn": "Entrar",
+    "signUp": "Cadastrar",
+    "forgotPassword": "Esqueci minha senha",
+    "resetPassword": "Redefinir senha",
+    "resetPasswordInstructions": "Informe seu email para receber um link de redefinição.",
+    "sendResetEmail": "Enviar link",
+    "resendConfirmation": "Reenviar confirmação",
+    "resendConfirmationInstructions": "Informe seu email para receber uma nova confirmação.",
+    "sendConfirmationEmail": "Enviar confirmação",
+    "loginWithGoogle": "Entrar com Google",
+    "or": "ou",
+    "signOut": "Sair",
+    "loginSuccess": "Login realizado",
+    "loginFailed": "Não foi possível entrar.",
+    "registrationSuccess": "Cadastro criado. Verifique seu email.",
+    "redirectingToProvider": "Redirecionando...",
+    "processing": "Processando autenticação...",
+    "callbackError": "Erro de autenticação",
+    "callbackFailed": "Não foi possível concluir a autenticação.",
+    "invalidEmail": "Email inválido",
+    "invalidBirthDate": "Data inválida",
+    "invalidPhone": "Telefone inválido",
+    "EMAIL_NOT_VERIFIED": "Email ainda não confirmado.",
+    "USER_ALREADY_EXISTS": "Já existe uma conta com este email.",
+    "INVALID_CREDENTIALS": "Email ou senha inválidos.",
+    "PASSWORD_RESET_EMAIL_SENT": "Se o email existir, enviaremos instruções de redefinição.",
+    "PASSWORD_RESET_SUCCESS": "Senha redefinida com sucesso.",
+    "CONFIRMATION_EMAIL_SENT": "Email de confirmação enviado."
+  },
+  "account": {
+    "deleteTitle": "Excluir conta",
+    "deleteDescription": "Enviaremos um email de confirmação antes de excluir sua conta.",
+    "deleteButton": "Solicitar exclusão",
+    "deleteRequested": "Verifique seu email para confirmar a exclusão.",
+    "deleteAccountError": "Não foi possível solicitar a exclusão.",
+    "processingDeletion": "Processando exclusão...",
+    "deletionErrorTitle": "Erro ao excluir conta",
+    "deletionSuccessTitle": "Conta excluída",
+    "deletionSuccessMessage": "Conta excluída com sucesso.",
+    "instructionsTitle": "Instruções de exclusão",
+    "instructionsText": "A exclusão de conta é confirmada por email para proteger o usuário."
+  },
+  "biometric": {
+    "enable": "Biometria",
+    "enabled": "Biometria ativada",
+    "disabled": "Biometria desativada",
+    "enableTitle": "Ativar biometria?",
+    "enableMessage": "Use biometria para proteger o acesso ao app neste dispositivo.",
+    "enableButton": "Ativar",
+    "notNowButton": "Agora não",
+    "authenticateToLogin": "Autentique para entrar",
+    "authenticationRequired": "Autenticação necessária",
+    "authenticatePrompt": "Confirme sua identidade para abrir o app"
+  },
+  "tasks": {
+    "title": "Tarefas",
+    "new": "Nova tarefa",
+    "empty": "Nenhuma tarefa ainda. Toque em + para criar.",
+    "pending": "Pendentes",
+    "completed": "Concluídas",
+    "upcoming": "{count} a vencer",
+    "taskTitle": "Título",
+    "taskPlaceholder": "Ex.: Comprar pão",
+    "dueDate": "Data",
+    "remove": "Remover tarefa"
+  },
+  "media": {
+    "title": "Mídia",
+    "takePhoto": "Tirar foto",
+    "choosePhotos": "Escolher fotos",
+    "addImage": "Adicionar imagem",
+    "processingImage": "Processando imagem...",
+    "imageInfo": "{count}/{max} imagens",
+    "cameraPermissionRequired": "Permissão da câmera",
+    "cameraPermissionRequiredDescription": "Ative a permissão da câmera nas configurações para tirar fotos.",
+    "cameraPermissionGranted": "Permissão da câmera concedida.",
+    "cameraPermissionDenied": "Permissão da câmera não concedida.",
+    "sharedImagesImported": "{count} imagem(ns) importada(s)."
+  },
+  "notifications": {
+    "title": "Notificações",
+    "scheduleTest": "Agendar teste",
+    "scheduled": "Notificação agendada.",
+    "clearAll": "Limpar notificações",
+    "permissionNeeded": "Permissão necessária",
+    "permissionRequired": "Ative notificações para receber lembretes.",
+    "grantPermission": "Permitir",
+    "openSettings": "Abrir configurações",
+    "permissionGranted": "Permissão concedida.",
+    "permissionDenied": "Permissão não concedida.",
+    "notSupported": "Notificações não disponíveis neste dispositivo.",
+    "testTitle": "Teste",
+    "testBody": "Notificação local de exemplo."
+  },
+  "settings": {
+    "title": "Configurações",
+    "theme": "Tema",
+    "themeSystem": "Sistema",
+    "themeLight": "Claro",
+    "themeDark": "Escuro",
+    "testNotification": "Testar notificação",
+    "openNotificationSettings": "Abrir configurações do app",
+    "debugNotificationStatus": "Status das notificações",
+    "debugLocationStatus": "Status da localização"
+  },
+  "version": {
+    "checkForUpdates": "Verificar atualizações",
+    "updateAvailable": "Atualização disponível",
+    "updateMessage": "Versão atual: {current}. Nova versão: {latest}.",
+    "later": "Depois",
+    "updateNow": "Atualizar",
+    "upToDate": "App atualizado.",
+    "errorChecking": "Não foi possível verificar atualizações.",
+    "errorOpeningStore": "Não foi possível abrir a loja."
+  },
+  "services": {
+    "api": {
+      "authError": "Sessão expirada",
+      "authErrorMessage": "Entre novamente para continuar."
+    }
+  },
+  "errors": {
+    "networkError": "Erro de rede.",
+    "backend": {
+      "VALIDATION_ERROR": "Dados inválidos.",
+      "UNAUTHORIZED": "Não autorizado.",
+      "FORBIDDEN": "Acesso negado.",
+      "NOT_FOUND": "Não encontrado.",
+      "INTERNAL_SERVER_ERROR": "Erro interno."
+    }
+  }
+}

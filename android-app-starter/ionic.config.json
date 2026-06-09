@@ -1,0 +1,7 @@
+{
+  "name": "android-app-starter",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "vue-vite"
+}

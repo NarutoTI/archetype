@@ -1,0 +1,52 @@
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--ion-color-medium);
+}
+
+.modal-primary-action {
+  --background: var(--accent-color, var(--ion-color-primary));
+  --background-hover: var(--accent-color-shade, var(--ion-color-primary-shade));
+  --background-activated: var(--accent-color-shade, var(--ion-color-primary-shade));
+  --color: var(--accent-color-contrast, var(--ion-color-primary-contrast));
+  --border-radius: 4px;
+  --box-shadow: none;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.alert-success,
+.alert-danger,
+.alert-warning,
+.alert-primary,
+.alert-secondary,
+.alert-tertiary {
+  --alert-accent: var(--ion-color-primary);
+}
+
+.alert-success { --alert-accent: var(--ion-color-success); }
+.alert-danger { --alert-accent: var(--ion-color-danger); }
+.alert-warning { --alert-accent: var(--ion-color-warning); }
+.alert-secondary { --alert-accent: var(--ion-color-secondary); }
+.alert-tertiary { --alert-accent: var(--ion-color-tertiary); }
+
+:is(.alert-success, .alert-danger, .alert-warning, .alert-primary, .alert-secondary, .alert-tertiary) .alert-wrapper {
+  background: color-mix(in srgb, var(--alert-accent) 8%, var(--ion-background-color, #fff)) !important;
+  border: 1px solid color-mix(in srgb, var(--alert-accent) 30%, transparent) !important;
+}
+
+:is(.alert-success, .alert-danger, .alert-warning, .alert-primary, .alert-secondary, .alert-tertiary) .alert-title {
+  color: var(--alert-accent) !important;
+  -webkit-text-fill-color: var(--alert-accent) !important;
+}
+
+.alert-button-success { color: var(--ion-color-success) !important; }
+.alert-button-danger { color: var(--ion-color-danger) !important; }
+.alert-button-warning { color: var(--ion-color-warning) !important; }
+.alert-button-primary { color: var(--ion-color-primary) !important; }
+.alert-button-secondary { color: var(--ion-color-secondary) !important; }
+.alert-button-tertiary { color: var(--ion-color-tertiary) !important; }
