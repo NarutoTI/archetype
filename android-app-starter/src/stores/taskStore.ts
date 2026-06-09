@@ -21,7 +21,9 @@ const taskReminderKey = (id: string) => `task-reminder-${id}`;
 export const useTaskStore = defineStore('tasks', () => {
   const userStore = useUserStore();
   let initializePromise: Promise<void> | null = null;
+  let initializePromiseScope: string | null = null;
   let allTasksSyncPromise: Promise<Task[]> | null = null;
+  let allTasksSyncPromiseScope: string | null = null;
 
   // All cache mechanics (memory buckets, Preferences persistence, scope
   // guard, fetch dedupe) live in the generic composable. This store keeps
@@ -60,10 +62,17 @@ export const useTaskStore = defineStore('tasks', () => {
   );
 
   const loadAllFromServer = async (silent = false): Promise<Task[]> => {
-    if (allTasksSyncPromise) return allTasksSyncPromise;
+    const scopeAtStart = cache.currentScope();
+    if (allTasksSyncPromise && allTasksSyncPromiseScope === scopeAtStart) {
+      return allTasksSyncPromise;
+    }
+    if (allTasksSyncPromise && allTasksSyncPromiseScope !== scopeAtStart) {
+      allTasksSyncPromise = null;
+      allTasksSyncPromiseScope = null;
+    }
     if (!silent) isLoading.value = true;
 
-    const scopeAtStart = cache.currentScope();
+    allTasksSyncPromiseScope = scopeAtStart;
     allTasksSyncPromise = (async () => {
       try {
         const data = await taskService.getAll();
@@ -75,8 +84,12 @@ export const useTaskStore = defineStore('tasks', () => {
         }
         return data;
       } finally {
-        if (!silent) isLoading.value = false;
-        allTasksSyncPromise = null;
+        const scopeStillCurrent = cache.currentScope() === scopeAtStart;
+        if (scopeStillCurrent && !silent) isLoading.value = false;
+        if (allTasksSyncPromiseScope === scopeAtStart) {
+          allTasksSyncPromise = null;
+          allTasksSyncPromiseScope = null;
+        }
       }
     })();
 
@@ -86,21 +99,24 @@ export const useTaskStore = defineStore('tasks', () => {
   // Network fetch for one year. Concurrent callers share the same request via
   // the cache dedupe; each caller still controls its own loading flag.
   const fetchYear = async (year: number, silent: boolean): Promise<Task[]> => {
+    const scopeAtStart = cache.currentScope();
     if (!silent) isLoading.value = true;
     try {
       return await cache.fetchBucket(year, () => taskService.getTasksForYear(year));
     } finally {
-      if (!silent) isLoading.value = false;
+      if (!silent && cache.currentScope() === scopeAtStart) isLoading.value = false;
     }
   };
 
   const loadYear = async (year: number, force = false, silent = false): Promise<Task[]> => {
+    const scopeAtStart = cache.currentScope();
     if (!force && cache.hasBucket(year)) {
       return cache.getBucket(year);
     }
 
     if (!force) {
       const cachedTasks = await cache.loadBucketFromStorage(year);
+      if (cache.currentScope() !== scopeAtStart) return [];
       if (cachedTasks?.length) {
         await cache.setBucket(year, cachedTasks, { persist: false });
         void fetchYear(year, true)
@@ -117,14 +133,27 @@ export const useTaskStore = defineStore('tasks', () => {
     // in-memory cache; reset the store flag so data is loaded for the new user.
     if (cache.ensureScope()) {
       isLoaded.value = false;
+      isLoading.value = false;
+      initializePromise = null;
+      initializePromiseScope = null;
+      allTasksSyncPromise = null;
+      allTasksSyncPromiseScope = null;
     }
     if (isLoaded.value) return;
-    if (initializePromise) return initializePromise;
+    const scopeAtStart = cache.currentScope();
+    if (initializePromise && initializePromiseScope === scopeAtStart) return initializePromise;
+    if (initializePromise && initializePromiseScope !== scopeAtStart) {
+      initializePromise = null;
+      initializePromiseScope = null;
+    }
 
+    initializePromiseScope = scopeAtStart;
     initializePromise = (async () => {
       const restored = await cache.initializeFromStorage();
+      if (cache.currentScope() !== scopeAtStart) return;
       if (!restored) {
         await loadYear(selectedDateYear.value);
+        if (cache.currentScope() !== scopeAtStart) return;
       }
       isLoaded.value = true;
       void loadAllFromServer(true).catch((error) => logger.error('TaskStore background sync failed', error));
@@ -133,7 +162,10 @@ export const useTaskStore = defineStore('tasks', () => {
     try {
       await initializePromise;
     } finally {
-      initializePromise = null;
+      if (initializePromiseScope === scopeAtStart) {
+        initializePromise = null;
+        initializePromiseScope = null;
+      }
     }
   };
 

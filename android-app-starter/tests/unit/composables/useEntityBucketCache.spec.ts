@@ -158,6 +158,26 @@ describe('useEntityBucketCache', () => {
     expect(storage.has('test-cache:user-2:2026')).toBe(false);
   });
 
+  it('does not store stale fetch results when the scope changes before being observed', async () => {
+    const cache = createCache();
+    let resolveFetch: (value: Item[]) => void = () => {};
+    const fetchPromise = cache.fetchBucket(
+      2026,
+      () => new Promise<Item[]>((resolve) => { resolveFetch = resolve; }),
+    );
+
+    // Simulates auth switching users while the old request is still pending,
+    // before another store operation has had a chance to call ensureScope().
+    scope = 'user-2';
+
+    resolveFetch([item('stale', '2026-06-10')]);
+    await fetchPromise;
+
+    expect(cache.currentScope()).toBe('user-2');
+    expect(cache.hasBucket(2026)).toBe(false);
+    expect(storage.has('test-cache:user-2:2026')).toBe(false);
+  });
+
   it('supports string buckets (e.g. country:year compound keys)', async () => {
     const cache = useEntityBucketCache<{ id: string; country: string; year: number }, string>({
       cachePrefix: 'holidays-cache',

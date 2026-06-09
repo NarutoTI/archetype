@@ -38,6 +38,7 @@ vi.mock('@/services/notification.service', () => ({
 }));
 
 import { useTaskStore } from '@/stores/taskStore';
+import { useUserStore } from '@/stores/userStore';
 
 const task = (overrides: Partial<Task> = {}): Task => ({
   id: '1',
@@ -47,6 +48,13 @@ const task = (overrides: Partial<Task> = {}): Task => ({
   createdAt: 1700000000000,
   updatedAt: 1700000000000,
   ...overrides,
+});
+
+const user = (id: string) => ({
+  id,
+  name: id,
+  email: `${id}@example.com`,
+  provider: 'fake',
 });
 
 describe('taskStore', () => {
@@ -169,5 +177,30 @@ describe('taskStore', () => {
     void store.pendingTasks;
 
     expect(store.yearCache.get(2026)?.map((item) => item.title)).toEqual(original);
+  });
+
+  it('loadAllFromServer() does not reuse a pending sync from another user scope', async () => {
+    const userStore = useUserStore();
+    userStore.setCurrentUser(user('user-1'));
+
+    let resolveUserOneSync: (value: Task[]) => void = () => {};
+    taskServiceMock.getAll
+      .mockImplementationOnce(() => new Promise<Task[]>((resolve) => { resolveUserOneSync = resolve; }))
+      .mockResolvedValueOnce([task({ id: 'user-2-task', title: 'User 2' })]);
+
+    const store = useTaskStore();
+    const userOneSync = store.loadAllFromServer(true);
+
+    userStore.setCurrentUser(user('user-2'));
+    const userTwoSync = store.loadAllFromServer(true);
+
+    expect(taskServiceMock.getAll).toHaveBeenCalledTimes(2);
+
+    resolveUserOneSync([task({ id: 'stale-user-1-task', title: 'User 1' })]);
+    await Promise.all([userOneSync, userTwoSync]);
+
+    expect(store.tasks.map((item) => item.id)).toEqual(['user-2-task']);
+    expect(storage.has('starter-tasks-cache:user-1:2026')).toBe(false);
+    expect(storage.has('starter-tasks-cache:user-2:2026')).toBe(true);
   });
 });

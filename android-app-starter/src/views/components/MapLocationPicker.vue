@@ -256,22 +256,25 @@ const placeMarker = (lat: number, lng: number) => {
 };
 
 const updateLocationFromCoordinates = async (lat: number, lng: number) => {
+  if (!props.isOpen) return;
   isLoadingAddress.value = true;
   try {
     const address = await LocationService.reverseGeocode(lat, lng);
+    if (!props.isOpen) return;
     selectedLocation.value = {
       address,
       coordinates: { latitude: lat, longitude: lng },
     };
   } catch (error) {
     logger.error('Error reverse geocoding:', error);
+    if (!props.isOpen) return;
     // Fallback to coordinates only
     selectedLocation.value = {
       address: LocationService.formatCoordinatesForDisplay({ latitude: lat, longitude: lng }),
       coordinates: { latitude: lat, longitude: lng },
     };
   } finally {
-    isLoadingAddress.value = false;
+    if (props.isOpen) isLoadingAddress.value = false;
   }
 };
 
@@ -333,6 +336,7 @@ const cleanupMap = () => {
   selectedLocation.value = undefined;
   searchQuery.value = '';
   searchResults.value = [];
+  isLoadingAddress.value = false;
 };
 
 onBeforeUnmount(() => {

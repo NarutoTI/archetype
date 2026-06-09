@@ -85,6 +85,14 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
     return activeScope as string;
   };
 
+  const isCurrentScope = (scopeAtStart: string): boolean => {
+    if (options.getScope() !== scopeAtStart) {
+      ensureScope();
+      return false;
+    }
+    return activeScope === scopeAtStart;
+  };
+
   const compareBuckets = (a: TBucket, b: TBucket) =>
     typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b));
 
@@ -180,13 +188,15 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
 
   /** Restores the bucket index and every cached bucket. Returns true when anything was restored. */
   const initializeFromStorage = async (): Promise<boolean> => {
-    ensureScope();
+    const scopeAtStart = currentScope();
     const cachedBuckets = await loadBucketIndexFromStorage();
+    if (!isCurrentScope(scopeAtStart)) return false;
     if (!cachedBuckets.length) return false;
 
     const entries = await Promise.all(
       cachedBuckets.map(async (bucket) => [bucket, await loadBucketFromStorage(bucket)] as const),
     );
+    if (!isCurrentScope(scopeAtStart)) return false;
 
     let restored = false;
     for (const [bucket, bucketEntries] of entries) {
@@ -280,15 +290,14 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
    * which case the stale result is discarded.
    */
   const fetchBucket = (bucket: TBucket, fetcher: () => Promise<T[]>): Promise<T[]> => {
-    ensureScope();
+    const scopeAtStart = currentScope();
     const pending = inFlightFetches.get(bucket);
     if (pending) return pending;
 
-    const scopeAtStart = activeScope;
     const fetchPromise = (async () => {
       try {
         const data = await fetcher();
-        if (activeScope === scopeAtStart) {
+        if (isCurrentScope(scopeAtStart)) {
           await setBucket(bucket, data);
         }
         return data;
@@ -296,7 +305,7 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
         // Under the same scope the stored handle can only be ours (callers
         // dedupe on it). After a scope switch the map was already cleared and
         // may hold a new fetch — leave it alone.
-        if (activeScope === scopeAtStart) {
+        if (isCurrentScope(scopeAtStart)) {
           inFlightFetches.delete(bucket);
         }
       }
