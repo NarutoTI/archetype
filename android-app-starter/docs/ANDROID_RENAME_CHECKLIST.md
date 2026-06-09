@@ -16,6 +16,22 @@ Ao criar um app real a partir do starter, troque:
 Evite publicar com `com.example.*`: é bom para template, mas deve ser substituído
 antes da Play Store.
 
+## O que versionar do Android
+
+Mantenha `android/` no Git. A pasta contém a base nativa do starter: manifesto,
+pacote do `MainActivity`, recursos, deep link, share target e configuração Gradle.
+Sem ela, quem usar o archetype teria que recriar o projeto nativo e reaplicar
+essas configurações manualmente.
+
+Não versione arquivos locais ou gerados:
+
+- `android/.gradle`;
+- `android/build`;
+- `android/app/build`;
+- `android/app/src/main/assets`;
+- `android/local.properties`;
+- keystores (`*.jks`, `*.keystore`).
+
 ## Antes de publicar (hardening)
 
 O `capacitor.config.ts` vem com defaults de desenvolvimento que devem ser

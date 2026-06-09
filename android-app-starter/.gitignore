@@ -34,6 +34,12 @@ npm-debug.log*
 /.eslintignore
 /.eslintrc.cjs
 /android/app/src/main/assets
+/android/.gradle
+/android/build
+/android/app/build
+/android/local.properties
+*.jks
+*.keystore
 /.env
 /.env.*
 !/.env.example

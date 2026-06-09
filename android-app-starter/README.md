@@ -25,6 +25,29 @@ npm run cap:sync
 npx cap open android
 ```
 
+## Pasta Android no Git
+
+Mantenha a pasta `android/` versionada. Este starter já traz configuração
+nativa que faz parte do arcabouço Android:
+
+- `applicationId` e `namespace`;
+- `AndroidManifest.xml` com deep link e share target;
+- `MainActivity`;
+- recursos em `android/app/src/main/res`;
+- arquivos Gradle do projeto.
+
+O que não deve ser commitado são artefatos locais ou gerados:
+
+- `android/.gradle`;
+- `android/build`;
+- `android/app/build`;
+- `android/app/src/main/assets`;
+- `android/local.properties`;
+- keystores (`*.jks`, `*.keystore`).
+
+O `.gitignore` já cobre esses casos. Depois de alterar web assets, rode
+`npm run cap:sync` para regenerar o que for necessário localmente.
+
 ## Fatia de exemplo: Tasks
 
 `Tasks` existe para demonstrar o molde do projeto:
