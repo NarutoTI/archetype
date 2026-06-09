@@ -5,4 +5,6 @@ export interface Task {
   completed: boolean;
   /** Epoch milliseconds, set by the backend. */
   createdAt: number;
+  /** Epoch milliseconds, set by the backend. */
+  updatedAt: number;
 }

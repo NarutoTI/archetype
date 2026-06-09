@@ -76,7 +76,7 @@ do frontend e do backend a cada push/PR.
 
 ```
 src/
-  composables/ # lógica reutilizável de stores (ex.: useEntityYearCache)
+  composables/ # lógica reutilizável de stores (ex.: useEntityBucketCache)
   i18n/        # mensagens PT/EN (manter as duas sincronizadas)
   router/      # rotas com guard de autenticação
   services/    # acesso a API, Capacitor e regras sem estado
@@ -103,12 +103,16 @@ docs/          # checklist de rename e docs do starter
 
 E em `src/composables/`:
 
-- `useEntityYearCache<T>`: cache genérico por ano para stores de domínio —
-  buckets em memória (`shallowRef` + `triggerRef`), persistência por usuário em
-  `Preferences` (bucket por ano + índice de anos), `upsertItem`/`removeItem`
-  (cobrem add, update e mudança de ano), `replaceAll` e `fetchYear` com dedupe
-  de chamadas concorrentes. A store de domínio mantém só regras de negócio,
-  política de rede/loading e estado de view (ver `taskStore.ts`).
+- `useEntityBucketCache<T, TBucket>`: cache genérico particionado para stores
+  de domínio. O bucket é qualquer chave derivada do item — ano (`2026`, caso
+  default), chave composta (`'BR:2026'`), mês etc. Possui: buckets em memória
+  (`shallowRef` + `triggerRef`), persistência por escopo em `Preferences`
+  (bucket + índice; buckets vazios ficam só em memória como marcador de
+  "carregado"), guarda de escopo (troca de usuário derruba a memória e
+  descarta fetches atrasados do usuário anterior), `upsertItem`/`removeItem`
+  (cobrem add, update e mudança de bucket), `replaceAll` e `fetchBucket` com
+  dedupe de chamadas concorrentes. A store de domínio mantém só regras de
+  negócio, política de rede/loading e estado de view (ver `taskStore.ts`).
 
 ## Fatia de exemplo: Tasks
 
@@ -117,8 +121,9 @@ E em `src/composables/`:
 - tipo em `src/types/Task.ts`;
 - serviço HTTP em `src/services/task.service.ts`;
 - store Pinia com `initialize()` em `src/stores/taskStore.ts`, usando o cache
-  genérico por ano de `src/composables/useEntityYearCache.ts` (a store fica só
-  com domínio, rede e view; o cache é reutilizável por qualquer entidade);
+  genérico de `src/composables/useEntityBucketCache.ts` com anos como buckets
+  (a store fica só com domínio, rede e view; o cache é reutilizável por
+  qualquer entidade e particionamento);
 - tela Ionic em `src/views/TasksPage.vue` com criação, edição (toque no item ou
   swipe), exclusão com confirmação, pull-to-refresh e skeleton de carregamento;
 - lembrete por notificação local no dia do vencimento (09:00). O lembrete é

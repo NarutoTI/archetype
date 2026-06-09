@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import i18n from '@/i18n';
-import { useEntityYearCache } from '@/composables/useEntityYearCache';
+import { useEntityBucketCache } from '@/composables/useEntityBucketCache';
 import taskService, { type UpdateTaskPayload } from '@/services/task.service';
 import { notificationService } from '@/services/notification.service';
 import { dateToISOString, isPastDateTime, isSameOrFutureDate } from '@/utils/date.utils';
@@ -23,16 +23,16 @@ export const useTaskStore = defineStore('tasks', () => {
   let initializePromise: Promise<void> | null = null;
   let allTasksSyncPromise: Promise<Task[]> | null = null;
 
-  // All cache mechanics (memory buckets, Preferences persistence, fetch
-  // dedupe) live in the generic composable. This store keeps domain rules,
-  // network/loading policy and view state only.
-  const cache = useEntityYearCache<Task>({
+  // All cache mechanics (memory buckets, Preferences persistence, scope
+  // guard, fetch dedupe) live in the generic composable. This store keeps
+  // domain rules, network/loading policy and view state only.
+  const cache = useEntityBucketCache<Task>({
     cachePrefix: TASK_CACHE_PREFIX,
     getScope: () => {
       const user = userStore.currentUser;
       return user?.id || user?.email || 'anonymous';
     },
-    getItemYear: getTaskYear,
+    getItemBucket: getTaskYear,
     getItemId: (task) => task.id,
     compareItems: (a, b) => a.dueDate.localeCompare(b.dueDate),
   });
@@ -63,11 +63,16 @@ export const useTaskStore = defineStore('tasks', () => {
     if (allTasksSyncPromise) return allTasksSyncPromise;
     if (!silent) isLoading.value = true;
 
+    const scopeAtStart = cache.currentScope();
     allTasksSyncPromise = (async () => {
       try {
         const data = await taskService.getAll();
-        await cache.replaceAll(data);
-        logger.log(`TaskStore synced ${data.length} task(s) from backend`);
+        // Discard results that arrive after a user switch: they belong to the
+        // previous scope and must not touch the new user's cache.
+        if (cache.currentScope() === scopeAtStart) {
+          await cache.replaceAll(data);
+          logger.log(`TaskStore synced ${data.length} task(s) from backend`);
+        }
         return data;
       } finally {
         if (!silent) isLoading.value = false;
@@ -83,21 +88,21 @@ export const useTaskStore = defineStore('tasks', () => {
   const fetchYear = async (year: number, silent: boolean): Promise<Task[]> => {
     if (!silent) isLoading.value = true;
     try {
-      return await cache.fetchYear(year, () => taskService.getTasksForYear(year));
+      return await cache.fetchBucket(year, () => taskService.getTasksForYear(year));
     } finally {
       if (!silent) isLoading.value = false;
     }
   };
 
   const loadYear = async (year: number, force = false, silent = false): Promise<Task[]> => {
-    if (!force && cache.hasYear(year)) {
-      return cache.getYear(year);
+    if (!force && cache.hasBucket(year)) {
+      return cache.getBucket(year);
     }
 
     if (!force) {
-      const cachedTasks = await cache.loadYearFromStorage(year);
+      const cachedTasks = await cache.loadBucketFromStorage(year);
       if (cachedTasks?.length) {
-        await cache.setYear(year, cachedTasks, { persist: false });
+        await cache.setBucket(year, cachedTasks, { persist: false });
         void fetchYear(year, true)
           .catch((error) => logger.error(`TaskStore background sync failed for year ${year}`, error));
         return cachedTasks;
@@ -108,6 +113,11 @@ export const useTaskStore = defineStore('tasks', () => {
   };
 
   const initialize = async () => {
+    // When the scope changed (user switch), the composable already dropped the
+    // in-memory cache; reset the store flag so data is loaded for the new user.
+    if (cache.ensureScope()) {
+      isLoaded.value = false;
+    }
     if (isLoaded.value) return;
     if (initializePromise) return initializePromise;
 
@@ -187,14 +197,15 @@ export const useTaskStore = defineStore('tasks', () => {
   };
 
   return {
-    yearCache: cache.yearCache,
+    // Domain-friendly aliases: for tasks, the generic buckets are years.
+    yearCache: cache.buckets,
     tasks,
     pendingTasks,
     completedTasks,
     upcomingCount,
     isLoading,
     isLoaded,
-    loadedYears: cache.loadedYears,
+    loadedYears: cache.loadedBuckets,
     selectedDate,
     selectedDateYear,
     initialize,

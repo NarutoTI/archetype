@@ -45,6 +45,7 @@ const task = (overrides: Partial<Task> = {}): Task => ({
   dueDate: '2026-06-10',
   completed: false,
   createdAt: 1700000000000,
+  updatedAt: 1700000000000,
   ...overrides,
 });
 

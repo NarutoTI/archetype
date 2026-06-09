@@ -144,6 +144,7 @@ const selectedLocation = ref<AppLocation | undefined>(undefined);
 const searchQuery = ref('');
 const searchResults = ref<NominatimResult[]>([]);
 const isLoadingAddress = ref(false);
+let initTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 // Initialize map when modal opens
 watch(
@@ -157,14 +158,21 @@ watch(
     // Wait for modal to fully render before initializing map
     await nextTick();
 
-    // Delay so modal animations and layout are complete
-    setTimeout(async () => {
+    // Delay so modal animations and layout are complete. The handle is kept so
+    // a quick close cancels it, and `props.isOpen` is re-checked after every
+    // await: geolocation can resolve after the modal was dismissed.
+    initTimeoutId = setTimeout(async () => {
+      initTimeoutId = null;
+      if (!props.isOpen) return;
+
       // Without an initial location, try centering on the user position
       if (!props.initialLocation?.coordinates) {
         try {
           const hasPermission = await LocationService.requestLocationPermission();
+          if (!props.isOpen) return;
           if (hasPermission) {
             const currentLocation = await LocationService.getCurrentLocation(false);
+            if (!props.isOpen) return;
             initializeMap(
               currentLocation.coordinates?.latitude,
               currentLocation.coordinates?.longitude,
@@ -173,6 +181,7 @@ watch(
           }
         } catch (error) {
           logger.warn('Could not get current location for map, using default:', error);
+          if (!props.isOpen) return;
         }
       }
 
@@ -312,6 +321,10 @@ const closeModal = () => {
 };
 
 const cleanupMap = () => {
+  if (initTimeoutId !== null) {
+    clearTimeout(initTimeoutId);
+    initTimeoutId = null;
+  }
   if (map.value) {
     map.value.remove();
     map.value = null;

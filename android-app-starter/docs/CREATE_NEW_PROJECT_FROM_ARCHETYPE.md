@@ -114,8 +114,8 @@ As demos existem para ensinar padrões. Em um produto real, escolha caso a caso.
 Mantém exemplos de:
 
 - store Pinia com `initialize()`;
-- cache por ano via composable genérico `useEntityYearCache`
-  (memória + `Preferences` + dedupe de fetch);
+- cache por ano via composable genérico `useEntityBucketCache`
+  (memória + `Preferences` + guarda de escopo por usuário + dedupe de fetch);
 - CRUD backend protegido por JWT;
 - edição, swipe, pull-to-refresh, skeleton;
 - notificação local por vencimento.
@@ -129,8 +129,8 @@ Para remover:
   - `src/views/TasksPage.vue`;
   - rota/tab `tasks`;
   - testes `tests/unit/stores/taskStore.spec.ts`;
-  - **manter** `src/composables/useEntityYearCache.ts` (e o teste
-    `tests/unit/composables/useEntityYearCache.spec.ts`): é genérico e serve
+  - **manter** `src/composables/useEntityBucketCache.ts` (e o teste
+    `tests/unit/composables/useEntityBucketCache.spec.ts`): é genérico e serve
     para a store do domínio real;
 - backend:
   - `src/routes/taskRoutes.js`;
