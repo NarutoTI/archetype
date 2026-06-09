@@ -215,7 +215,7 @@ const showApiError = (error: unknown) => {
   void toastService.presentToastError(ErrorTranslationService.translateError(error));
 };
 
-// Closes the surrounding ion-item-sliding after an option is tapped.
+// Fecha o ion-item-sliding ao redor depois de tocar em uma opção.
 const closeSliding = (event?: Event) => {
   (event?.target as HTMLElement | null)?.closest('ion-item-sliding')?.close();
 };
@@ -262,7 +262,7 @@ const confirmSave = async () => {
     }
     closeTaskModal();
   } catch (error) {
-    // Keep the modal open so the user can retry without losing the draft.
+    // Mantém o modal aberto para o usuário tentar de novo sem perder o rascunho.
     showApiError(error);
   } finally {
     isSaving.value = false;

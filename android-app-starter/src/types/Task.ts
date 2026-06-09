@@ -3,8 +3,8 @@ export interface Task {
   title: string;
   dueDate: string;
   completed: boolean;
-  /** Epoch milliseconds, set by the backend. */
+  /** Epoch em milissegundos, definido pelo backend. */
   createdAt: number;
-  /** Epoch milliseconds, set by the backend. */
+  /** Epoch em milissegundos, definido pelo backend. */
   updatedAt: number;
 }

@@ -62,7 +62,14 @@ class AuthService {
     await Preferences.set({ key: 'auth_token', value: token });
   }
 
+  private async resetUserScopedStores() {
+    // Troca de usuário descarrega a memória das stores, mas preserva o cache em disco.
+    const { useTaskStore } = await import('@/stores/taskStore');
+    await useTaskStore().reset({ removePersisted: false });
+  }
+
   private async finalizeAuthenticatedSession(token: string, payload: Record<string, unknown>): Promise<User> {
+    await this.resetUserScopedStores();
     await this.storeToken(token);
     const user = this.setCurrentUserFromPayload(payload);
     await useSettingsStore().loadSettings();
@@ -70,6 +77,7 @@ class AuthService {
   }
 
   private async clearToken() {
+    await this.resetUserScopedStores();
     await Preferences.remove({ key: 'auth_token' });
     await useSettingsStore().clearUserScopedPreferences();
     useUserStore().setCurrentUser(null);
@@ -120,7 +128,7 @@ class AuthService {
     try {
       await Browser.close();
     } catch {
-      // Browser may already be closed.
+      // O Browser pode já estar fechado.
     }
   }
 

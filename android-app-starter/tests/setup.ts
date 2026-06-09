@@ -1,19 +1,19 @@
 /**
- * Vitest Global Setup
+ * Setup global do Vitest.
  * 
- * Configures test environment with necessary mocks and polyfills.
- * This runs before all tests.
+ * Configura o ambiente de teste com mocks e polyfills necessários.
+ * Roda antes de todos os testes.
  */
 
 import { vi } from 'vitest';
 
 // ============================================================================
-// Browser API Mocks
+// Mocks de APIs do navegador
 // ============================================================================
 
 /**
- * Mock window.matchMedia
- * Used by settingsStore for theme detection
+ * Mock de window.matchMedia.
+ * Usado pelo settingsStore para detectar tema.
  */
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -30,8 +30,8 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 /**
- * Mock IntersectionObserver
- * Used by some Ionic components
+ * Mock de IntersectionObserver.
+ * Usado por alguns componentes Ionic.
  */
 global.IntersectionObserver = class IntersectionObserver {
   constructor() {}
@@ -44,8 +44,8 @@ global.IntersectionObserver = class IntersectionObserver {
 } as any;
 
 /**
- * Mock ResizeObserver
- * Used by some Ionic components
+ * Mock de ResizeObserver.
+ * Usado por alguns componentes Ionic.
  */
 global.ResizeObserver = class ResizeObserver {
   constructor() {}
@@ -55,8 +55,8 @@ global.ResizeObserver = class ResizeObserver {
 } as any;
 
 /**
- * Mock localStorage
- * Some tests may need this
+ * Mock de localStorage.
+ * Alguns testes podem precisar disso.
  */
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -87,8 +87,8 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 /**
- * Mock performance.now()
- * Ensure it exists for performance tests
+ * Mock de performance.now().
+ * Garante que exista para testes de performance.
  */
 if (!global.performance) {
   (global as any).performance = {
@@ -103,12 +103,12 @@ if (!global.performance) {
 }
 
 // ============================================================================
-// Console Methods
+// Métodos de console
 // ============================================================================
 
 /**
- * Suppress console methods during tests (optional)
- * Uncomment if tests are too noisy
+ * Suprime métodos de console durante testes (opcional).
+ * Descomente se os testes ficarem ruidosos.
  */
 // global.console = {
 //   ...console,
@@ -120,27 +120,27 @@ if (!global.performance) {
 // };
 
 // ============================================================================
-// Environment Variables
+// Variáveis de ambiente
 // ============================================================================
 
 /**
- * Set test environment variables
+ * Define variáveis de ambiente dos testes.
  */
 process.env.NODE_ENV = 'test';
 process.env.VITE_API_URL = 'http://localhost:3000';
 process.env.VITE_USE_FAKE_LOGIN = 'false';
 
 // ============================================================================
-// Global Test Utilities
+// Utilitários globais de teste
 // ============================================================================
 
 /**
- * Wait utility for async tests
+ * Utilitário de espera para testes assíncronos.
  */
 (global as any).wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Flush promises utility
+ * Utilitário para drenar promises pendentes.
  */
 (global as any).flushPromises = () => new Promise(resolve => setImmediate(resolve));
 

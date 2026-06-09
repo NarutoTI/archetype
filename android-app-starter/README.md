@@ -113,6 +113,10 @@ E em `src/composables/`:
   (cobrem add, update e mudança de bucket), `replaceAll` e `fetchBucket` com
   dedupe de chamadas concorrentes. A store de domínio mantém só regras de
   negócio, política de rede/loading e estado de view (ver `taskStore.ts`).
+  O fluxo de auth também chama `reset({ removePersisted: false })` nas stores
+  user-scoped ao trocar usuário/logout: essa limpeza explícita mantém a store
+  simples, enquanto a guarda do cache continua como defesa contra requests
+  antigas que resolvem tarde.
 
 ## Fatia de exemplo: Tasks
 

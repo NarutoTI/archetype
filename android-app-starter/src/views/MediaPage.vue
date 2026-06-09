@@ -159,8 +159,8 @@ const getImageErrorMessage = (error: unknown) => {
   return t('media.imageAddError');
 };
 
-// Returns false instead of rethrowing: this is also an emit handler, where a
-// rejected promise would surface as an unhandled rejection.
+// Retorna false em vez de relançar: este handler também vem de um emit, onde
+// uma promise rejeitada apareceria como rejeição não tratada.
 const addImages = async (blobs: Blob[]): Promise<boolean> => {
   isProcessing.value = true;
   try {
@@ -275,7 +275,7 @@ const claimShareIfPending = async () => {
   if (imported) {
     await toastService.presentToastSuccess(t('media.sharedImagesImported', { count: pending.images.length }));
   }
-  // Always ack: retrying a share that failed (e.g. gallery limit) would loop forever.
+  // Sempre confirma consumo: repetir um share que falhou entraria em loop.
   await shareIntakeService.ackConsumed();
 };
 

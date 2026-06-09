@@ -194,7 +194,7 @@ class FileService {
     await Promise.all(
       attachments.map((attachment) =>
         this.deleteFile(itemId, attachment, collection).catch(() => {
-          // Missing files should not block metadata cleanup in the caller.
+          // Arquivos ausentes não devem bloquear a limpeza de metadados.
         }),
       ),
     );
@@ -208,7 +208,7 @@ class FileService {
         recursive: true,
       });
     } catch {
-      // Directory may not exist.
+      // O diretório pode não existir.
     }
   }
 

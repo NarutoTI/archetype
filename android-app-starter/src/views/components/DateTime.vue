@@ -32,7 +32,7 @@ import { dateToISOString, dateToISOStringWithTime } from '@/utils/date.utils';
 
 const props = withDefaults(defineProps<{
   presentation?: 'date' | 'time' | 'date-time';
-  // optional: prefix for predictable IDs
+  // opcional: prefixo para IDs previsíveis
   idPrefix?: string;
   showTimeButtons?: boolean;
   max?: string;
@@ -44,14 +44,14 @@ const props = withDefaults(defineProps<{
   disabled: false,
 });
 
-// v-models, default is mDateTime
+// v-models; o padrão é mDateTime
 const mDateTime = defineModel<string>(); // 'YYYY-MM-DDTHH:mm:ss'
 const mTime = defineModel<string>('time'); // 'HH:mm:ss'
 const mDate = defineModel<string>('date'); // 'YYYY-MM-DD'
 const maxDate = computed(() => props.max ?? '2099-12-31');
 const minDate = computed(() => props.min ?? '1900-01-01');
 
-// unique IDs per instance (prevents collision if the component is used multiple times)
+// IDs únicos por instância, evitando colisão quando o componente aparece várias vezes.
 const rand = Math.random().toString(36).slice(2, 8);
 const ids = {
   date: (props.idPrefix ?? 'DateTime') + '-date-' + rand,
@@ -66,8 +66,8 @@ const combine = (d?: string, t?: string) =>
       t ? `${dateToISOString(new Date())}T${t}` :
         dateToISOStringWithTime(new Date()));
 
-// --- INITIAL SYNC ---
-// priority: if parent passed dateTime, derive date/time; otherwise, compose from date/time
+// --- SINCRONIA INICIAL ---
+// Prioridade: se o pai passou dateTime, deriva date/time; senão, compõe pelos campos.
 if (mDateTime.value) {
   const [d, t] = mDateTime.value.split('T');
   if (d && d !== mDate.value) mDate.value = d;
@@ -77,7 +77,7 @@ if (mDateTime.value) {
   if (next !== mDateTime.value) mDateTime.value = next;
 }
 
-// --- SYNC: DT -> (date,time)
+// --- SINCRONIA: DT -> (date,time)
 watch(mDateTime, (nv) => {
   if (!nv) return;
   const [d, t] = nv.split('T');
@@ -85,18 +85,18 @@ watch(mDateTime, (nv) => {
   if (t && t !== mTime.value) mTime.value = t;
 });
 
-// --- SYNC: (date,time) -> DT
+// --- SINCRONIA: (date,time) -> DT
 watch([mDate, mTime], () => {
   const next = combine(mDate.value, mTime.value);
   if (next !== mDateTime.value) mDateTime.value = next;
 });
 
-// Handle date time cancel
+// Cancela a escolha de data/hora.
 const onComponentDateCancel = () => {
   dateTimeModal.value?.$el?.dismiss?.();
 };
 
-// Handle date time confirm
+// Confirma a escolha de data/hora.
 const onComponentDateConfirm = () => {
   dateDateTimeRef.value?.$el?.confirm?.();
   dateTimeModal.value?.$el?.dismiss?.();

@@ -200,7 +200,7 @@ const onLocationSelected = async (location: AppLocation) => {
   );
 };
 
-// Development helper to preview every alert color in one place.
+// Ajuda de desenvolvimento para pré-visualizar todas as cores de alerta.
 const testAlerts = async () => {
   const actionSheet = await actionSheetController.create({
     header: t('settings.testAlerts'),

@@ -42,7 +42,7 @@ export const useSettingsStore = defineStore('settings', () => {
       const isDark = document.documentElement.classList.contains('ion-palette-dark');
       await StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light });
     } catch {
-      // StatusBar is only available on native platforms.
+      // StatusBar só existe nas plataformas nativas.
     }
   };
 
@@ -143,7 +143,7 @@ export const useSettingsStore = defineStore('settings', () => {
   };
 
   const clearUserScopedPreferences = async () => {
-    // Keep device preferences such as theme, language and biometry.
+    // Mantém preferências do aparelho, como tema, idioma e biometria.
   };
 
   const reset = async () => {

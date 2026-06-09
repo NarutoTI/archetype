@@ -10,24 +10,22 @@ import type { Task } from '@/types/Task';
 import { useUserStore } from '@/stores/userStore';
 
 const TASK_CACHE_PREFIX = 'starter-tasks-cache';
-// Local notification fired on the task due date. Device-local by design:
-// reminders are not synced across devices in this starter.
+// Notificação local disparada no vencimento da tarefa. Por desenho, ela fica
+// só no aparelho e não sincroniza entre dispositivos neste starter.
 const TASK_REMINDER_TIME = '09:00';
 
 const getTaskYear = (task: Pick<Task, 'dueDate'>): number => Number(task.dueDate.slice(0, 4));
 
 const taskReminderKey = (id: string) => `task-reminder-${id}`;
+type ScopedJob<T> = { id: symbol; scope: string; promise: Promise<T> };
 
 export const useTaskStore = defineStore('tasks', () => {
   const userStore = useUserStore();
-  let initializePromise: Promise<void> | null = null;
-  let initializePromiseScope: string | null = null;
-  let allTasksSyncPromise: Promise<Task[]> | null = null;
-  let allTasksSyncPromiseScope: string | null = null;
+  let initializeJob: ScopedJob<void> | null = null;
+  let allTasksSyncJob: ScopedJob<Task[]> | null = null;
 
-  // All cache mechanics (memory buckets, Preferences persistence, scope
-  // guard, fetch dedupe) live in the generic composable. This store keeps
-  // domain rules, network/loading policy and view state only.
+  // A mecânica de cache fica no composable genérico. A store mantém apenas
+  // regras de domínio, política de rede/loading e estado usado pela tela.
   const cache = useEntityBucketCache<Task>({
     cachePrefix: TASK_CACHE_PREFIX,
     getScope: () => {
@@ -44,9 +42,8 @@ export const useTaskStore = defineStore('tasks', () => {
   const selectedDate = ref(dateToISOString(new Date()));
   const selectedDateYear = computed(() => Number(selectedDate.value.slice(0, 4)));
 
-  // `cache.items` is already globally sorted by dueDate (the bucket comparator
-  // aligns with the year partition); filter() returns fresh arrays, so the
-  // store state is never mutated by these derivations.
+  // `cache.items` já vem ordenado por `dueDate`: os buckets são anos e o
+  // comparador interno também usa a data. Os filtros abaixo criam novos arrays.
   const tasks = cache.items;
 
   const pendingTasks = computed(() => tasks.value.filter((task) => !task.completed));
@@ -63,21 +60,14 @@ export const useTaskStore = defineStore('tasks', () => {
 
   const loadAllFromServer = async (silent = false): Promise<Task[]> => {
     const scopeAtStart = cache.currentScope();
-    if (allTasksSyncPromise && allTasksSyncPromiseScope === scopeAtStart) {
-      return allTasksSyncPromise;
-    }
-    if (allTasksSyncPromise && allTasksSyncPromiseScope !== scopeAtStart) {
-      allTasksSyncPromise = null;
-      allTasksSyncPromiseScope = null;
-    }
+    if (allTasksSyncJob?.scope === scopeAtStart) return allTasksSyncJob.promise;
     if (!silent) isLoading.value = true;
 
-    allTasksSyncPromiseScope = scopeAtStart;
-    allTasksSyncPromise = (async () => {
+    const jobId = Symbol('tasks-sync');
+    const promise = (async () => {
       try {
         const data = await taskService.getAll();
-        // Discard results that arrive after a user switch: they belong to the
-        // previous scope and must not touch the new user's cache.
+        // Respostas antigas são descartadas quando o usuário muda no meio do voo.
         if (cache.currentScope() === scopeAtStart) {
           await cache.replaceAll(data);
           logger.log(`TaskStore synced ${data.length} task(s) from backend`);
@@ -86,18 +76,16 @@ export const useTaskStore = defineStore('tasks', () => {
       } finally {
         const scopeStillCurrent = cache.currentScope() === scopeAtStart;
         if (scopeStillCurrent && !silent) isLoading.value = false;
-        if (allTasksSyncPromiseScope === scopeAtStart) {
-          allTasksSyncPromise = null;
-          allTasksSyncPromiseScope = null;
-        }
+        if (allTasksSyncJob?.id === jobId) allTasksSyncJob = null;
       }
     })();
 
-    return allTasksSyncPromise;
+    allTasksSyncJob = { id: jobId, scope: scopeAtStart, promise };
+    return promise;
   };
 
-  // Network fetch for one year. Concurrent callers share the same request via
-  // the cache dedupe; each caller still controls its own loading flag.
+  // Busca de um ano. Chamadas concorrentes compartilham a request pelo cache,
+  // mas cada chamada ainda controla se exibe loading ou roda em silêncio.
   const fetchYear = async (year: number, silent: boolean): Promise<Task[]> => {
     const scopeAtStart = cache.currentScope();
     if (!silent) isLoading.value = true;
@@ -129,26 +117,17 @@ export const useTaskStore = defineStore('tasks', () => {
   };
 
   const initialize = async () => {
-    // When the scope changed (user switch), the composable already dropped the
-    // in-memory cache; reset the store flag so data is loaded for the new user.
+    // Normalmente o auth chama reset({ removePersisted: false }) na troca de
+    // usuário. Este guard fica como defesa para usos diretos da store.
     if (cache.ensureScope()) {
-      isLoaded.value = false;
-      isLoading.value = false;
-      initializePromise = null;
-      initializePromiseScope = null;
-      allTasksSyncPromise = null;
-      allTasksSyncPromiseScope = null;
+      clearRuntimeState();
     }
     if (isLoaded.value) return;
     const scopeAtStart = cache.currentScope();
-    if (initializePromise && initializePromiseScope === scopeAtStart) return initializePromise;
-    if (initializePromise && initializePromiseScope !== scopeAtStart) {
-      initializePromise = null;
-      initializePromiseScope = null;
-    }
+    if (initializeJob?.scope === scopeAtStart) return initializeJob.promise;
 
-    initializePromiseScope = scopeAtStart;
-    initializePromise = (async () => {
+    const jobId = Symbol('tasks-init');
+    const promise = (async () => {
       const restored = await cache.initializeFromStorage();
       if (cache.currentScope() !== scopeAtStart) return;
       if (!restored) {
@@ -159,18 +138,16 @@ export const useTaskStore = defineStore('tasks', () => {
       void loadAllFromServer(true).catch((error) => logger.error('TaskStore background sync failed', error));
     })();
 
+    initializeJob = { id: jobId, scope: scopeAtStart, promise };
     try {
-      await initializePromise;
+      await promise;
     } finally {
-      if (initializePromiseScope === scopeAtStart) {
-        initializePromise = null;
-        initializePromiseScope = null;
-      }
+      if (initializeJob?.id === jobId) initializeJob = null;
     }
   };
 
-  // Best-effort device reminder for pending tasks with a future due date.
-  // Notification failures must never block task CRUD, hence the broad catch.
+  // Lembrete local de melhor esforço para tarefas pendentes no futuro. Falhas de
+  // notificação nunca devem bloquear o CRUD.
   const syncTaskReminder = async (task: Task) => {
     try {
       const shouldRemind = !task.completed && !isPastDateTime(task.dueDate, TASK_REMINDER_TIME);
@@ -223,13 +200,20 @@ export const useTaskStore = defineStore('tasks', () => {
       logger.warn(`TaskStore: reminder cancel failed for task ${id}`, error));
   };
 
-  const reset = async () => {
-    await cache.clear();
+  const clearRuntimeState = () => {
+    initializeJob = null;
+    allTasksSyncJob = null;
+    isLoading.value = false;
     isLoaded.value = false;
   };
 
+  const reset = async (options: { removePersisted?: boolean } = {}) => {
+    clearRuntimeState();
+    await cache.clear({ removePersisted: options.removePersisted ?? true });
+  };
+
   return {
-    // Domain-friendly aliases: for tasks, the generic buckets are years.
+    // Alias de domínio: em Tasks, os buckets genéricos são anos.
     yearCache: cache.buckets,
     tasks,
     pendingTasks,

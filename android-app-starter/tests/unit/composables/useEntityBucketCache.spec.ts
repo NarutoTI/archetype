@@ -18,7 +18,7 @@ import { useEntityBucketCache } from '@/composables/useEntityBucketCache';
 
 interface Item {
   id: string;
-  date: string; // 'YYYY-MM-DD'; the year defines the bucket
+  date: string; // 'YYYY-MM-DD'; o ano define o bucket
 }
 
 const item = (id: string, date: string): Item => ({ id, date });
@@ -47,7 +47,7 @@ describe('useEntityBucketCache', () => {
     await cache.upsertItem(item('a', '2026-06-10'));
     expect(cache.getBucket(2026).map((entry) => entry.id)).toEqual(['a', 'b']);
 
-    // Moving "a" to 2027 must remove it from 2026 and persist both buckets.
+    // Mover "a" para 2027 remove de 2026 e persiste os dois buckets.
     await cache.upsertItem(item('a', '2027-01-05'));
     expect(cache.getBucket(2026).map((entry) => entry.id)).toEqual(['b']);
     expect(cache.getBucket(2027).map((entry) => entry.id)).toEqual(['a']);
@@ -119,9 +119,9 @@ describe('useEntityBucketCache', () => {
     const cache = createCache();
     await cache.setBucket(2026, []);
 
-    // Memory keeps the "loaded, but empty" marker to avoid refetching...
+    // A memória mantém o marcador "carregado, mas vazio" para evitar refetch...
     expect(cache.hasBucket(2026)).toBe(true);
-    // ...while the persisted index skips it.
+    // ...enquanto o índice persistido ignora esse bucket.
     expect(JSON.parse(storage.get('test-cache:user-1:years') || '[]')).toEqual([]);
     expect(storage.has('test-cache:user-1:2026')).toBe(false);
   });
@@ -133,10 +133,10 @@ describe('useEntityBucketCache', () => {
 
     scope = 'user-2';
 
-    // First operation under the new scope clears user-1 data from memory...
+    // A primeira operação no novo escopo limpa dados do user-1 da memória...
     expect(cache.ensureScope()).toBe(true);
     expect(cache.items.value).toHaveLength(0);
-    // ...without touching user-1 persisted entries.
+    // ...sem tocar nas entradas persistidas do user-1.
     expect(storage.has('test-cache:user-1:2026')).toBe(true);
   });
 
@@ -166,8 +166,8 @@ describe('useEntityBucketCache', () => {
       () => new Promise<Item[]>((resolve) => { resolveFetch = resolve; }),
     );
 
-    // Simulates auth switching users while the old request is still pending,
-    // before another store operation has had a chance to call ensureScope().
+    // Simula troca de usuário com request antiga pendente, antes de outra
+    // operação da store chamar ensureScope().
     scope = 'user-2';
 
     resolveFetch([item('stale', '2026-06-10')]);

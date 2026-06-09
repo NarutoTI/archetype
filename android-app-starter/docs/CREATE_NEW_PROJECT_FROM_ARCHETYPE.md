@@ -116,6 +116,8 @@ Mantém exemplos de:
 - store Pinia com `initialize()`;
 - cache por ano via composable genérico `useEntityBucketCache`
   (memória + `Preferences` + guarda de escopo por usuário + dedupe de fetch);
+- reset explícito de stores user-scoped no fluxo de auth, preservando cache em
+  disco com `reset({ removePersisted: false })`;
 - CRUD backend protegido por JWT;
 - edição, swipe, pull-to-refresh, skeleton;
 - notificação local por vencimento.

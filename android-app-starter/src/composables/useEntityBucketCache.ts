@@ -3,43 +3,41 @@ import { Preferences } from '@capacitor/preferences';
 import { logger } from '@/utils/logger';
 
 /**
- * Generic bucketed cache for domain stores.
+ * Cache genérico por bucket para stores de domínio.
  *
- * A "bucket" is any partition key derived from the item: a year (`2026`),
- * a composed key (`'BR:2026'`), a month (`'2026-06'`), etc. Year-partitioned
- * domains simply use the default `number` bucket.
+ * Um "bucket" é qualquer chave de partição derivada do item: ano (`2026`),
+ * chave composta (`'BR:2026'`), mês (`'2026-06'`) etc. Domínios particionados
+ * por ano podem usar o bucket numérico padrão.
  *
- * Owns the mechanics that every "entities per bucket" store repeats:
- * - in-memory `Map<bucket, T[]>` with manual `triggerRef` notifications;
- * - persistence of each bucket plus a bucket index in Preferences, scoped by
- *   `getScope` (e.g. current user id, or a constant for global caches);
- * - scope guard: when `getScope()` changes (user switch), the in-memory cache
- *   is dropped and late fetch results from the previous scope are discarded —
- *   persisted entries are already isolated per scope by the key layout;
- * - local mutations (`upsertItem`, `removeItem`, `replaceAll`) that keep
- *   memory and disk in sync;
- * - in-flight dedupe for network fetches (`fetchBucket`).
+ * Ele concentra a mecânica que toda store "entidades por bucket" repetiria:
+ * - `Map<bucket, T[]>` em memória com notificações manuais via `triggerRef`;
+ * - persistência de cada bucket e de um índice no Preferences, escopada por
+ *   `getScope` (id do usuário atual, ou constante para caches globais);
+ * - guarda de escopo: quando `getScope()` muda, a memória é descartada e
+ *   respostas atrasadas do escopo anterior são ignoradas;
+ * - mutações locais (`upsertItem`, `removeItem`, `replaceAll`) que sincronizam
+ *   memória e disco;
+ * - dedupe de fetches em andamento (`fetchBucket`).
  *
- * It deliberately does NOT own network/loading semantics (isLoading, silent
- * refresh policy) nor domain rules — those stay in the domain store. Views
- * should never consume this directly; expose state through the store.
+ * Ele não controla política de rede/loading nem regras de domínio. Isso fica
+ * na store. Views também não devem consumir este composable diretamente.
  */
 export interface EntityBucketCacheOptions<T, TBucket extends string | number = number> {
-  /** Prefix for Preferences keys (e.g. 'starter-tasks-cache'). */
+  /** Prefixo das chaves no Preferences (ex.: 'starter-tasks-cache'). */
   cachePrefix: string;
-  /** Cache scope, evaluated at read/write time (e.g. current user id). */
+  /** Escopo do cache, avaliado em leitura/escrita (ex.: id do usuário atual). */
   getScope: () => string;
-  /** Bucket an item belongs to (e.g. year of its date). */
+  /** Bucket ao qual o item pertence (ex.: ano da data). */
   getItemBucket: (item: T) => TBucket;
-  /** Stable identity used by upsertItem/removeItem. */
+  /** Identidade estável usada por upsertItem/removeItem. */
   getItemId: (item: T) => string;
-  /** Sort applied inside each bucket (optional). */
+  /** Ordenação aplicada dentro de cada bucket (opcional). */
   compareItems?: (a: T, b: T) => number;
-  /** Override the Preferences key layout. Default: `${prefix}:${scope}:${suffix}`. */
+  /** Sobrescreve o formato das chaves. Padrão: `${prefix}:${scope}:${suffix}`. */
   buildCacheKey?: (cachePrefix: string, scope: string, suffix: TBucket | string) => string;
   /**
-   * Suffix of the bucket index key. Default 'years' (historical). Change it
-   * when string buckets could collide with the literal value.
+   * Sufixo da chave de índice. Padrão 'years' por histórico. Troque quando
+   * buckets string puderem colidir com esse literal.
    */
   indexKeySuffix?: string;
 }
@@ -51,19 +49,18 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
     ?? ((prefix: string, scope: string, suffix: TBucket | string) => `${prefix}:${scope}:${suffix}`);
   const indexSuffix = options.indexKeySuffix ?? 'years';
 
-  // shallowRef on purpose: buckets are mutated in place and consumers are
-  // notified via triggerRef — no deep reactivity over every cached item.
+  // shallowRef de propósito: os buckets mudam em lugar e os consumidores são
+  // notificados com triggerRef, sem reatividade profunda em cada item.
   const bucketCache = shallowRef<Map<TBucket, T[]>>(new Map());
   const inFlightFetches = new Map<TBucket, Promise<T[]>>();
 
-  // Lazily captured on first use so creation order (store setup before auth
-  // is resolved) does not freeze a stale scope.
+  // Capturado no primeiro uso para que a ordem de criação da store não congele
+  // um escopo antigo antes da autenticação terminar.
   let activeScope: string | null = null;
 
   /**
-   * Re-reads the scope; when it changed (e.g. user switch), drops the
-   * in-memory cache and pending fetch handles. Returns true on change so the
-   * domain store can reset its own flags (isLoaded etc.).
+   * Relê o escopo. Quando ele muda, derruba memória e fetches pendentes.
+   * Retorna true na troca para a store resetar flags próprias, como isLoaded.
    */
   const ensureScope = (): boolean => {
     const scope = options.getScope();
@@ -79,7 +76,7 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
     return true;
   };
 
-  /** Current scope (capturing it on first use). Useful to discard stale async work. */
+  /** Escopo atual, capturado no primeiro uso. Útil para descartar async antigo. */
   const currentScope = (): string => {
     ensureScope();
     return activeScope as string;
@@ -98,10 +95,9 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
 
   const loadedBuckets = computed(() => [...bucketCache.value.keys()].sort(compareBuckets));
 
-  // Buckets concatenated in ascending bucket order, each bucket sorted by
-  // `compareItems`. When the comparator aligns with the bucket partition
-  // (e.g. sorting by a date whose year defines the bucket), this is already
-  // a globally sorted list.
+  // Buckets concatenados em ordem crescente. Quando o comparador combina com a
+  // partição (ex.: ordenar por data cujo ano define o bucket), isso já produz
+  // uma lista globalmente ordenada.
   const items = computed(() =>
     loadedBuckets.value.flatMap((bucket) => bucketCache.value.get(bucket) || []),
   );
@@ -115,8 +111,8 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
   };
 
   const saveBucketIndexToStorage = async () => {
-    // Empty buckets stay in memory as a "loaded, but empty" marker (avoids
-    // refetching), but are not worth persisting in the index.
+    // Buckets vazios ficam em memória como marcador "carregado, mas vazio",
+    // evitando refetch na sessão. Não vale persistir isso no índice.
     const nonEmptyBuckets = loadedBuckets.value
       .filter((bucket) => (bucketCache.value.get(bucket) || []).length > 0);
     await Preferences.set({
@@ -140,8 +136,8 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
     }
   };
 
-  // Writes a single bucket entry without touching the index. Multi-bucket
-  // operations persist buckets in parallel and write the index once at the end.
+  // Escreve um bucket sem tocar no índice. Operações multi-bucket persistem
+  // buckets em paralelo e gravam o índice uma vez no final.
   const persistBucketToStorage = async (bucket: TBucket) => {
     const entries = bucketCache.value.get(bucket) || [];
     if (entries.length) {
@@ -186,7 +182,7 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
     if (persist) await persistBuckets([bucket]);
   };
 
-  /** Restores the bucket index and every cached bucket. Returns true when anything was restored. */
+  /** Restaura índice e buckets persistidos. Retorna true se algo foi restaurado. */
   const initializeFromStorage = async (): Promise<boolean> => {
     const scopeAtStart = currentScope();
     const cachedBuckets = await loadBucketIndexFromStorage();
@@ -210,7 +206,7 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
     return restored;
   };
 
-  /** Replaces the whole cache (memory + disk), removing stale persisted buckets. */
+  /** Substitui o cache todo (memória + disco), removendo buckets obsoletos. */
   const replaceAll = async (allItems: T[]) => {
     ensureScope();
     const previousBuckets = loadedBuckets.value;
@@ -237,9 +233,9 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
   };
 
   /**
-   * Inserts or moves an item to the bucket it currently belongs to.
-   * Covers both "add" (no previous occurrence) and "update" (removes the old
-   * occurrence from any bucket, including bucket changes).
+   * Insere ou move um item para o bucket atual dele.
+   * Cobre add e update: remove a versão antiga de qualquer bucket e grava a
+   * nova no bucket correto.
    */
   const upsertItem = async (item: T) => {
     ensureScope();
@@ -284,10 +280,9 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
   };
 
   /**
-   * Fetches a bucket through `fetcher`, deduping concurrent callers: the
-   * second caller for the same bucket awaits the same promise. On success the
-   * bucket is stored and persisted — unless the scope changed meanwhile, in
-   * which case the stale result is discarded.
+   * Busca um bucket por `fetcher`, deduplicando chamadas concorrentes. Em caso
+   * de sucesso, armazena e persiste o bucket, exceto se o escopo mudou no meio
+   * do voo; nesse caso, a resposta antiga é descartada.
    */
   const fetchBucket = (bucket: TBucket, fetcher: () => Promise<T[]>): Promise<T[]> => {
     const scopeAtStart = currentScope();
@@ -302,9 +297,8 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
         }
         return data;
       } finally {
-        // Under the same scope the stored handle can only be ours (callers
-        // dedupe on it). After a scope switch the map was already cleared and
-        // may hold a new fetch — leave it alone.
+        // No mesmo escopo, o handle salvo só pode ser o nosso. Após troca de
+        // escopo, o map já foi limpo e pode conter fetch novo; não toque nele.
         if (isCurrentScope(scopeAtStart)) {
           inFlightFetches.delete(bucket);
         }
@@ -315,10 +309,11 @@ export function useEntityBucketCache<T, TBucket extends string | number = number
     return fetchPromise;
   };
 
-  /** Clears memory and (by default) every persisted bucket plus the index. */
+  /** Limpa memória e, por padrão, também buckets persistidos e índice. */
   const clear = async ({ removePersisted = true } = {}) => {
     ensureScope();
     const buckets = loadedBuckets.value;
+    inFlightFetches.clear();
     bucketCache.value.clear();
     triggerRef(bucketCache);
     if (removePersisted) {

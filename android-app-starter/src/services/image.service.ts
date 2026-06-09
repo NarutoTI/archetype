@@ -7,7 +7,7 @@ const MAX_IMAGE_SIZE = 1024;
 const IMAGE_QUALITY = 0.8;
 const IMAGE_FORMAT = 'jpeg';
 
-// Typed error so callers can show a specific message (mirrors FileValidationError).
+// Erro tipado para a tela exibir mensagem específica (espelha FileValidationError).
 export class ImageLimitError extends Error {
   constructor(public maxImages: number) {
     super(`Maximum of ${maxImages} images reached`);
@@ -231,7 +231,7 @@ class ImageService {
         recursive: true,
       });
     } catch {
-      // Directory may not exist.
+      // O diretório pode não existir.
     }
   }
 

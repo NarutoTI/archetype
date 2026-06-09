@@ -242,8 +242,7 @@ const downloadImage = async () => {
   if (!currentImage.value) return;
 
   try {
-    // window.Capacitor also exists on web builds; only the native platforms
-    // should write through the Filesystem plugin.
+    // window.Capacitor também existe no web; só nativo deve escrever via Filesystem.
     if (Capacitor.isNativePlatform()) {
       await downloadImageMobile();
     } else {

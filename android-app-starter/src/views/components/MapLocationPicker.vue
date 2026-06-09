@@ -106,7 +106,7 @@ import L from 'leaflet';
 import { LocationService, type AppLocation } from '@/services/location.service';
 import { logger } from '@/utils/logger';
 
-// Fix Leaflet default marker icon issue under bundlers
+// Corrige o ícone padrão do marcador do Leaflet em bundlers.
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -146,7 +146,7 @@ const searchResults = ref<NominatimResult[]>([]);
 const isLoadingAddress = ref(false);
 let initTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-// Initialize map when modal opens
+// Inicializa o mapa quando o modal abre.
 watch(
   () => props.isOpen,
   async (isOpen) => {
@@ -155,17 +155,16 @@ watch(
       return;
     }
 
-    // Wait for modal to fully render before initializing map
+    // Aguarda o modal renderizar antes de inicializar o mapa.
     await nextTick();
 
-    // Delay so modal animations and layout are complete. The handle is kept so
-    // a quick close cancels it, and `props.isOpen` is re-checked after every
-    // await: geolocation can resolve after the modal was dismissed.
+    // Dá tempo para animação/layout terminarem. O handle permite cancelar em
+    // fechamento rápido; `props.isOpen` é rechecado após cada await.
     initTimeoutId = setTimeout(async () => {
       initTimeoutId = null;
       if (!props.isOpen) return;
 
-      // Without an initial location, try centering on the user position
+      // Sem localização inicial, tenta centralizar na posição do usuário.
       if (!props.initialLocation?.coordinates) {
         try {
           const hasPermission = await LocationService.requestLocationPermission();
@@ -203,7 +202,7 @@ const initializeMap = (userLat?: number, userLng?: number) => {
   if (!mapContainer.value || map.value) return;
 
   try {
-    // Default center (world view) unless a better location is known
+    // Centro padrão: visão global, exceto quando há localização melhor.
     let center: [number, number] = [20, 0];
     let zoom = 2;
 
@@ -228,7 +227,7 @@ const initializeMap = (userLat?: number, userLng?: number) => {
       maxZoom: 19,
     }).addTo(map.value as L.Map);
 
-    // Force map to recalculate size (fixes rendering inside modals)
+    // Força recálculo de tamanho, corrigindo renderização dentro de modal.
     setTimeout(() => map.value?.invalidateSize(), 100);
 
     map.value.on('click', async (event: L.LeafletMouseEvent) => {
@@ -268,7 +267,7 @@ const updateLocationFromCoordinates = async (lat: number, lng: number) => {
   } catch (error) {
     logger.error('Error reverse geocoding:', error);
     if (!props.isOpen) return;
-    // Fallback to coordinates only
+    // Fallback só com coordenadas.
     selectedLocation.value = {
       address: LocationService.formatCoordinatesForDisplay({ latitude: lat, longitude: lng }),
       coordinates: { latitude: lat, longitude: lng },

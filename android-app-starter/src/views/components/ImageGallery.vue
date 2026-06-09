@@ -91,8 +91,7 @@ const isProcessing = ref(false);
 const isNativePlatform = computed(() => Capacitor.isNativePlatform());
 const remainingImageSlots = computed(() => Math.max(props.maxImages - props.images.length, 0));
 
-// Capacitor Camera rejects when the user dismisses the native picker; that is
-// not an error worth surfacing.
+// O Camera rejeita quando o usuário fecha o picker nativo; isso não merece toast.
 const isUserCancellation = (error: unknown): boolean =>
   String((error as Error)?.message || '').toLowerCase().includes('cancel');
 
@@ -172,7 +171,7 @@ const onFileSelect = async (event: Event) => {
   );
   const images = imageFiles.slice(0, remainingImageSlots.value);
 
-  // Tell the user when something was silently dropped by the filters above.
+  // Avisa quando algo foi descartado pelos filtros acima.
   if (imageFiles.length < files.length) {
     await toastService.presentToastWarning(t('media.someFilesSkipped'));
   } else if (images.length < imageFiles.length) {
