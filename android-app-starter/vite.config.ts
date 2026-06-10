@@ -10,6 +10,11 @@ import { visualizer } from 'rollup-plugin-visualizer'
 export default defineConfig({
 
   base: './',
+  server: {
+    host: '0.0.0.0',
+    port: 8101,
+    strictPort: true,
+  },
 
   plugins: [
     vue(),

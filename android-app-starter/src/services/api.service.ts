@@ -5,7 +5,7 @@ import i18n from '@/i18n';
 import { authService } from '@/services/auth.service';
 import { logger } from '@/utils/logger';
 
-const baseUrl = import.meta.env.VITE_API_URL || 'http://10.0.2.2:3000';
+const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const api = axios.create({
   baseURL: `${baseUrl}/api`,

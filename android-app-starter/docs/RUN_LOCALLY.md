@@ -5,7 +5,7 @@ ou no emulador Android.
 
 ## Pré-requisitos
 
-- Node.js 18+ (recomendado 20).
+- Node.js 20+.
 - Docker Desktop, ou outro MongoDB acessível.
 - Para Android: Android Studio, JDK 17 e um emulador/dispositivo.
 
@@ -29,13 +29,13 @@ npm install
 npm run dev
 ```
 
-O backend sobe em `http://localhost:3000`.
+O backend sobe em `http://localhost:3001`.
 
 Checks rápidos:
 
 ```bash
-curl http://localhost:3000/health
-curl http://localhost:3000/auth/routes
+curl http://localhost:3001/health
+curl http://localhost:3001/auth/routes
 ```
 
 Notas:
@@ -61,12 +61,26 @@ npm install
 npm run dev
 ```
 
-O frontend sobe em `http://localhost:8100`.
+O frontend sobe em `http://localhost:8101`.
+
+Se preferir usar o Ionic CLI, rode:
+
+```bash
+npm run serve:ionic
+```
+
+ou:
+
+```bash
+ionic serve --port 8101
+```
+
+O comando cru `ionic serve` usa `8100` por padrão no Ionic CLI.
 
 Para testar sem OAuth nem confirmação de email, ajuste no `.env` do frontend:
 
 ```bash
-VITE_API_URL=http://localhost:3000
+VITE_API_URL=http://localhost:3001
 VITE_USE_FAKE_LOGIN=true
 VITE_DEEP_LINK_SCHEME=androidstarter
 VITE_DEEP_LINK_HOST=auth
@@ -90,7 +104,7 @@ Com `VITE_USE_FAKE_LOGIN=true`, o botão "Continuar com Google" chama
 No `.env` do frontend, use:
 
 ```bash
-VITE_API_URL=http://10.0.2.2:3000
+VITE_API_URL=http://10.0.2.2:3001
 ```
 
 `10.0.2.2` é o alias do emulador Android para o `localhost` da máquina.
@@ -126,23 +140,16 @@ Backend:
 
 ```bash
 cd android-app-starter-backend
+npm run typecheck
 npm test -- --run
-```
-
-Check de sintaxe JS do backend:
-
-```powershell
-$files = rg --files src tests | Where-Object { $_ -match '\.js$' }
-foreach ($file in $files) {
-  node --check $file
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-}
 ```
 
 ## Problemas Comuns
 
-- Porta `3000` ocupada: pare o processo antigo ou altere `PORT` no backend.
-- Porta `8100` ocupada: rode `npm run dev -- --port 8101`.
+- Porta `3001` ocupada: pare o processo antigo ou altere `PORT` no backend.
+- Porta `8101` ocupada: pare o processo antigo ou rode `npm run dev -- --port 8102`.
+- `ionic serve` abrindo em `8100`: use `npm run serve:ionic` ou
+  `ionic serve --port 8101`.
 - Mongo não conecta: confirme `docker ps` e o valor de `MONGODB_URI`.
 - Mudou `.env` do frontend: reinicie o Vite; variáveis `VITE_*` são lidas no
   start do servidor.

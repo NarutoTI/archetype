@@ -29,9 +29,12 @@ Antes de alterar arquivos, confirme ou defina:
 - Deep link scheme, por exemplo `meuapp`.
 - Nome do banco Mongo, por exemplo `meu-app`.
 - URLs de desenvolvimento:
-  - frontend web, normalmente `http://localhost:8100`;
-  - backend web, normalmente `http://localhost:3000`;
-  - backend no emulador, normalmente `http://10.0.2.2:3000`.
+  - frontend web, normalmente `http://localhost:8101`;
+  - backend web, normalmente `http://localhost:3001`;
+  - backend no emulador, normalmente `http://10.0.2.2:3001`.
+  **Se o usuário não informar as portas, pergunte antes de começar se o novo
+  projeto deve manter `8101` no frontend e `3001` no backend ou usar outras
+  portas.**
 - Domínios de produção, se já existirem.
 - Se as demos `Tasks`, `Media`, `Notifications` e mapa devem ser mantidas,
   renomeadas ou removidas.
@@ -103,11 +106,11 @@ Arquivos principais:
   `MOBILE_DEEP_LINK_SCHEME`, `GOOGLE_CALLBACK_URL`, SMTP e versões.
 - `README.md`: título, comandos e fluxos do projeto real.
 - `render.yaml`: nome do serviço e envs reais, se for usar Render.
-- `src/config/db.js`: manter o nome do banco vindo de `MONGODB_DB`; se houver
+- `src/config/db.ts`: manter o nome do banco vindo de `MONGODB_DB`; se houver
   índices de demos removidas, remover também.
-- `src/config/passport.js`: confirmar callbacks OAuth via env.
-- `src/services/emailTemplates.js`: marca e texto do produto.
-- `src/services/email.service.js`: `EMAIL_FROM` pelo env, sem domínio fake em
+- `src/config/passport.ts`: confirmar callbacks OAuth via env.
+- `src/services/emailTemplates.ts`: marca e texto do produto.
+- `src/services/email.service.ts`: `EMAIL_FROM` pelo env, sem domínio fake em
   produção.
 
 OAuth:
@@ -148,10 +151,10 @@ Para remover:
     `tests/unit/composables/useEntityBucketCache.spec.ts`): é genérico e serve
     para a store do domínio real;
 - backend:
-  - `src/routes/taskRoutes.js`;
-  - `src/controllers/taskController.js`;
-  - `src/services/taskService.js`;
-  - índices `tasks` em `src/config/db.js`;
+  - `src/routes/taskRoutes.ts`;
+  - `src/controllers/taskController.ts`;
+  - `src/services/taskService.ts`;
+  - índices `tasks` em `src/config/db.ts`;
   - testes relacionados.
 
 ### Media
@@ -208,17 +211,8 @@ Backend:
 
 ```bash
 npm install
+npm run typecheck
 npm test -- --run
-```
-
-Check de sintaxe JS do backend:
-
-```powershell
-$files = rg --files src tests | Where-Object { $_ -match '\.js$' }
-foreach ($file in $files) {
-  node --check $file
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-}
 ```
 
 Android:
