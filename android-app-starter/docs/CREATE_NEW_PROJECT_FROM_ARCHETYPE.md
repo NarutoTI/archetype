@@ -9,11 +9,18 @@ backend Node) a partir de:
 Use este documento quando o pedido for algo como: "crie um novo app baseado no
 archetype".
 
+As convenções de código e arquitetura do archetype estão em
+[`AGENTS.md`](../../AGENTS.md), na raiz do repositório — leia antes de gerar e
+leve-o junto para o projeto novo (ver "Copiar os Projetos").
+
 ## Informações Que a IA Deve Coletar
 
 Antes de alterar arquivos, confirme ou defina:
 
 - Nome do produto exibido ao usuário.
+- **Idioma dos comentários de código** do novo projeto: português ou inglês.
+  Neste archetype os comentários são em português, mas cada projeto gerado
+  escolhe o seu. **Se o usuário não informar, pergunte antes de começar.**
 - Nome dos diretórios novos:
   - frontend, por exemplo `meu-app-frontend`;
   - backend, por exemplo `meu-app-backend`.
@@ -48,6 +55,12 @@ Copie os dois diretórios para o destino novo, sem levar artefatos locais:
 
 Depois de copiar, inicialize Git nos novos projetos conforme a organização do
 usuário (um monorepo ou dois repos separados).
+
+Copie também o `AGENTS.md` da raiz do archetype para a raiz do novo
+repositório (ou de cada repo, se forem separados): ele orienta humanos e IAs
+nas manutenções futuras. Ajuste a seção "Idioma e comentários" para o idioma
+escolhido pelo usuário e, se comentários forem em inglês, traduza os
+comentários herdados do starter nos arquivos mantidos.
 
 ## Renomear Frontend
 
