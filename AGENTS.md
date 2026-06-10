@@ -4,6 +4,7 @@
 
 - Documentação Markdown em português.
 - Comentários no código em português neste archetype.
+- Projetos gerados a partir do archetype escolhem o idioma dos comentários na criação (português ou inglês); se o usuário não informar, a IA deve perguntar — ver `android-app-starter/docs/CREATE_NEW_PROJECT_FROM_ARCHETYPE.md`.
 - Nomes de variáveis, funções, tipos, rotas e contratos continuam em inglês quando isso combinar com o ecossistema ou com APIs existentes.
 
 ## Simplicidade de manutenção
