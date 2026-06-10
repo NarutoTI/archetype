@@ -47,8 +47,8 @@ Veja `.env.example`.
 Para Android local, use normalmente:
 
 ```bash
-FRONTEND_URL=http://10.0.2.2:8100
-BACKEND_URL=http://10.0.2.2:3000
+FRONTEND_URL=http://10.0.2.2:8101
+BACKEND_URL=http://10.0.2.2:3001
 MOBILE_DEEP_LINK_SCHEME=androidstarter
 ```
 

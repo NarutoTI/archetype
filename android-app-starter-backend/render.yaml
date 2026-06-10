@@ -12,5 +12,5 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 3000
+        value: 3001
     # Configure secrets such as MONGODB_URI, JWT_SECRET, GOOGLE_* and SMTP_* in the Render dashboard.

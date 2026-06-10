@@ -8,9 +8,7 @@ const getFrontendUrl = () => {
     return process.env.FRONTEND_URL;
   }
 
-  return process.env.NODE_ENV === 'development'
-    ? 'http://10.0.2.2:8100'
-    : 'http://localhost:8100';
+  return 'http://localhost:8101';
 };
 
 class EmailService {

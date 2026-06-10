@@ -360,9 +360,9 @@ export function validateUserAccount(user: AppUser | null): AccountValidationResu
 
 export function getFrontendUrl() {
   if (process.env.NODE_ENV === 'development') {
-    return process.env.FRONTEND_URL || 'http://10.0.2.2:8100';
+    return process.env.FRONTEND_URL || 'http://localhost:8101';
   }
-  return process.env.FRONTEND_ONLINE_URL || process.env.FRONTEND_URL || 'http://localhost:8100';
+  return process.env.FRONTEND_ONLINE_URL || process.env.FRONTEND_URL || 'http://localhost:8101';
 }
 
 export function sanitizeUserData(user: AppUser | null): SafeUser | null {

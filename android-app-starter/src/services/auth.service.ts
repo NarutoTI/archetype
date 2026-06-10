@@ -19,7 +19,7 @@ export const AUTH_ACTIONS = {
 
 class AuthService {
   private loginGoogleSuccessCallbacks: Array<() => void> = [];
-  private backendUrl = import.meta.env.VITE_API_URL || 'http://10.0.2.2:3000';
+  private backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
   private deepLinkScheme = import.meta.env.VITE_DEEP_LINK_SCHEME || 'androidstarter';
   private deepLinkHost = import.meta.env.VITE_DEEP_LINK_HOST || 'auth';
   private deepLinkListenerSetup = false;

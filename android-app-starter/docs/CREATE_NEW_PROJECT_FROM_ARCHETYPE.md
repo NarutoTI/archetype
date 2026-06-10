@@ -29,9 +29,12 @@ Antes de alterar arquivos, confirme ou defina:
 - Deep link scheme, por exemplo `meuapp`.
 - Nome do banco Mongo, por exemplo `meu-app`.
 - URLs de desenvolvimento:
-  - frontend web, normalmente `http://localhost:8100`;
-  - backend web, normalmente `http://localhost:3000`;
-  - backend no emulador, normalmente `http://10.0.2.2:3000`.
+  - frontend web, normalmente `http://localhost:8101`;
+  - backend web, normalmente `http://localhost:3001`;
+  - backend no emulador, normalmente `http://10.0.2.2:3001`.
+  **Se o usuário não informar as portas, pergunte antes de começar se o novo
+  projeto deve manter `8101` no frontend e `3001` no backend ou usar outras
+  portas.**
 - Domínios de produção, se já existirem.
 - Se as demos `Tasks`, `Media`, `Notifications` e mapa devem ser mantidas,
   renomeadas ou removidas.

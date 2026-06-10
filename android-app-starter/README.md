@@ -34,13 +34,13 @@ docker compose up -d
 # 2. Configure e suba o backend
 cp .env.example .env
 npm install
-npm run dev          # http://localhost:3000
+npm run dev          # http://localhost:3001
 
 # 3. Configure e suba o frontend (outro terminal)
 cd ../android-app-starter
 cp .env.example .env # ajuste VITE_USE_FAKE_LOGIN=true para testar sem OAuth
 npm install
-npm run dev          # http://localhost:8100
+npm run dev          # http://localhost:8101
 ```
 
 Com `VITE_USE_FAKE_LOGIN=true`, o botão "Continuar com Google" usa o endpoint
@@ -57,9 +57,9 @@ npm run cap:build    # build web + sync nativo
 npx cap open android # abre no Android Studio
 ```
 
-No emulador, use `VITE_API_URL=http://10.0.2.2:3000` (`10.0.2.2` é o alias do
+No emulador, use `VITE_API_URL=http://10.0.2.2:3001` (`10.0.2.2` é o alias do
 emulador para o `localhost` da sua máquina). No navegador, use
-`http://localhost:3000`.
+`http://localhost:3001`.
 
 ## Testes e lint
 
@@ -178,7 +178,7 @@ O `.gitignore` já cobre esses casos. Depois de alterar web assets, rode
 Crie `.env` a partir do `.env.example`:
 
 ```bash
-VITE_API_URL=http://10.0.2.2:3000
+VITE_API_URL=http://10.0.2.2:3001
 VITE_USE_FAKE_LOGIN=false
 VITE_DEEP_LINK_SCHEME=androidstarter
 VITE_DEEP_LINK_HOST=auth

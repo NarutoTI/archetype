@@ -117,8 +117,8 @@ export const ENV_CONFIG = {
   DEVELOPMENT: 'development',
   PRODUCTION: 'production',
   TEST: 'test',
-  DEFAULT_FRONTEND_URL_DEV: 'http://localhost:8100',
-  DEFAULT_BACKEND_URL_DEV: 'http://localhost:3000'
+  DEFAULT_FRONTEND_URL_DEV: 'http://localhost:8101',
+  DEFAULT_BACKEND_URL_DEV: 'http://localhost:3001'
 } as const;
 
 export type UserProvider = (typeof USER_PROVIDERS)[keyof typeof USER_PROVIDERS];

@@ -11,7 +11,7 @@ import { generalRateLimit } from './middlewares/rateLimitMiddleware.js';
 const app = express();
 app.set('trust proxy', 1);
 
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT || 3001);
 
 const healthPayload = () => ({
   status: 'ok',
@@ -31,8 +31,8 @@ app.use(cors({
     if (!origin) return callback(null, true);
 
     const defaultOrigins = [
-      'http://localhost:8100',
-      'http://localhost:3000',
+      'http://localhost:8101',
+      'http://localhost:3001',
       'http://localhost',
       'capacitor://localhost',
       'ionic://localhost'
