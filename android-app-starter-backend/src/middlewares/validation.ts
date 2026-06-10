@@ -1,7 +1,9 @@
 import { body, validationResult } from 'express-validator';
+import type { NextFunction, Request, Response } from 'express';
+import type { ValidationChain } from 'express-validator';
 import { ObjectId } from 'mongodb';
 
-const errorCodeMap = {
+const errorCodeMap: Record<string, string> = {
   'Email must have a valid format': 'INVALID_EMAIL_FORMAT',
   'Password must have at least 6 characters': 'INVALID_PASSWORD',
   'Password must be less than 128 characters': 'INVALID_PASSWORD',
@@ -16,7 +18,7 @@ const errorCodeMap = {
 
 const isDevelopmentEnv = (process.env.NODE_ENV || 'development') === 'development';
 
-const parseLocalDate = (value) => {
+const parseLocalDate = (value: unknown): Date | null => {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return null;
   }
@@ -34,18 +36,21 @@ const parseLocalDate = (value) => {
   return date;
 };
 
-export const handleValidationErrors = (req, res, next) => {
+export const handleValidationErrors = (req: Request, res: Response, next: NextFunction) => {
   const errors = validationResult(req);
   if (errors.isEmpty()) {
     return next();
   }
 
-  const formattedErrors = errors.array().map((error) => ({
-    field: error.path,
-    message: error.msg,
-    code: errorCodeMap[error.msg] || 'VALIDATION_ERROR',
-    value: error.value
-  }));
+  const formattedErrors = errors.array().map((error) => {
+    const message = String(error.msg);
+    return {
+      field: 'path' in error ? error.path : undefined,
+      message,
+      code: errorCodeMap[message] || 'VALIDATION_ERROR',
+      value: 'value' in error ? error.value : undefined
+    };
+  });
 
   if (formattedErrors.length === 1) {
     return res.status(422).json({
@@ -103,7 +108,7 @@ export const birthDateValidation = body('birthDate')
     return true;
   });
 
-export const mongoIdValidation = (field = 'id') =>
+export const mongoIdValidation = (field = 'id'): ValidationChain =>
   body(field).custom((value) => {
     if (!ObjectId.isValid(value)) {
       throw new Error('ID must be a valid Mongo ID');

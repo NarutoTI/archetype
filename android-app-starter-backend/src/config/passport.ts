@@ -1,13 +1,25 @@
 import passport from 'passport';
 import jwt from 'jsonwebtoken';
+import type { SignOptions } from 'jsonwebtoken';
 import logger from './logger.js';
+import type { AppUser, JwtUserPayload } from '../types/schemas.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'android-app-starter-dev-secret-change-me';
 
 let googleOAuthEnabled = false;
 let googleStrategyConfigured = false;
 
-function loadGoogleOAuthConfig() {
+interface GoogleOAuthConfig {
+  clientID: string;
+  clientSecret: string;
+  callbackURL?: string;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function loadGoogleOAuthConfig(): GoogleOAuthConfig | null {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) return null;
 
   return {
@@ -17,7 +29,7 @@ function loadGoogleOAuthConfig() {
   };
 }
 
-async function configureGoogleOAuth() {
+async function configureGoogleOAuth(): Promise<boolean> {
   if (googleStrategyConfigured) return googleOAuthEnabled;
 
   try {
@@ -37,16 +49,21 @@ async function configureGoogleOAuth() {
       scope: ['profile', 'email']
     }, async (_accessToken, _refreshToken, profile, done) => {
       try {
-        const user = {
+        const email = profile.emails?.[0]?.value;
+        if (!email) {
+          return done(new Error('Google profile email is required'), false);
+        }
+
+        const user: AppUser = {
           id: profile.id,
-          email: profile.emails?.[0]?.value,
-          name: profile.displayName,
+          email,
+          name: profile.displayName || email,
           picture: profile.photos?.[0]?.value,
           provider: 'google'
         };
         return done(null, user);
       } catch (error) {
-        return done(error, null);
+        return done(error, false);
       }
     }));
 
@@ -55,14 +72,14 @@ async function configureGoogleOAuth() {
     logger.info('Google OAuth strategy configured with callback URL: %s', oauthConfig.callbackURL);
     return true;
   } catch (error) {
-    logger.warn('Google OAuth not configured: %s', error.message);
+    logger.warn('Google OAuth not configured: %s', getErrorMessage(error));
     googleOAuthEnabled = false;
     googleStrategyConfigured = true;
     return false;
   }
 }
 
-export async function isGoogleOAuthEnabled() {
+export async function isGoogleOAuthEnabled(): Promise<boolean> {
   if (!googleStrategyConfigured) {
     await configureGoogleOAuth();
   }
@@ -70,9 +87,13 @@ export async function isGoogleOAuthEnabled() {
 }
 
 passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
+passport.deserializeUser((user: Express.User, done) => done(null, user));
 
-export const generateJWT = (user, expiresIn = '7d') => {
+export const generateJWT = (user: Partial<AppUser>, expiresIn: SignOptions['expiresIn'] = '7d'): string => {
+  if (!user.email) {
+    throw new Error('User email is required to generate JWT');
+  }
+
   const payload = {
     id: user.id || user._id?.toString(),
     email: user.email,
@@ -86,6 +107,12 @@ export const generateJWT = (user, expiresIn = '7d') => {
   return jwt.sign(payload, JWT_SECRET, { expiresIn });
 };
 
-export const verifyJWT = (token) => jwt.verify(token, JWT_SECRET);
+export const verifyJWT = (token: string): JwtUserPayload => {
+  const payload = jwt.verify(token, JWT_SECRET);
+  if (typeof payload === 'string') {
+    throw new Error('Invalid JWT payload');
+  }
+  return payload as JwtUserPayload;
+};
 
 export default passport;

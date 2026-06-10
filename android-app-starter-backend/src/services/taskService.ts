@@ -1,10 +1,13 @@
 import { ObjectId } from 'mongodb';
 import CrudRepository from '../repositories/crudRepository.js';
 import logger from '../config/logger.js';
+import type { CreateTaskInput, Task, UpdateTaskInput } from '../types/schemas.js';
 
-const taskRepository = new CrudRepository('tasks');
+type TaskDocument = Task & { _id?: ObjectId | string };
 
-function normalizeTask(task) {
+const taskRepository = new CrudRepository<TaskDocument>('tasks');
+
+function normalizeTask(task: TaskDocument | null): Task | null {
   if (!task) return null;
 
   return {
@@ -18,7 +21,7 @@ function normalizeTask(task) {
   };
 }
 
-export function isValidLocalDate(value) {
+export function isValidLocalDate(value: unknown): boolean {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
   }
@@ -30,25 +33,25 @@ export function isValidLocalDate(value) {
     date.getDate() === day;
 }
 
-export function isValidYear(value) {
+export function isValidYear(value: unknown): boolean {
   const year = Number(value);
   return Number.isInteger(year) && year >= 1900 && year <= 3000;
 }
 
-export async function findAllByUser(userId) {
+export async function findAllByUser(userId: string): Promise<Task[]> {
   try {
     const tasks = await taskRepository.getCollection()
       .find({ userId: String(userId) })
       .sort({ dueDate: 1, createdAt: 1 })
       .toArray();
-    return tasks.map(normalizeTask);
+    return tasks.map(normalizeTask).filter((task): task is Task => !!task);
   } catch (error) {
     logger.error({ err: error, userId }, 'Error finding tasks by user');
     throw error;
   }
 }
 
-export async function findByUserAndYear(userId, year) {
+export async function findByUserAndYear(userId: string, year: number): Promise<Task[]> {
   try {
     const yearPrefix = `${year}-`;
     const tasks = await taskRepository.getCollection()
@@ -58,14 +61,14 @@ export async function findByUserAndYear(userId, year) {
       })
       .sort({ dueDate: 1, createdAt: 1 })
       .toArray();
-    return tasks.map(normalizeTask);
+    return tasks.map(normalizeTask).filter((task): task is Task => !!task);
   } catch (error) {
     logger.error({ err: error, userId, year }, 'Error finding tasks by year');
     throw error;
   }
 }
 
-export async function findByIdForUser(id, userId) {
+export async function findByIdForUser(id: string, userId: string): Promise<Task | null> {
   try {
     if (!ObjectId.isValid(id)) return null;
     return normalizeTask(await taskRepository.findOne({
@@ -78,12 +81,11 @@ export async function findByIdForUser(id, userId) {
   }
 }
 
-export async function createTask(userId, data) {
+export async function createTask(userId: string, data: CreateTaskInput): Promise<Task> {
   try {
-    // Both timestamps are epoch milliseconds; `dueDate` stays a local
-    // 'YYYY-MM-DD' string because it is a user-facing calendar date.
+    // Timestamps técnicos usam epoch ms; dueDate segue como data local YYYY-MM-DD.
     const now = Date.now();
-    const task = {
+    const task: TaskDocument = {
       userId: String(userId),
       title: data.title.trim(),
       dueDate: data.dueDate,
@@ -96,18 +98,18 @@ export async function createTask(userId, data) {
     return normalizeTask({
       ...task,
       _id: result.insertedId
-    });
+    }) as Task;
   } catch (error) {
     logger.error({ err: error, userId }, 'Error creating task');
     throw error;
   }
 }
 
-export async function updateTask(id, userId, data) {
+export async function updateTask(id: string, userId: string, data: UpdateTaskInput): Promise<Task | null> {
   try {
     if (!ObjectId.isValid(id)) return null;
 
-    const update = {
+    const update: Partial<TaskDocument> = {
       updatedAt: Date.now()
     };
 
@@ -132,14 +134,15 @@ export async function updateTask(id, userId, data) {
       { returnDocument: 'after' }
     );
 
-    return normalizeTask(response?.value || response);
+    const updatedTask = response && 'value' in response ? response.value : response;
+    return normalizeTask(updatedTask as TaskDocument | null);
   } catch (error) {
     logger.error({ err: error, id, userId }, 'Error updating task');
     throw error;
   }
 }
 
-export async function deleteTask(id, userId) {
+export async function deleteTask(id: string, userId: string): Promise<boolean> {
   try {
     if (!ObjectId.isValid(id)) return false;
     const result = await taskRepository.getCollection().deleteOne({

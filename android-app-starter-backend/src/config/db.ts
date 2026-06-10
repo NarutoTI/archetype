@@ -1,10 +1,10 @@
-import { MongoClient } from 'mongodb';
+import { Db, MongoClient } from 'mongodb';
 import logger from './logger.js';
 
-let client;
-let db = null;
+let client: MongoClient | null = null;
+let db: Db | null = null;
 
-export async function connectToMongo(customUri = null) {
+export async function connectToMongo(customUri: string | null = null): Promise<{ client: MongoClient | null; db: Db }> {
   if (db) return { client, db };
 
   const uri = customUri || process.env.MONGODB_URI || 'mongodb://root:example@localhost:27017';
@@ -24,7 +24,11 @@ export async function connectToMongo(customUri = null) {
   return { client, db };
 }
 
-async function createIndexes() {
+async function createIndexes(): Promise<void> {
+  if (!db) {
+    throw new Error('Database not initialized. Call connectToMongo() first.');
+  }
+
   await db.collection('users').createIndex({ email: 1 }, { unique: true });
   await db.collection('users').createIndex({ provider: 1 });
   await db.collection('versions').createIndex({ platform: 1 }, { unique: true });
@@ -33,13 +37,13 @@ async function createIndexes() {
   logger.info('Database indexes created successfully');
 }
 
-export function getDb() {
+export function getDb(): Db {
   if (!db) {
     throw new Error('Database not initialized. Call connectToMongo() first.');
   }
   return db;
 }
 
-export function setMockDb(mockDb) {
+export function setMockDb(mockDb: Db): void {
   db = mockDb;
 }

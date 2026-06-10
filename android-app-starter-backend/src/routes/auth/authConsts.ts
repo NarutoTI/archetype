@@ -5,7 +5,7 @@ export const USER_PROVIDERS = {
   DEVELOPMENT: 'development',
   FAKE: 'fake',
   LOCAL: 'local'
-};
+} as const;
 
 export const TOKEN_TYPES = {
   AUTH: 'auth',
@@ -14,7 +14,7 @@ export const TOKEN_TYPES = {
   ACCOUNT_DELETION: 'account_deletion',
   ACCOUNT_DELETION_CONFIRMATION: 'account_deletion_confirmation',
   ACCOUNT_DELETION_REQUEST: 'account_deletion_request'
-};
+} as const;
 
 export const AUTH_ACTIONS = {
   EMAIL_CONFIRMED: 'email_confirmed',
@@ -22,14 +22,14 @@ export const AUTH_ACTIONS = {
   PASSWORD_RESET_READY: 'password_reset_ready',
   EMAIL_ALREADY_VERIFIED: 'email_already_verified',
   ACCOUNT_DELETED: 'account_deleted'
-};
+} as const;
 
 export const ACCOUNT_STATUS = {
   ACTIVE: 'active',
   SUSPENDED: 'suspended',
   DELETED: 'deleted',
   PENDING_VERIFICATION: 'pending_verification'
-};
+} as const;
 
 export const ERROR_CODES = {
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
@@ -61,7 +61,7 @@ export const ERROR_CODES = {
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   ACCESS_DENIED: 'ACCESS_DENIED',
   FORBIDDEN: 'FORBIDDEN'
-};
+} as const;
 
 export const VALIDATION_RULES = {
   PASSWORD_MIN_LENGTH: 6,
@@ -70,14 +70,14 @@ export const VALIDATION_RULES = {
   EMAIL_MAX_LENGTH: 255,
   PHONE_MAX_LENGTH: 20,
   BCRYPT_SALT_ROUNDS: 12
-};
+} as const;
 
 export const TOKEN_EXPIRY = {
   AUTH: '180d',
   EMAIL_CONFIRMATION: '24h',
   PASSWORD_RESET: '1h',
   ACCOUNT_DELETION: '24h'
-};
+} as const;
 
 export const HTTP_STATUS = {
   OK: 200,
@@ -92,7 +92,7 @@ export const HTTP_STATUS = {
   TOO_MANY_REQUESTS: 429,
   INTERNAL_SERVER_ERROR: 500,
   SERVICE_UNAVAILABLE: 503
-};
+} as const;
 
 export const SUCCESS_MESSAGES = {
   REGISTRATION_SUCCESS: 'User registered successfully',
@@ -104,14 +104,14 @@ export const SUCCESS_MESSAGES = {
   CONFIRMATION_EMAIL_SENT: 'Confirmation email sent',
   ACCOUNT_DELETION_EMAIL_SENT: 'Account deletion confirmation email sent',
   ACCOUNT_DELETED: 'Account deleted successfully'
-};
+} as const;
 
 export const RATE_LIMITS = {
   LOGIN_ATTEMPTS_PER_MINUTE: 5,
   REGISTRATION_ATTEMPTS_PER_HOUR: 3,
   PASSWORD_RESET_ATTEMPTS_PER_HOUR: 3,
   EMAIL_RESEND_ATTEMPTS_PER_HOUR: 5
-};
+} as const;
 
 export const ENV_CONFIG = {
   DEVELOPMENT: 'development',
@@ -119,7 +119,10 @@ export const ENV_CONFIG = {
   TEST: 'test',
   DEFAULT_FRONTEND_URL_DEV: 'http://localhost:8100',
   DEFAULT_BACKEND_URL_DEV: 'http://localhost:3000'
-};
+} as const;
+
+export type UserProvider = (typeof USER_PROVIDERS)[keyof typeof USER_PROVIDERS];
+export type TokenType = (typeof TOKEN_TYPES)[keyof typeof TOKEN_TYPES];
 
 export const PASSWORD_MIN_LENGTH = VALIDATION_RULES.PASSWORD_MIN_LENGTH;
 

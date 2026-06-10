@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import type { SignOptions } from 'jsonwebtoken';
 import { generateJWT, verifyJWT } from '../../config/passport.js';
 import { emailService } from '../../services/email.service.js';
 import * as userService from '../../services/userService.js';
@@ -10,8 +11,49 @@ import {
   VALIDATION_RULES,
   TOKEN_EXPIRY
 } from './authConsts.js';
+import type { AppUser, AppUserInput, JwtUserPayload } from '../../types/schemas.js';
+import type { TokenType } from './authConsts.js';
 
-const parseLocalDate = (value) => {
+interface PasswordValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+interface AccountValidationResult {
+  isValid: boolean;
+  reason: string | null;
+  message: string;
+}
+
+type RegistrationData = AppUserInput & {
+  password?: string | null;
+  language?: string;
+  emailVerified?: boolean;
+  isDevelopment?: boolean;
+  picture?: string | null;
+};
+
+type TokenUserData = {
+  id?: string;
+  email: string;
+  name?: string;
+  provider?: string;
+};
+
+const getErrorMessage = (error: unknown): string => (
+  error instanceof Error ? error.message : String(error)
+);
+
+const getErrorName = (error: unknown): string => (
+  error instanceof Error ? error.name : ''
+);
+
+const getTokenExpiry = (tokenType: string): SignOptions['expiresIn'] => {
+  const key = tokenType.toUpperCase() as keyof typeof TOKEN_EXPIRY;
+  return TOKEN_EXPIRY[key] || TOKEN_EXPIRY.AUTH;
+};
+
+const parseLocalDate = (value: unknown): Date | null => {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return null;
   }
@@ -29,14 +71,17 @@ const parseLocalDate = (value) => {
   return date;
 };
 
-export async function hashPassword(plainPassword) {
+export async function hashPassword(plainPassword: string): Promise<string> {
   if (!plainPassword) {
     throw new Error('Password is required for hashing');
   }
   return bcrypt.hash(plainPassword, VALIDATION_RULES.BCRYPT_SALT_ROUNDS);
 }
 
-export async function comparePassword(plainPassword, hashedPassword) {
+export async function comparePassword(
+  plainPassword: string | null | undefined,
+  hashedPassword: string | null | undefined
+): Promise<boolean> {
   if (!plainPassword || !hashedPassword) {
     return false;
   }
@@ -49,7 +94,7 @@ export async function comparePassword(plainPassword, hashedPassword) {
   }
 }
 
-export function validatePasswordStrength(password) {
+export function validatePasswordStrength(password: string | null | undefined): PasswordValidationResult {
   const errors = [];
 
   if (!password) {
@@ -71,8 +116,8 @@ export function validatePasswordStrength(password) {
   };
 }
 
-export function generateAuthToken(user, tokenType = TOKEN_TYPES.AUTH) {
-  const expiresIn = TOKEN_EXPIRY[tokenType.toUpperCase()] || TOKEN_EXPIRY.AUTH;
+export function generateAuthToken(user: AppUser, tokenType: TokenType = TOKEN_TYPES.AUTH): string {
+  const expiresIn = getTokenExpiry(tokenType);
   return generateJWT({
     id: user._id?.toString() || user.id,
     email: user.email,
@@ -83,8 +128,8 @@ export function generateAuthToken(user, tokenType = TOKEN_TYPES.AUTH) {
   }, expiresIn);
 }
 
-export function generateSpecialToken(user, tokenType) {
-  const expiresIn = TOKEN_EXPIRY[tokenType.toUpperCase()] || TOKEN_EXPIRY.EMAIL_CONFIRMATION;
+export function generateSpecialToken(user: AppUser, tokenType: TokenType): string {
+  const expiresIn = getTokenExpiry(tokenType);
   return generateJWT({
     id: user._id?.toString() || user.id,
     email: user.email,
@@ -94,7 +139,7 @@ export function generateSpecialToken(user, tokenType) {
   }, expiresIn);
 }
 
-export function verifyToken(token) {
+export function verifyToken(token: string): JwtUserPayload {
   if (!token) {
     throw new Error(ERROR_CODES.MISSING_TOKEN);
   }
@@ -102,15 +147,15 @@ export function verifyToken(token) {
   try {
     return verifyJWT(token);
   } catch (error) {
-    logger.warn('Token verification failed: %s', error.message);
-    if (error.name === 'TokenExpiredError') {
+    logger.warn('Token verification failed: %s', getErrorMessage(error));
+    if (getErrorName(error) === 'TokenExpiredError') {
       throw new Error(ERROR_CODES.TOKEN_EXPIRED);
     }
     throw new Error(ERROR_CODES.INVALID_TOKEN);
   }
 }
 
-export function getUserFromToken(token) {
+export function getUserFromToken(token: string): TokenUserData | null {
   try {
     const payload = verifyToken(token);
     return {
@@ -120,39 +165,42 @@ export function getUserFromToken(token) {
       provider: payload.provider
     };
   } catch (error) {
-    logger.warn('Failed to extract user from token: %s', error.message);
+    logger.warn('Failed to extract user from token: %s', getErrorMessage(error));
     return null;
   }
 }
 
-export function isValidEmail(email) {
+export function isValidEmail(email: unknown): email is string {
+  if (typeof email !== 'string') return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-export function isValidDate(dateString) {
+export function isValidDate(dateString: unknown): boolean {
   return !!parseLocalDate(dateString);
 }
 
-export function normalizeEmail(email) {
+export function normalizeEmail(email: unknown): string {
   if (!email || typeof email !== 'string') {
     return '';
   }
   return email.trim().toLowerCase();
 }
 
-export function providerSupportsPassword(provider) {
-  return [USER_PROVIDERS.EMAIL, USER_PROVIDERS.GOOGLE_WITH_PASSWORD].includes(provider);
+export function providerSupportsPassword(provider: string): boolean {
+  const providers: readonly string[] = [USER_PROVIDERS.EMAIL, USER_PROVIDERS.GOOGLE_WITH_PASSWORD];
+  return providers.includes(provider);
 }
 
-export function isOAuthProvider(provider) {
+export function isOAuthProvider(provider: string): boolean {
   return provider === USER_PROVIDERS.GOOGLE;
 }
 
-export function isDevelopmentProvider(provider) {
-  return [USER_PROVIDERS.DEVELOPMENT, USER_PROVIDERS.FAKE, USER_PROVIDERS.LOCAL].includes(provider);
+export function isDevelopmentProvider(provider: string): boolean {
+  const providers: readonly string[] = [USER_PROVIDERS.DEVELOPMENT, USER_PROVIDERS.FAKE, USER_PROVIDERS.LOCAL];
+  return providers.includes(provider);
 }
 
-export function validateRegistrationData(userData) {
+export function validateRegistrationData(userData: Partial<RegistrationData>): PasswordValidationResult {
   const errors = [];
   const { name, email, password, birthDate, phone, provider = USER_PROVIDERS.EMAIL } = userData;
 
@@ -191,7 +239,7 @@ export function validateRegistrationData(userData) {
   };
 }
 
-export async function sendConfirmationEmail(user, language = 'en') {
+export async function sendConfirmationEmail(user: AppUser, language = 'en'): Promise<boolean> {
   try {
     const confirmationToken = generateSpecialToken(user, TOKEN_TYPES.EMAIL_CONFIRMATION);
     await emailService.sendConfirmationEmail(user.email, user.name, confirmationToken, language);
@@ -203,7 +251,7 @@ export async function sendConfirmationEmail(user, language = 'en') {
   }
 }
 
-export async function sendPasswordResetEmail(user, language = 'en') {
+export async function sendPasswordResetEmail(user: AppUser, language = 'en'): Promise<boolean> {
   try {
     const resetToken = generateSpecialToken(user, TOKEN_TYPES.PASSWORD_RESET);
     await emailService.sendPasswordResetEmail(user.email, user.name, resetToken, language);
@@ -215,7 +263,7 @@ export async function sendPasswordResetEmail(user, language = 'en') {
   }
 }
 
-export async function sendAccountDeletionEmail(user, language = 'en') {
+export async function sendAccountDeletionEmail(user: AppUser, language = 'en'): Promise<boolean> {
   try {
     const deletionToken = generateSpecialToken(user, TOKEN_TYPES.ACCOUNT_DELETION);
     await emailService.sendAccountDeletionEmail(user.email, user.name, deletionToken, language);
@@ -227,7 +275,7 @@ export async function sendAccountDeletionEmail(user, language = 'en') {
   }
 }
 
-export async function findUserByEmail(email) {
+export async function findUserByEmail(email: string): Promise<AppUser | null> {
   const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail) {
     return null;
@@ -241,8 +289,8 @@ export async function findUserByEmail(email) {
   }
 }
 
-export async function createUser(userData) {
-  const data = {
+export async function createUser(userData: RegistrationData): Promise<AppUser> {
+  const data: RegistrationData & { accountStatus?: string; lastLogin?: Date } = {
     ...userData,
     email: normalizeEmail(userData.email),
     provider: userData.provider || USER_PROVIDERS.EMAIL,
@@ -258,7 +306,9 @@ export async function createUser(userData) {
     data.password = await hashPassword(data.password);
   }
 
-  data.emailVerified = data.emailVerified ?? (isOAuthProvider(data.provider) || isDevelopmentProvider(data.provider));
+  const provider = data.provider || USER_PROVIDERS.EMAIL;
+  data.provider = provider;
+  data.emailVerified = data.emailVerified ?? (isOAuthProvider(provider) || isDevelopmentProvider(provider));
   data.accountStatus = data.accountStatus || 'active';
   data.lastLogin = new Date();
 
@@ -267,7 +317,7 @@ export async function createUser(userData) {
   return user;
 }
 
-export async function updateLastLogin(user) {
+export async function updateLastLogin(user: AppUser): Promise<void> {
   try {
     user.lastLogin = new Date();
     await userService.update(user);
@@ -276,7 +326,7 @@ export async function updateLastLogin(user) {
   }
 }
 
-export function validateUserAccount(user) {
+export function validateUserAccount(user: AppUser | null): AccountValidationResult {
   if (!user) {
     return {
       isValid: false,
@@ -315,7 +365,7 @@ export function getFrontendUrl() {
   return process.env.FRONTEND_ONLINE_URL || process.env.FRONTEND_URL || 'http://localhost:8100';
 }
 
-export function sanitizeUserData(user) {
+export function sanitizeUserData(user: AppUser | null): AppUser | null {
   if (!user) {
     return null;
   }
@@ -336,7 +386,7 @@ export function sanitizeUserData(user) {
   };
 }
 
-export function generateRandomString(length = 32) {
+export function generateRandomString(length = 32): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
   for (let i = 0; i < length; i += 1) {
@@ -345,7 +395,7 @@ export function generateRandomString(length = 32) {
   return result;
 }
 
-export function isDevelopmentMode() {
+export function isDevelopmentMode(): boolean {
   return process.env.NODE_ENV !== 'production';
 }
 

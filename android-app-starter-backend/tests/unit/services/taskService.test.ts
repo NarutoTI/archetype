@@ -1,4 +1,5 @@
 import { ObjectId } from 'mongodb';
+import type { Db } from 'mongodb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { setMockDb } from '../../../src/config/db.js';
 import {
@@ -18,7 +19,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   setMockDb({
     collection: vi.fn(() => collection)
-  });
+  } as unknown as Db);
 });
 
 describe('taskService', () => {
@@ -89,7 +90,7 @@ describe('taskService', () => {
       title: 'Done',
       dueDate: '2026-06-09',
       completed: true,
-      createdAt: '2026-06-09',
+      createdAt: 123,
       updatedAt: 456
     });
 
@@ -100,6 +101,7 @@ describe('taskService', () => {
       { $set: expect.objectContaining({ completed: true }) },
       { returnDocument: 'after' }
     );
-    expect(updated.completed).toBe(true);
+    expect(updated).not.toBeNull();
+    expect(updated?.completed).toBe(true);
   });
 });

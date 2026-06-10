@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Response } from 'express';
 
 import {
   ErrorCodes,
@@ -34,7 +35,7 @@ describe('errorHandler', () => {
   it('sends standardized error and success responses', () => {
     const json = vi.fn();
     const status = vi.fn(() => ({ json }));
-    const res = { status };
+    const res = { status } as unknown as Response;
 
     sendError(res, 401, ErrorCodes.UNAUTHORIZED, 'Unauthorized');
     expect(status).toHaveBeenCalledWith(401);

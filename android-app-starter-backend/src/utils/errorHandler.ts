@@ -1,5 +1,21 @@
-export const createErrorResponse = (code, message, details = null) => {
-  const response = {
+import type { Response } from 'express';
+import type { ApiResponseDetails } from '../types/schemas.js';
+
+export interface ApiResponse {
+  success: boolean;
+  code: string;
+  message: string;
+  details?: ApiResponseDetails;
+}
+
+interface ErrorDocumentationItem {
+  httpStatus: number;
+  description: string;
+  solution: string;
+}
+
+export const createErrorResponse = (code: string, message: string, details: ApiResponseDetails | null = null) => {
+  const response: ApiResponse = {
     success: false,
     code,
     message
@@ -12,8 +28,8 @@ export const createErrorResponse = (code, message, details = null) => {
   return { response };
 };
 
-export const createSuccessResponse = (code, message, details = null) => {
-  const response = {
+export const createSuccessResponse = (code: string, message: string, details: ApiResponseDetails | null = null) => {
+  const response: ApiResponse = {
     success: true,
     code,
     message
@@ -26,12 +42,24 @@ export const createSuccessResponse = (code, message, details = null) => {
   return { response };
 };
 
-export const sendError = (res, statusCode, code, message, details = null) => {
+export const sendError = (
+  res: Response,
+  statusCode: number,
+  code: string,
+  message: string,
+  details: ApiResponseDetails | null = null
+) => {
   const { response } = createErrorResponse(code, message, details);
   return res.status(statusCode).json(response);
 };
 
-export const sendSuccess = (res, statusCode, code, message, details = null) => {
+export const sendSuccess = (
+  res: Response,
+  statusCode: number,
+  code: string,
+  message: string,
+  details: ApiResponseDetails | null = null
+) => {
   const { response } = createSuccessResponse(code, message, details);
   return res.status(statusCode).json(response);
 };
@@ -65,7 +93,9 @@ export const ErrorCodes = Object.freeze({
   NOT_FOUND: 'NOT_FOUND',
   INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
   SEND_EMAIL_ERROR: 'SEND_EMAIL_ERROR'
-});
+} as const);
+
+export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 
 export const ErrorDocumentation = Object.freeze({
   [ErrorCodes.INVALID_CREDENTIALS]: {
@@ -98,10 +128,11 @@ export const ErrorDocumentation = Object.freeze({
     description: 'Request validation failed',
     solution: 'Fix the request body according to the endpoint contract'
   }
-});
+} satisfies Partial<Record<ErrorCode, ErrorDocumentationItem>>);
 
-export const getErrorDocumentation = (code) => {
-  return ErrorDocumentation[code] || {
+export const getErrorDocumentation = (code: string): ErrorDocumentationItem => {
+  const documentation = (ErrorDocumentation as Partial<Record<string, ErrorDocumentationItem>>)[code];
+  return documentation || {
     httpStatus: 500,
     description: 'Unknown error',
     solution: 'Check server logs'

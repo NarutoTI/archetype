@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import express from 'express';
+import type { ErrorRequestHandler } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import passport, { isGoogleOAuthEnabled } from './config/passport.js';
@@ -12,7 +13,7 @@ dotenv.config();
 const app = express();
 app.set('trust proxy', 1);
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
 
 const healthPayload = () => ({
   status: 'ok',
@@ -56,6 +57,15 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 app.use(generalRateLimit);
 
+const unhandledErrorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+  logger.error({ err }, 'Unhandled error');
+  res.status(500).json({
+    success: false,
+    code: 'INTERNAL_SERVER_ERROR',
+    message: 'Internal server error'
+  });
+};
+
 async function startServer() {
   try {
     await isGoogleOAuthEnabled();
@@ -78,14 +88,7 @@ async function startServer() {
     app.use('/api', userRoutes);
     app.use('/api', taskRoutes);
 
-    app.use((err, _req, res, _next) => {
-      logger.error({ err }, 'Unhandled error');
-      res.status(500).json({
-        success: false,
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Internal server error'
-      });
-    });
+    app.use(unhandledErrorHandler);
 
     return server;
   } catch (error) {

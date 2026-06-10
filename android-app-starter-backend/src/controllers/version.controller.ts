@@ -1,12 +1,8 @@
+import type { Request, Response } from 'express';
 import { getAppVersionInfo } from '../services/versionService.js';
 import logger from '../config/logger.js';
 
-/**
- * Get app version information
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
-export const getAppVersion = (req, res) => {
+export const getAppVersion = (_req: Request, res: Response) => {
   try {
     const versionInfo = getAppVersionInfo();
     logger.info('App version info requested');

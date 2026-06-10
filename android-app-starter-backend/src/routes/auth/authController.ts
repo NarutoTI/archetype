@@ -1,3 +1,4 @@
+import type { NextFunction, Request, Response } from 'express';
 import passport, { isGoogleOAuthEnabled } from '../../config/passport.js';
 import * as userService from '../../services/userService.js';
 import logger from '../../config/logger.js';
@@ -11,19 +12,25 @@ import {
 } from './authConsts.js';
 import authService from './authService.js';
 import { sendError, sendSuccess } from '../../utils/errorHandler.js';
+import type { AppUser, JwtUserPayload } from '../../types/schemas.js';
 
-function getFrontendUrl() {
+type GoogleAuthUser = AppUser & {
+  email: string;
+  name: string;
+};
+
+function getFrontendUrl(): string {
   if (process.env.NODE_ENV === 'development') {
     return process.env.FRONTEND_URL || 'http://10.0.2.2:8100';
   }
   return process.env.FRONTEND_ONLINE_URL || process.env.FRONTEND_URL || 'http://localhost:8100';
 }
 
-function getMobileDeepLinkScheme() {
+function getMobileDeepLinkScheme(): string {
   return process.env.MOBILE_DEEP_LINK_SCHEME || 'androidstarter';
 }
 
-function isMobileAppRequest(req) {
+function isMobileAppRequest(req: Request): boolean {
   const { state } = req.query || {};
   const isMobileState = typeof state === 'string' && state.startsWith('mobile:');
   const userAgent = req.get('User-Agent') || '';
@@ -33,7 +40,11 @@ function isMobileAppRequest(req) {
     userAgent.includes('AndroidAppStarter');
 }
 
-function generateRedirectUrl(req, token = null, success = true, error = null) {
+function getQueryString(value: unknown, fallback: string): string {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function generateRedirectUrl(req: Request, token: string | null = null, success = true, error: string | null = null): string {
   if (isMobileAppRequest(req)) {
     const scheme = getMobileDeepLinkScheme();
     if (error) {
@@ -59,7 +70,7 @@ function generateRedirectUrl(req, token = null, success = true, error = null) {
   return `${frontendUrl}/auth/callback?${params.toString()}`;
 }
 
-export async function register(req, res) {
+export async function register(req: Request, res: Response) {
   try {
     const { name, email, password, birthDate, phone, language = 'en' } = req.body;
     const normalizedEmail = authService.normalizeEmail(email);
@@ -98,7 +109,7 @@ export async function register(req, res) {
   }
 }
 
-export async function login(req, res) {
+export async function login(req: Request, res: Response) {
   try {
     const { email, password } = req.body;
     const user = await authService.findUserByEmail(email);
@@ -117,7 +128,7 @@ export async function login(req, res) {
       const status = accountValidation.reason === ERROR_CODES.EMAIL_NOT_VERIFIED
         ? HTTP_STATUS.FORBIDDEN
         : HTTP_STATUS.UNAUTHORIZED;
-      return sendError(res, status, accountValidation.reason, accountValidation.message);
+      return sendError(res, status, accountValidation.reason || ERROR_CODES.INTERNAL_SERVER_ERROR, accountValidation.message);
     }
 
     await authService.updateLastLogin(user);
@@ -134,7 +145,7 @@ export async function login(req, res) {
   }
 }
 
-export async function forgotPassword(req, res) {
+export async function forgotPassword(req: Request, res: Response) {
   try {
     const { email, language = 'en' } = req.body;
     const user = await authService.findUserByEmail(email);
@@ -160,7 +171,7 @@ export async function forgotPassword(req, res) {
   }
 }
 
-export async function resetPassword(req, res) {
+export async function resetPassword(req: Request, res: Response) {
   try {
     const { token, newPassword } = req.body;
     const payload = authService.verifyToken(token);
@@ -189,14 +200,14 @@ export async function resetPassword(req, res) {
   }
 }
 
-export async function initGoogleAuth(req, res, next) {
+export async function initGoogleAuth(req: Request, res: Response, next: NextFunction) {
   try {
     const googleEnabled = await isGoogleOAuthEnabled();
     if (!googleEnabled) {
       return res.redirect(generateRedirectUrl(req, null, false, 'oauth_not_configured'));
     }
 
-    const language = req.query.language || 'en';
+    const language = getQueryString(req.query.language, 'en');
     const platform = req.query.mobile === 'true' ? 'mobile' : 'web';
     const state = `${platform}:1:${language}`;
 
@@ -210,7 +221,7 @@ export async function initGoogleAuth(req, res, next) {
   }
 }
 
-export async function handleGoogleCallback(req, res) {
+export async function handleGoogleCallback(req: Request, res: Response) {
   try {
     let language = 'en';
     if (typeof req.query.state === 'string') {
@@ -220,7 +231,7 @@ export async function handleGoogleCallback(req, res) {
       }
     }
 
-    passport.authenticate('google', { session: false }, async (err, googleUser) => {
+    passport.authenticate('google', { session: false }, async (err: Error | null, googleUser?: GoogleAuthUser) => {
       if (err || !googleUser) {
         logger.error({ err }, 'Google OAuth authentication failed');
         return res.redirect(generateRedirectUrl(req, null, false, 'oauth_failed'));
@@ -258,7 +269,7 @@ export async function handleGoogleCallback(req, res) {
   }
 }
 
-export async function processToken(req, res) {
+export async function processToken(req: Request, res: Response) {
   try {
     const { token } = req.body;
     const payload = authService.verifyToken(token);
@@ -279,7 +290,7 @@ export async function processToken(req, res) {
   }
 }
 
-async function processEmailConfirmationToken(res, payload) {
+async function processEmailConfirmationToken(res: Response, payload: JwtUserPayload) {
   const user = await authService.findUserByEmail(payload.email);
   if (!user) {
     return sendError(res, HTTP_STATUS.NOT_FOUND, ERROR_CODES.USER_NOT_FOUND, 'User not found');
@@ -305,7 +316,7 @@ async function processEmailConfirmationToken(res, payload) {
   });
 }
 
-async function processPasswordResetToken(res, payload) {
+async function processPasswordResetToken(res: Response, payload: JwtUserPayload) {
   const user = await authService.findUserByEmail(payload.email);
   if (!user) {
     return sendError(res, HTTP_STATUS.NOT_FOUND, ERROR_CODES.USER_NOT_FOUND, 'User not found');
@@ -318,13 +329,18 @@ async function processPasswordResetToken(res, payload) {
   });
 }
 
-async function processAccountDeletionToken(res, payload) {
+async function processAccountDeletionToken(res: Response, payload: JwtUserPayload) {
   const user = await authService.findUserByEmail(payload.email);
   if (!user) {
     return sendError(res, HTTP_STATUS.NOT_FOUND, ERROR_CODES.USER_NOT_FOUND, 'User not found');
   }
 
-  await userService.deleteUser(user._id);
+  const userId = user._id || user.id;
+  if (!userId) {
+    return sendError(res, HTTP_STATUS.NOT_FOUND, ERROR_CODES.USER_NOT_FOUND, 'User not found');
+  }
+
+  await userService.deleteUser(userId);
 
   return res.json({
     success: true,
@@ -333,7 +349,7 @@ async function processAccountDeletionToken(res, payload) {
   });
 }
 
-async function processAuthToken(res, payload) {
+async function processAuthToken(res: Response, payload: JwtUserPayload) {
   const user = await authService.findUserByEmail(payload.email);
   if (!user) {
     return sendError(res, HTTP_STATUS.NOT_FOUND, ERROR_CODES.USER_NOT_FOUND, 'User not found');
@@ -350,7 +366,7 @@ async function processAuthToken(res, payload) {
   });
 }
 
-export async function requestAccountDeletion(req, res) {
+export async function requestAccountDeletion(req: Request, res: Response) {
   try {
     const { language = 'en', token } = req.body;
     const payload = authService.verifyToken(token);
@@ -375,7 +391,7 @@ export async function requestAccountDeletion(req, res) {
   }
 }
 
-export async function resendConfirmation(req, res) {
+export async function resendConfirmation(req: Request, res: Response) {
   try {
     const { email, language = 'en' } = req.body;
     const user = await authService.findUserByEmail(email);
@@ -397,7 +413,7 @@ export async function resendConfirmation(req, res) {
   }
 }
 
-export async function handleFakeLogin(req, res) {
+export async function handleFakeLogin(req: Request, res: Response) {
   try {
     if (!authService.isDevelopmentMode()) {
       return sendError(res, HTTP_STATUS.FORBIDDEN, ERROR_CODES.ACCESS_DENIED, 'Fake login only available outside production');
@@ -431,14 +447,14 @@ export async function handleFakeLogin(req, res) {
   }
 }
 
-export async function handleLogout(_req, res) {
+export async function handleLogout(_req: Request, res: Response) {
   return res.json({
     success: true,
     message: SUCCESS_MESSAGES.LOGOUT_SUCCESS
   });
 }
 
-export async function verifyToken(req, res) {
+export async function verifyToken(req: Request, res: Response) {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
@@ -453,7 +469,7 @@ export async function verifyToken(req, res) {
 
     const accountValidation = authService.validateUserAccount(user);
     if (!accountValidation.isValid) {
-      return sendError(res, HTTP_STATUS.UNAUTHORIZED, accountValidation.reason, accountValidation.message);
+      return sendError(res, HTTP_STATUS.UNAUTHORIZED, accountValidation.reason || ERROR_CODES.INTERNAL_SERVER_ERROR, accountValidation.message);
     }
 
     return res.json({

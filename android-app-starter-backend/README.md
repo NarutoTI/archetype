@@ -1,6 +1,6 @@
 # Android App Starter Backend
 
-Backend Node.js + Express + MongoDB para o Android App Starter.
+Backend TypeScript + Node.js + Express + MongoDB para o Android App Starter.
 
 ## O que vem pronto
 
@@ -29,7 +29,15 @@ Se preferir um Mongo próprio, ajuste a URI.
 ## Testes
 
 ```bash
+npm run typecheck
 npm test -- --run
+```
+
+Para produção, gere `dist/` antes de iniciar:
+
+```bash
+npm run build
+npm start
 ```
 
 ## Variáveis principais
@@ -77,6 +85,6 @@ sem timezone); `createdAt` e `updatedAt` são timestamps em epoch ms gerados
 pelo servidor.
 
 Esse módulo é uma vertical slice de referência. Ao criar um domínio real,
-remova `src/routes/taskRoutes.js`, `src/controllers/taskController.js`,
-`src/services/taskService.js`, os índices de `tasks` em `src/config/db.js` e
+remova `src/routes/taskRoutes.ts`, `src/controllers/taskController.ts`,
+`src/services/taskService.ts`, os índices de `tasks` em `src/config/db.ts` e
 os testes relacionados.

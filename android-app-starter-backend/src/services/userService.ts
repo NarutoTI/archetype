@@ -1,10 +1,13 @@
 import { ObjectId } from 'mongodb';
 import CrudRepository from '../repositories/crudRepository.js';
 import logger from '../config/logger.js';
+import type { AppUser, AppUserInput } from '../types/schemas.js';
 
-const userRepository = new CrudRepository('users');
+type UserDocument = AppUser & { _id?: ObjectId | string };
 
-const normalizeUser = (user) => {
+const userRepository = new CrudRepository<UserDocument>('users');
+
+const normalizeUser = (user: UserDocument | null): AppUser | null => {
   if (!user) {
     return null;
   }
@@ -15,7 +18,7 @@ const normalizeUser = (user) => {
   };
 };
 
-export async function findByEmail(email) {
+export async function findByEmail(email: string): Promise<AppUser | null> {
   try {
     return normalizeUser(await userRepository.findOne({ email }));
   } catch (error) {
@@ -24,7 +27,7 @@ export async function findByEmail(email) {
   }
 }
 
-export async function findById(id) {
+export async function findById(id: string | ObjectId): Promise<AppUser | null> {
   try {
     const objectId = typeof id === 'string' ? ObjectId.createFromHexString(id) : id;
     return normalizeUser(await userRepository.findById(objectId));
@@ -34,27 +37,32 @@ export async function findById(id) {
   }
 }
 
-export async function create(user) {
+export async function create(user: AppUserInput): Promise<AppUser> {
   try {
     const now = new Date();
-    const data = {
+    const data: UserDocument = {
       ...user,
+      provider: user.provider || 'email',
       createdAt: now,
       updatedAt: now
     };
 
     const result = await userRepository.insert(data);
-    return normalizeUser({
+    const createdUser = normalizeUser({
       ...data,
       _id: result.insertedId
     });
+    if (!createdUser) {
+      throw new Error('Failed to normalize created user');
+    }
+    return createdUser;
   } catch (error) {
     logger.error({ err: error }, 'Error creating user');
     throw error;
   }
 }
 
-export async function update(user) {
+export async function update(user: AppUser): Promise<boolean> {
   try {
     const data = {
       ...user,
@@ -69,7 +77,7 @@ export async function update(user) {
   }
 }
 
-export async function deleteUser(id) {
+export async function deleteUser(id: string | ObjectId): Promise<boolean> {
   try {
     const result = await userRepository.removeById(id);
     return result.deletedCount > 0;

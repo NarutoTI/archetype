@@ -2,7 +2,7 @@ services:
   - type: web
     name: android-app-starter-backend
     runtime: node
-    buildCommand: npm install
+    buildCommand: npm install && npm run build
     startCommand: npm start
     plan: free
     healthCheckPath: /health

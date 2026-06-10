@@ -1,22 +1,25 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import type { Request } from 'express';
 import logger from '../config/logger.js';
 
-// helper simples para mascarar email em logs
-const maskEmail = (s = '') => s.replace(/(.).+(@.+)/, '$1***$2');
+// Função simples para mascarar email em logs.
+const maskEmail = (s = ''): string => s.replace(/(.).+(@.+)/, '$1***$2');
+
+const getClientIp = (req: Request): string => req.ip || req.socket.remoteAddress || '0.0.0.0';
 
 /**
- * Helper: ignora preflight/health e HEAD.
+ * Ignora preflight, health e HEAD.
  */
-const shouldSkip = (req) => {
+const shouldSkip = (req: Request): boolean => {
   if (req.method === 'OPTIONS' || req.method === 'HEAD') return true;
   const p = req.path;
   return p === '/health' || p === '/api/health';
 };
 
 /**
- * 1) General API limiter
- * - lower window to smooth spikes: 10s
- * - ~8 req/s => 80/10s
+ * 1) Limitador geral da API.
+ * - janela curta para suavizar picos: 10s;
+ * - cerca de 8 req/s => 80/10s.
  */
 export const generalRateLimit = rateLimit({
   windowMs: 10 * 1000,
@@ -24,11 +27,10 @@ export const generalRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: shouldSkip,
-  // Use ipKeyGenerator helper for proper IPv6 handling
-  // Applies /56 subnet mask for IPv6 addresses to prevent bypass attempts
-  keyGenerator: (req, _res) => ipKeyGenerator(req.ip, 56),
+  // Usa máscara /56 para IPv6 e reduz tentativas de bypass por variação de IP.
+  keyGenerator: (req) => ipKeyGenerator(getClientIp(req), 56),
   handler: (req, res) => {
-    const ip = ipKeyGenerator(req.ip, 56);
+    const ip = ipKeyGenerator(getClientIp(req), 56);
     const ua = req.headers['user-agent'];
     logger.warn('[RATE_LIMIT][GENERAL] ip=%s path=%s ua=%s', ip, req.path, ua);
 
@@ -37,10 +39,10 @@ export const generalRateLimit = rateLimit({
       error: 'RATE_LIMIT_EXCEEDED',
       message: 'Too many requests from this IP, please try again later.',
       retryAfterSeconds:
-        Math.max(1, Math.ceil((req.rateLimit.resetTime?.getTime() - Date.now()) / 1000)) || 10,
+        Math.max(1, Math.ceil(((req.rateLimit?.resetTime?.getTime() || Date.now()) - Date.now()) / 1000)) || 10,
       rateLimit: {
-        limit: req.rateLimit.limit,
-        remaining: req.rateLimit.remaining,
+        limit: req.rateLimit?.limit,
+        remaining: req.rateLimit?.remaining,
         windowMs: 10_000
       }
     });
@@ -48,9 +50,9 @@ export const generalRateLimit = rateLimit({
 });
 
 /**
- * 2) Login limiter
- * - more restrictive (ex.: 10/60s ≈ 1 req/s)
- * - key by IP + email to avoid spray by shared IP
+ * 2) Limitador de login.
+ * - mais restritivo: 10/60s;
+ * - chave por IP + email para reduzir abuso em IP compartilhado.
  */
 export const loginRateLimit = rateLimit({
   windowMs: 60 * 1000,
@@ -62,14 +64,14 @@ export const loginRateLimit = rateLimit({
     return res.statusCode < 400;
   },
   keyGenerator: (req) => {
-    // Use helper for IPv6 compatibility with /56 subnet mask
-    const ip = ipKeyGenerator(req.ip, 56);
-    // Adjust according to your payload (req.body.email, req.body.username, etc.)
+    // Mantém compatibilidade IPv6 com máscara /56.
+    const ip = ipKeyGenerator(getClientIp(req), 56);
+    // Usa email ou username quando o payload tiver esse identificador.
     const userId = (req.body?.email || req.body?.username || '').toLowerCase().trim();
     return userId ? `${ip}:${userId}` : ip;
   },
   handler: (req, res) => {
-    const ip = ipKeyGenerator(req.ip, 56);
+    const ip = ipKeyGenerator(getClientIp(req), 56);
     const ua = req.headers['user-agent'];
     const email = (req.body?.email || req.body?.username || '').toLowerCase().trim();
     const masked = email ? maskEmail(email) : '';
@@ -80,10 +82,10 @@ export const loginRateLimit = rateLimit({
       error: 'LOGIN_RATE_LIMIT_EXCEEDED',
       message: 'Too many login attempts. Please try again later.',
       retryAfterSeconds:
-        Math.max(1, Math.ceil((req.rateLimit.resetTime?.getTime() - Date.now()) / 1000)) || 10,
+        Math.max(1, Math.ceil(((req.rateLimit?.resetTime?.getTime() || Date.now()) - Date.now()) / 1000)) || 10,
       rateLimit: {
-        limit: req.rateLimit.limit,
-        remaining: req.rateLimit.remaining,
+        limit: req.rateLimit?.limit,
+        remaining: req.rateLimit?.remaining,
         windowMs: 60_000
       }
     });
@@ -91,9 +93,9 @@ export const loginRateLimit = rateLimit({
 });
 
 /**
- * 3) Sensitive limiter (password reset, 2FA, etc.)
- * - Very restrictive: 2/min by IP
- * - If needed, combine with user key
+ * 3) Limitador de operações sensíveis.
+ * - bem restritivo: 2/min por IP;
+ * - se necessário, combine com chave de usuário.
  */
 export const sensitiveRateLimit = rateLimit({
   windowMs: 60 * 1000,
@@ -101,10 +103,10 @@ export const sensitiveRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: shouldSkip,
-  // Use helper for IPv6 compatibility with /56 subnet mask
-  keyGenerator: (req) => ipKeyGenerator(req.ip, 56),
+  // Mantém compatibilidade IPv6 com máscara /56.
+  keyGenerator: (req) => ipKeyGenerator(getClientIp(req), 56),
   handler: (req, res) => {
-    const ip = ipKeyGenerator(req.ip, 56);
+    const ip = ipKeyGenerator(getClientIp(req), 56);
     const ua = req.headers['user-agent'];
     logger.warn('[RATE_LIMIT][SENSITIVE] ip=%s path=%s ua=%s', ip, req.path, ua);
 
@@ -113,10 +115,10 @@ export const sensitiveRateLimit = rateLimit({
       error: 'SENSITIVE_RATE_LIMIT_EXCEEDED',
       message: 'Too many sensitive operations. Please try again later.',
       retryAfterSeconds:
-        Math.max(1, Math.ceil((req.rateLimit.resetTime?.getTime() - Date.now()) / 1000)) || 30,
+        Math.max(1, Math.ceil(((req.rateLimit?.resetTime?.getTime() || Date.now()) - Date.now()) / 1000)) || 30,
       rateLimit: {
-        limit: req.rateLimit.limit,
-        remaining: req.rateLimit.remaining,
+        limit: req.rateLimit?.limit,
+        remaining: req.rateLimit?.remaining,
         windowMs: 60_000
       }
     });

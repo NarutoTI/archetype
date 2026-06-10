@@ -1,4 +1,15 @@
-export const getAppVersionInfo = () => ({
+interface PlatformVersionInfo {
+  version: string;
+  minSupportedVersion: string;
+  storeUrl: string;
+}
+
+interface AppVersionInfo {
+  android: PlatformVersionInfo;
+  ios: PlatformVersionInfo;
+}
+
+export const getAppVersionInfo = (): AppVersionInfo => ({
   android: {
     version: process.env.ANDROID_APP_VERSION || '1.0.0',
     minSupportedVersion: process.env.ANDROID_MIN_SUPPORTED_VERSION || '1.0.0',

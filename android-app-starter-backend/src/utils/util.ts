@@ -1,30 +1,29 @@
 import { ObjectId } from 'mongodb';
 
-function formatDateToLocalDateString(date) {
+function formatDateToLocalDateString(date: Date): string {
   return date.toLocaleDateString('sv-SE');
 }
 
-export function transformMongoIds(doc) {
+export function transformMongoIds(doc: unknown): unknown {
   if (Array.isArray(doc)) {
     return doc.map(transformMongoIds);
   }
 
   if (doc && typeof doc === 'object') {
-    // Handle ObjectId
     if (doc instanceof ObjectId) {
       return doc.toString();
     }
     
-    // Handle Date - convert to a local YYYY-MM-DD string for frontend.
     if (doc instanceof Date) {
       return formatDateToLocalDateString(doc);
     }
 
-    const newObj = {};
+    const source = doc as Record<string, unknown>;
+    const newObj: Record<string, unknown> = {};
 
-    for (const key in doc) {
-      if (Object.prototype.hasOwnProperty.call(doc, key)) {
-        const value = doc[key];
+    for (const key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        const value = source[key];
 
         if (value instanceof ObjectId) {
           if (key === '_id') {
@@ -33,10 +32,8 @@ export function transformMongoIds(doc) {
             newObj[key] = value.toString();
           }
         } else if (value instanceof Date) {
-          // Convert Date objects to a local YYYY-MM-DD string for frontend.
           newObj[key] = formatDateToLocalDateString(value);
         } else if (value && typeof value === 'object') {
-          // Recursively transform nested objects and arrays
           newObj[key] = transformMongoIds(value);
         } else {
           newObj[key] = value;

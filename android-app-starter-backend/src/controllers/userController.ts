@@ -1,9 +1,11 @@
+import type { Request, Response } from 'express';
 import { ObjectId } from 'mongodb';
 import * as userService from '../services/userService.js';
 import logger from '../config/logger.js';
 import { sendError, ErrorCodes } from '../utils/errorHandler.js';
+import type { AppUser, SafeUser } from '../types/schemas.js';
 
-function buildSafeUser(user) {
+function buildSafeUser(user: AppUser | undefined | null): SafeUser | null {
   if (!user) {
     return null;
   }
@@ -26,20 +28,24 @@ function buildSafeUser(user) {
   };
 }
 
-function getRequestUserId(req) {
-  return req.user?._id?.toString() || req.user?.id;
+function getRequestUserId(req: Request): string {
+  const userId = req.user?._id?.toString() || req.user?.id;
+  if (!userId) {
+    throw new Error('Authenticated user id is required');
+  }
+  return userId;
 }
 
-export async function getCurrentUserProfile(req, res) {
+export async function getCurrentUserProfile(req: Request, res: Response) {
   try {
-    return res.json(buildSafeUser(req.user));
+    return res.json(buildSafeUser(req.user as AppUser | undefined));
   } catch (error) {
     logger.error({ err: error }, 'Error getting current user profile');
     return sendError(res, 500, ErrorCodes.INTERNAL_SERVER_ERROR, 'Internal server error');
   }
 }
 
-export async function getUserProfile(req, res) {
+export async function getUserProfile(req: Request, res: Response) {
   try {
     const userId = req.params.id;
     if (!ObjectId.isValid(userId)) {
@@ -62,7 +68,7 @@ export async function getUserProfile(req, res) {
   }
 }
 
-export async function updateUserProfile(req, res) {
+export async function updateUserProfile(req: Request, res: Response) {
   try {
     const userId = req.params.id;
     const { name, phone, birthDate, language } = req.body;

@@ -1,5 +1,5 @@
-// config/logger.js
-import pino from 'pino';
+import { pino } from 'pino';
+import type { LoggerOptions } from 'pino';
 
 const customLevels = {
   fatal: 60,
@@ -13,14 +13,14 @@ const customLevels = {
 
 const isProd = process.env.NODE_ENV === 'production';
 
-const logger = pino({
+const loggerOptions: LoggerOptions = {
   customLevels,
   useOnlyCustomLevels: false,
   level: process.env.LOG_LEVEL || (isProd ? 'important' : 'debug'),
   messageKey: 'msg',
   formatters: {
-    level(label) {
-      return { level: label.toUpperCase() }; // show  [IMPORTANT] in log
+    level(label: string) {
+      return { level: label.toUpperCase() };
     },
   },
   transport: !isProd
@@ -35,6 +35,8 @@ const logger = pino({
         },
       }
     : undefined,
-});
+};
+
+const logger = pino(loggerOptions);
 
 export default logger;

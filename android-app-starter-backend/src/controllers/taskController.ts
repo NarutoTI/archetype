@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 import logger from '../config/logger.js';
 import {
   createTask,
@@ -10,12 +11,19 @@ import {
   updateTask
 } from '../services/taskService.js';
 import { ErrorCodes, sendError } from '../utils/errorHandler.js';
+import type { CreateTaskInput, UpdateTaskInput } from '../types/schemas.js';
 
-function getRequestUserId(req) {
-  return req.user?._id?.toString() || req.user?.id;
+type TaskPayload = Partial<CreateTaskInput & UpdateTaskInput>;
+
+function getRequestUserId(req: Request): string {
+  const userId = req.user?._id?.toString() || req.user?.id;
+  if (!userId) {
+    throw new Error('Authenticated user id is required');
+  }
+  return userId;
 }
 
-function validateTaskPayload(data, { partial = false } = {}) {
+function validateTaskPayload(data: TaskPayload, { partial = false } = {}): string | null {
   const titleProvided = Object.prototype.hasOwnProperty.call(data, 'title');
   const dueDateProvided = Object.prototype.hasOwnProperty.call(data, 'dueDate');
 
@@ -27,7 +35,7 @@ function validateTaskPayload(data, { partial = false } = {}) {
     return 'Task dueDate must be YYYY-MM-DD';
   }
 
-  if (titleProvided && data.title.trim().length > 160) {
+  if (titleProvided && typeof data.title === 'string' && data.title.trim().length > 160) {
     return 'Task title is too long';
   }
 
@@ -38,7 +46,7 @@ function validateTaskPayload(data, { partial = false } = {}) {
   return null;
 }
 
-export async function listTasks(req, res) {
+export async function listTasks(req: Request, res: Response) {
   try {
     const tasks = await findAllByUser(getRequestUserId(req));
     return res.json({ success: true, tasks });
@@ -48,7 +56,7 @@ export async function listTasks(req, res) {
   }
 }
 
-export async function listTasksByYear(req, res) {
+export async function listTasksByYear(req: Request, res: Response) {
   try {
     const { year } = req.params;
     if (!isValidYear(year)) {
@@ -63,7 +71,7 @@ export async function listTasksByYear(req, res) {
   }
 }
 
-export async function getTask(req, res) {
+export async function getTask(req: Request, res: Response) {
   try {
     const task = await findByIdForUser(req.params.id, getRequestUserId(req));
     if (!task) {
@@ -77,7 +85,7 @@ export async function getTask(req, res) {
   }
 }
 
-export async function createTaskController(req, res) {
+export async function createTaskController(req: Request, res: Response) {
   try {
     const validationError = validateTaskPayload(req.body);
     if (validationError) {
@@ -92,7 +100,7 @@ export async function createTaskController(req, res) {
   }
 }
 
-export async function updateTaskController(req, res) {
+export async function updateTaskController(req: Request, res: Response) {
   try {
     const validationError = validateTaskPayload(req.body, { partial: true });
     if (validationError) {
@@ -111,7 +119,7 @@ export async function updateTaskController(req, res) {
   }
 }
 
-export async function deleteTaskController(req, res) {
+export async function deleteTaskController(req: Request, res: Response) {
   try {
     const deleted = await deleteTask(req.params.id, getRequestUserId(req));
     if (!deleted) {

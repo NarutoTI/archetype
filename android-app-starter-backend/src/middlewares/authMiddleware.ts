@@ -1,11 +1,13 @@
+import type { NextFunction, Request, Response } from 'express';
 import { verifyJWT } from '../config/passport.js';
 import logger from '../config/logger.js';
 import * as userService from '../services/userService.js';
+import type { AppUser } from '../types/schemas.js';
 
 const isDevBypassEnabled = () =>
   process.env.NODE_ENV === 'development' && process.env.ENABLE_DEV_BYPASS === 'true';
 
-const getOrCreateDevUser = async () => {
+const getOrCreateDevUser = async (): Promise<AppUser> => {
   const email = 'dev@dev.com';
   let user = await userService.findByEmail(email);
   if (user) return user;
@@ -20,7 +22,7 @@ const getOrCreateDevUser = async () => {
   });
 };
 
-export const validateJWTToken = async (req, res, next) => {
+export const validateJWTToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

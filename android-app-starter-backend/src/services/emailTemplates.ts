@@ -1,5 +1,57 @@
-// Email templates in different languages.
-const emailCopies = {
+interface EmailActionCopy {
+  subject: string;
+  title: string;
+  intro: string;
+  button: string;
+  footer: string;
+  expiry?: string;
+  warningLabel?: string;
+  warning?: string;
+  proceed?: string;
+}
+
+interface EmailCopy {
+  greeting: (name: string) => string;
+  copyUrl: string;
+  confirmation: EmailActionCopy;
+  passwordReset: EmailActionCopy;
+  accountDeletion: EmailActionCopy;
+}
+
+interface RenderEmailOptions {
+  title: string;
+  titleColor?: string;
+  greeting: string;
+  intro: string;
+  warning?: {
+    label?: string;
+    message?: string;
+  };
+  proceed?: string;
+  url: string;
+  buttonText: string;
+  buttonColor?: string;
+  copyUrl: string;
+  expiry?: string;
+  footer: string;
+}
+
+export interface EmailTemplates {
+  confirmation: {
+    subject: string;
+    html: (name: string, confirmationUrl: string) => string;
+  };
+  passwordReset: {
+    subject: string;
+    html: (name: string, resetUrl: string) => string;
+  };
+  accountDeletion: {
+    subject: string;
+    html: (name: string, deletionUrl: string) => string;
+  };
+}
+
+const emailCopies: Record<string, EmailCopy> = {
   en: {
     greeting: (name) => `Hello <strong>${name}</strong>,`,
     copyUrl: 'Or copy and paste this link in your browser:',
@@ -285,7 +337,7 @@ const renderEmail = ({
   copyUrl,
   expiry,
   footer
-}) => `
+}: RenderEmailOptions): string => `
   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
     <h2 style="color: ${titleColor};">${title}</h2>
     <p>${greeting}</p>
@@ -318,7 +370,7 @@ const renderEmail = ({
   </div>
 `;
 
-const createTemplates = (copy) => ({
+const createTemplates = (copy: EmailCopy): EmailTemplates => ({
   confirmation: {
     subject: copy.confirmation.subject,
     html: (name, confirmationUrl) => renderEmail({
@@ -366,10 +418,11 @@ const createTemplates = (copy) => ({
   }
 });
 
-const emailTemplates = Object.fromEntries(
+const emailTemplates: Record<string, EmailTemplates> = Object.fromEntries(
   Object.entries(emailCopies).map(([language, copy]) => [language, createTemplates(copy)])
 );
 
 export const supportedEmailTemplateLanguages = Object.freeze(Object.keys(emailCopies));
+export const fallbackEmailTemplates = emailTemplates.en;
 
 export default emailTemplates;

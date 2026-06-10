@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
-import emailTemplates from './emailTemplates.js';
+import type { SendMailOptions, Transporter } from 'nodemailer';
+import emailTemplates, { fallbackEmailTemplates } from './emailTemplates.js';
 import logger from '../config/logger.js';
 
 const getFrontendUrl = () => {
@@ -13,20 +14,24 @@ const getFrontendUrl = () => {
 };
 
 class EmailService {
+  private transporter: Transporter | null;
+  private isConfigured: boolean;
+  private initialized: boolean;
+
   constructor() {
     this.transporter = null;
     this.isConfigured = false;
     this.initialized = false;
   }
 
-  ensureInitialized() {
+  ensureInitialized(): void {
     if (!this.initialized) {
       this.initialize();
       this.initialized = true;
     }
   }
 
-  initialize() {
+  initialize(): void {
     try {
       if (!process.env.SMTP_USER && process.env.NODE_ENV === 'development') {
         this.transporter = null;
@@ -51,9 +56,9 @@ class EmailService {
     }
   }
 
-  async sendConfirmationEmail(email, name, confirmationToken, language = 'en') {
+  async sendConfirmationEmail(email: string, name: string, confirmationToken: string, language = 'en') {
     const confirmationUrl = `${getFrontendUrl()}/auth/callback?token=${confirmationToken}&success=true`;
-    const template = emailTemplates[language]?.confirmation || emailTemplates.en.confirmation;
+    const template = (emailTemplates[language] || fallbackEmailTemplates).confirmation;
 
     return this.sendEmail({
       from: process.env.EMAIL_FROM || 'noreply@example.com',
@@ -63,9 +68,9 @@ class EmailService {
     });
   }
 
-  async sendPasswordResetEmail(email, name, resetToken, language = 'en') {
+  async sendPasswordResetEmail(email: string, name: string, resetToken: string, language = 'en') {
     const resetUrl = `${getFrontendUrl()}/auth/callback?token=${resetToken}&success=true`;
-    const template = emailTemplates[language]?.passwordReset || emailTemplates.en.passwordReset;
+    const template = (emailTemplates[language] || fallbackEmailTemplates).passwordReset;
 
     return this.sendEmail({
       from: process.env.EMAIL_FROM || 'noreply@example.com',
@@ -75,9 +80,9 @@ class EmailService {
     });
   }
 
-  async sendAccountDeletionEmail(email, name, deletionToken, language = 'en') {
+  async sendAccountDeletionEmail(email: string, name: string, deletionToken: string, language = 'en') {
     const deletionUrl = `${getFrontendUrl()}/auth/callback?token=${deletionToken}&success=true`;
-    const template = emailTemplates[language]?.accountDeletion || emailTemplates.en.accountDeletion;
+    const template = (emailTemplates[language] || fallbackEmailTemplates).accountDeletion;
 
     return this.sendEmail({
       from: process.env.EMAIL_FROM || 'noreply@example.com',
@@ -87,14 +92,15 @@ class EmailService {
     });
   }
 
-  async sendEmail(mailOptions) {
+  async sendEmail(mailOptions: SendMailOptions) {
     this.ensureInitialized();
 
     if (!this.isConfigured && process.env.NODE_ENV === 'development') {
+      const html = typeof mailOptions.html === 'string' ? mailOptions.html : '';
       logger.info({
         to: mailOptions.to,
         subject: mailOptions.subject,
-        links: this.extractLinksFromHtml(mailOptions.html)
+        links: this.extractLinksFromHtml(html)
       }, 'Development email skipped');
       return { messageId: 'dev-mode-fake-id' };
     }
@@ -108,7 +114,7 @@ class EmailService {
     return result;
   }
 
-  extractLinksFromHtml(html) {
+  extractLinksFromHtml(html: string): string[] {
     const linkRegex = /href="([^"]+)"/g;
     const links = [];
     let match;
@@ -118,7 +124,7 @@ class EmailService {
     return links;
   }
 
-  isReady() {
+  isReady(): boolean {
     this.ensureInitialized();
     return this.isConfigured || process.env.NODE_ENV === 'development';
   }

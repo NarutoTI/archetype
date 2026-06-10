@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request, Response } from 'express';
 import { body } from 'express-validator';
 import {
   register,
@@ -80,7 +81,7 @@ router.post('/resend-confirmation', validateEmailResend, resendConfirmation);
 router.post('/logout', handleLogout);
 router.post('/fake-login', validateFakeLogin, handleFakeLogin);
 
-router.get('/routes', (_req, res) => {
+router.get('/routes', (_req: Request, res: Response) => {
   if (process.env.NODE_ENV === 'production') {
     return res.status(HTTP_STATUS.NOT_FOUND).json({
       success: false,

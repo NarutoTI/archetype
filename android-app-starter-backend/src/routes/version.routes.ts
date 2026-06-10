@@ -3,7 +3,7 @@ import { getAppVersion } from '../controllers/version.controller.js';
 
 const router = Router();
 
-// Public endpoint - no authentication required
+// Endpoint público sem autenticação.
 router.get('/version', getAppVersion);
 
 export default router;
