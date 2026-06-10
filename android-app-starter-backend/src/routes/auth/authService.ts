@@ -11,7 +11,7 @@ import {
   VALIDATION_RULES,
   TOKEN_EXPIRY
 } from './authConsts.js';
-import type { AppUser, AppUserInput, JwtUserPayload } from '../../types/schemas.js';
+import type { AppUser, AppUserInput, JwtUserPayload, SafeUser } from '../../types/schemas.js';
 import type { TokenType } from './authConsts.js';
 
 interface PasswordValidationResult {
@@ -365,12 +365,11 @@ export function getFrontendUrl() {
   return process.env.FRONTEND_ONLINE_URL || process.env.FRONTEND_URL || 'http://localhost:8100';
 }
 
-export function sanitizeUserData(user: AppUser | null): AppUser | null {
+export function sanitizeUserData(user: AppUser | null): SafeUser | null {
   if (!user) {
     return null;
   }
 
-  const source = user.toObject ? user.toObject() : { ...user };
   const {
     password,
     googleAccessToken,
@@ -378,7 +377,7 @@ export function sanitizeUserData(user: AppUser | null): AppUser | null {
     googleTokenExpiry,
     __v,
     ...safeUser
-  } = source;
+  } = user;
 
   return {
     ...safeUser,

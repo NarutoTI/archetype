@@ -10,7 +10,6 @@ export type UserProvider =
   | 'local';
 
 export interface AppUser {
-  [key: string]: unknown;
   _id?: ObjectId | string;
   id?: string;
   name: string;
@@ -28,14 +27,17 @@ export interface AppUser {
   language?: string;
   picture?: string | null;
   tokenType?: string;
-  toObject?: () => AppUser;
+  googleAccessToken?: string | null;
+  googleRefreshToken?: string | null;
+  googleTokenExpiry?: Date | number | null;
+  __v?: unknown;
 }
 
-export interface SafeUser extends Omit<AppUser, 'password' | 'toObject'> {
+export interface SafeUser extends Omit<AppUser, 'password' | 'googleAccessToken' | 'googleRefreshToken' | 'googleTokenExpiry' | '__v'> {
   id?: string;
 }
 
-export interface AppUserInput extends Omit<AppUser, '_id' | 'id' | 'createdAt' | 'updatedAt' | 'lastLogin' | 'provider'> {
+export interface AppUserInput extends Omit<AppUser, '_id' | 'id' | 'createdAt' | 'updatedAt' | 'lastLogin' | 'provider' | 'googleAccessToken' | 'googleRefreshToken' | 'googleTokenExpiry' | '__v'> {
   name: string;
   email: string;
   provider?: UserProvider | string;

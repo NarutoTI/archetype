@@ -18,7 +18,7 @@ O backend complementar fica em [`../android-app-starter-backend`](../android-app
 
 ## Pré-requisitos
 
-- Node.js 18+ (recomendado 20).
+- Node.js 20+.
 - Docker (para o MongoDB do backend) ou um MongoDB acessível.
 - Para rodar no Android: Android Studio + JDK 17 + um emulador ou dispositivo.
 

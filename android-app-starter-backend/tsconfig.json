@@ -13,7 +13,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "sourceMap": true,
-    "declaration": true,
+    "declaration": false,
     "types": ["node", "vitest"]
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "tests/**/*.ts"],

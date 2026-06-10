@@ -5,7 +5,7 @@ ou no emulador Android.
 
 ## Pré-requisitos
 
-- Node.js 18+ (recomendado 20).
+- Node.js 20+.
 - Docker Desktop, ou outro MongoDB acessível.
 - Para Android: Android Studio, JDK 17 e um emulador/dispositivo.
 
@@ -126,17 +126,8 @@ Backend:
 
 ```bash
 cd android-app-starter-backend
+npm run typecheck
 npm test -- --run
-```
-
-Check de sintaxe JS do backend:
-
-```powershell
-$files = rg --files src tests | Where-Object { $_ -match '\.js$' }
-foreach ($file in $files) {
-  node --check $file
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-}
 ```
 
 ## Problemas Comuns

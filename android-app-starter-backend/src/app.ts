@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+import 'dotenv/config';
 import express from 'express';
 import type { ErrorRequestHandler } from 'express';
 import cors from 'cors';
@@ -7,8 +7,6 @@ import passport, { isGoogleOAuthEnabled } from './config/passport.js';
 import { connectToMongo, getDb } from './config/db.js';
 import logger from './config/logger.js';
 import { generalRateLimit } from './middlewares/rateLimitMiddleware.js';
-
-dotenv.config();
 
 const app = express();
 app.set('trust proxy', 1);
