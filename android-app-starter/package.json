@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:android": "vite --mode development",
+    "serve:ionic": "ionic serve --host=0.0.0.0 --port=8101",
     "build": "vue-tsc && vite build --mode production",
     "build:dev": "vue-tsc && vite build --mode development",
     "preview": "vite",

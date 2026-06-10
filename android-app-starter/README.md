@@ -41,6 +41,8 @@ cd ../android-app-starter
 cp .env.example .env # ajuste VITE_USE_FAKE_LOGIN=true para testar sem OAuth
 npm install
 npm run dev          # http://localhost:8101
+# ou, se preferir Ionic CLI:
+npm run serve:ionic  # http://localhost:8101
 ```
 
 Com `VITE_USE_FAKE_LOGIN=true`, o botão "Continuar com Google" usa o endpoint
@@ -60,6 +62,9 @@ npx cap open android # abre no Android Studio
 No emulador, use `VITE_API_URL=http://10.0.2.2:3001` (`10.0.2.2` é o alias do
 emulador para o `localhost` da sua máquina). No navegador, use
 `http://localhost:3001`.
+
+O comando cru `ionic serve` usa `8100` por padrão no Ionic CLI. Neste projeto,
+use `npm run serve:ionic` ou `ionic serve --port 8101`.
 
 ## Testes e lint
 

@@ -63,6 +63,20 @@ npm run dev
 
 O frontend sobe em `http://localhost:8101`.
 
+Se preferir usar o Ionic CLI, rode:
+
+```bash
+npm run serve:ionic
+```
+
+ou:
+
+```bash
+ionic serve --port 8101
+```
+
+O comando cru `ionic serve` usa `8100` por padrão no Ionic CLI.
+
 Para testar sem OAuth nem confirmação de email, ajuste no `.env` do frontend:
 
 ```bash
@@ -134,6 +148,8 @@ npm test -- --run
 
 - Porta `3001` ocupada: pare o processo antigo ou altere `PORT` no backend.
 - Porta `8101` ocupada: pare o processo antigo ou rode `npm run dev -- --port 8102`.
+- `ionic serve` abrindo em `8100`: use `npm run serve:ionic` ou
+  `ionic serve --port 8101`.
 - Mongo não conecta: confirme `docker ps` e o valor de `MONGODB_URI`.
 - Mudou `.env` do frontend: reinicie o Vite; variáveis `VITE_*` são lidas no
   start do servidor.
