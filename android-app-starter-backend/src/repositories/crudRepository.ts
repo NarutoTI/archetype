@@ -115,6 +115,23 @@ export default class CrudRepository<TDocument extends Document = Document> {
     );
   }
 
+  /**
+   * Busca e atualiza um documento atomicamente, retornando o documento
+   * APÓS a escrita. Com upsert=true, o documento inserido é retornado na
+   * primeira gravação — alternativa em um único roundtrip a updateOne + findOne.
+   */
+  async findOneAndUpdate(
+    query: Filter<TDocument>,
+    update: UpdateFilter<TDocument>,
+    upsert = false,
+  ): Promise<WithId<TDocument> | null> {
+    return this.getCollection().findOneAndUpdate(
+      query,
+      update,
+      { returnDocument: 'after', upsert },
+    );
+  }
+
   async findAll(limit = 100, skip = 0, sort: Sort = {}): Promise<WithId<TDocument>[]> {
     return this.getCollection().find().limit(limit).skip(skip).sort(sort).toArray();
   }
