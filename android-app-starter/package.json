@@ -32,37 +32,41 @@
     "@capacitor/share": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
     "@capgo/capacitor-share-target": "^8.0.35",
-    "@ionic/vue": "^8.8.8",
-    "@ionic/vue-router": "^8.8.8",
-    "axios": "^1.13.2",
+    "@ionic/vue": "^8.8.10",
+    "@ionic/vue-router": "^8.8.10",
+    "axios": "^1.17.0",
     "capacitor-native-biometric": "^4.2.2",
     "capacitor-native-settings": "^8.1.0",
     "ionicons": "^8.0.13",
     "leaflet": "^1.9.4",
     "pinia": "^3.0.4",
-    "vue": "^3.5.35",
-    "vue-i18n": "^11.4.4",
+    "vue": "^3.5.38",
+    "vue-i18n": "^11.4.5",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.3.4",
     "@types/leaflet": "^1.9.21",
-    "@vitejs/plugin-legacy": "^7.2.1",
-    "@vitejs/plugin-vue": "^6.0.3",
+    "@vitejs/plugin-legacy": "^8.0.2",
+    "@vitejs/plugin-vue": "^6.0.7",
     "@vue/eslint-config-typescript": "^12.0.0",
     "@vue/test-utils": "^2.3.0",
     "eslint": "^8.35.0",
     "eslint-plugin-vue": "^9.9.0",
     "jsdom": "^22.1.0",
     "rollup-plugin-visualizer": "^6.0.3",
-    "terser": "^5.4.0",
+    "terser": "^5.16.0",
     "typescript": "~5.6.2",
-    "vite": "^7.2.7",
-    "vitest": "^4.0.15",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.8",
     "vue-tsc": "^2.1.10"
   },
   "description": "Ionic Vue Android app starter",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "overrides": {
-    "minimatch": "9.0.7"
+    "minimatch": "9.0.7",
+    "esbuild": "0.28.1"
   }
 }

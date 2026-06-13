@@ -39,30 +39,29 @@ export default defineConfig({
     outDir: 'www',
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Core Vue and routing
-          'vue-vendor': ['vue', 'vue-router', 'pinia'],
-          
-          // Ionic core
-          'ionic-core': ['@ionic/vue'],
-          
-          // Ionic icons
-          'ionic-icons': ['ionicons/icons'],
-          
-          // Capacitor plugins
-          'capacitor-vendor': ['@capacitor/core', '@capacitor/app', '@capacitor/browser'],
-          
-          // Utilities and services
-          'app-utils': [
-            './src/services/toast.service.ts',
-            './src/services/notification.service.ts',
-            './src/utils/date.utils.ts',
-            './src/utils/logger.ts'
-          ]
-        }
-      }
+        // Vite 8 / Rolldown: prefer codeSplitting.groups over deprecated manualChunks.
+        strictExecutionOrder: true,
+        codeSplitting: {
+          groups: [
+            {
+              name: 'vue-vendor',
+              test: /\/node_modules\/(vue|vue-router|pinia)(\/|$)|\/node_modules\/@vue\//,
+            },
+            { name: 'ionic-core', test: /\/node_modules\/@ionic\/vue\// },
+            { name: 'ionic-icons', test: /\/node_modules\/ionicons\// },
+            {
+              name: 'capacitor-vendor',
+              test: /\/node_modules\/@capacitor\/(core|app|browser)\//,
+            },
+            {
+              name: 'app-utils',
+              test: /\/src\/services\/(toast|notification)\.service|\/src\/utils\/(date\.utils|logger)/,
+            },
+          ],
+        },
+      },
     },
     chunkSizeWarningLimit: 1000
   }
-  
+
 })
