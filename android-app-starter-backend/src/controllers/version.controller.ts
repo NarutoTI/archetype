@@ -8,7 +8,7 @@ export const getAppVersion = (_req: Request, res: Response) => {
     logger.info('App version info requested');
     res.status(200).json(versionInfo);
   } catch (error) {
-    logger.error('Error getting app version info: %j', error);
+    logger.error({ err: error }, 'Error getting app version info');
     res.status(500).json({ error: 'Failed to retrieve version information' });
   }
 };

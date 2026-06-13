@@ -23,7 +23,7 @@ const shouldSkip = (req: Request): boolean => {
  */
 export const generalRateLimit = rateLimit({
   windowMs: 10 * 1000,
-  max: 80,
+  limit: 80,
   standardHeaders: true,
   legacyHeaders: false,
   skip: shouldSkip,
@@ -56,7 +56,7 @@ export const generalRateLimit = rateLimit({
  */
 export const loginRateLimit = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
   skip: shouldSkip,
@@ -99,7 +99,7 @@ export const loginRateLimit = rateLimit({
  */
 export const sensitiveRateLimit = rateLimit({
   windowMs: 60 * 1000,
-  max: 2,
+  limit: 2,
   standardHeaders: true,
   legacyHeaders: false,
   skip: shouldSkip,
