@@ -20,8 +20,9 @@ O `main.ts` inicializa em **fases**, com um ponto de sincronização único.
 
 | Fase | O quê | Bloqueia UI? |
 |------|-------|--------------|
-| **0** | `shareEntry.install(router)` + listener de toque em notificação | Não |
+| **0** | `shareEntry.install(router)` | Não |
 | **1** | Biometria → `authService.initializeAuth()` | Sim (até biometria/auth) |
+| **1** | Listener de toque em notificação (`localNotificationActionPerformed`) | Não |
 | **1** | `resolveBootReadyPromise()` | Libera os guards do router |
 | **2** | `settingsStore.loadBootSettings()` (tema, idioma, modos de view) | Sim, antes do mount (evita flash) |
 | **2** | `app.mount()` | — (UI visível) |
@@ -152,11 +153,14 @@ propósito.
 
 ### 4.1 Toque direto na notificação
 
-Listener `localNotificationActionPerformed` registrado **cedo** no
-[main.ts](../src/main.ts) (Fase 0/1). Ele lê `extra.routePath` e navega para a
-tela certa. **Decisão:** esse listener tem que ser cedo — o toque pode *lançar* o
-app, e se ele morasse num módulo lazy (Fase 3) o evento de cold-start seria
-perdido.
+Listener `localNotificationActionPerformed` registrado no
+[main.ts](../src/main.ts) na **Fase 1** — logo após biometria/auth e antes de
+liberar o router (`resolveBootReadyPromise`). Ele lê `extra.routePath` e navega
+para a tela certa. **Decisão:** esse listener tem que ser cedo (e não num módulo
+lazy da Fase 3, senão o evento de cold-start se perderia). _Observação:_ ele fica
+**depois** da biometria, então é menos cedo que o listener de share (Fase 0); se
+um toque que lança o app precisar ser capturado durante uma biometria lenta,
+considere subir esse registro para antes do `await` da biometria.
 
 ### 4.2 Abertura pelo ícone com badge (notificação já entregue)
 
@@ -286,8 +290,14 @@ Padrões recorrentes, já aplicados acima, que valem manter ao crescer o app:
   dependem entre si.
 - **Deduplicar fetch:** `inFlight` Maps para não disparar a mesma request duas
   vezes.
-- **Não bloquear o caminho crítico:** permissões, check de versão e prompts
-  secundários rodam em `setTimeout` após a primeira pintura.
+- **Não bloquear o caminho crítico:** trabalho adiável (check de versão, prompt
+  de notificação entregue) roda em `setTimeout` após a primeira pintura. O
+  `requestPermissions()` *explícito* também está na Fase 3 — **mas note** que o
+  `notificationService` é importado no topo do `main.ts` e seu construtor dispara
+  `initialize()` → `checkAndRequestPermissions()` ([notification.service.ts](../src/services/notification.service.ts)),
+  então, em instalação nova, o prompt de permissão pode aparecer **na avaliação do
+  módulo**, antes da Fase 3. Não dá para afirmar que toda permissão só ocorre após
+  o first paint; avalie se quer manter os dois pontos de pedido.
 - **Patch local barato sobre frescor perfeito** quando o risco restante é raro,
   recuperável e sem perda de dados: ao alterar um item de um cache já carregado,
   prefira atualizar só aquele id em RAM + salvar Preferences, em vez de limpar o
@@ -299,19 +309,25 @@ Padrões recorrentes, já aplicados acima, que valem manter ao crescer o app:
 
 ## 10. Limpeza no logout / troca de usuário
 
-Como o cache é **user-scoped**, a troca de usuário só descarrega a memória das
-stores (`reset({ removePersisted: false })`) — o cache em disco do usuário
-anterior fica isolado pela chave e é relido se ele voltar. No logout, limpam-se as
-preferências user-scoped e o `userStore`. O índice de notificações também é
-user-scoped, então não vaza entre contas.
+Como o cache de domínio é **user-scoped**, a troca de usuário / logout chama
+`reset({ removePersisted: false })` nas stores: descarrega só a **memória (RAM)**,
+**preservando** o cache em disco daquele usuário — isolado pela chave de escopo e
+relido se ele voltar. O que é de fato **apagado** no logout
+([auth.service.ts](../src/services/auth.service.ts)) é apenas: o **token**, o
+**`userStore`** e as **preferências user-scoped de settings**
+(`clearUserScopedPreferences`). O índice de notificações é user-scoped, então não
+vaza entre contas mesmo sem limpeza explícita.
 
 ---
 
 ## 11. iOS (estado e esforço)
 
-O frontend Vue/Ionic é **portável sem refator** — Ionic detecta a plataforma e
-aplica o "mode" iOS automaticamente; ~95% dos services já são
-plataforma-agnósticos. O trabalho de iOS **não** está na lógica do app, e sim em:
+O frontend Vue/Ionic é **portável sem reescrever lógica** — ~95% dos services já
+são plataforma-agnósticos. **Atenção:** este starter fixa `mode: 'md'` no
+`IonicVue` ([main.ts](../src/main.ts)), então o app renderiza Material **também no
+iOS**. Para o visual nativo iOS, remova ou condicione esse `mode` (sem ele, o
+Ionic detecta a plataforma e aplica o "mode" iOS automaticamente). A lógica de
+domínio não muda; o trabalho de iOS **não** está nela, e sim em:
 
 - **Scaffold nativo** (`@capacitor/ios`, `cap add ios`, Xcode/CocoaPods).
 - **Info.plist**: *purpose strings* de cada permissão usada (rejeição automática
