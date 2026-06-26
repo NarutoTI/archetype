@@ -136,7 +136,10 @@ E em `src/composables/`:
 - tela Ionic em `src/views/TasksPage.vue` com criação, edição (toque no item ou
   swipe), exclusão com confirmação, pull-to-refresh e skeleton de carregamento;
 - lembrete por notificação local no dia do vencimento (09:00). O lembrete é
-  local ao dispositivo: não sincroniza entre aparelhos;
+  local ao dispositivo e usa `extra.routePath` para navegar no toque direto ou
+  no prompt de abertura pelo ícone com badge; não sincroniza entre aparelhos.
+  Se o usuário não estiver autenticado, o guard redireciona para login e a
+  intenção da notificação não é preservada — trade-off aceito no starter;
 - teste em `tests/unit/stores/taskStore.spec.ts`.
 
 O backend complementar expõe `/api/tasks` (ver README do backend).

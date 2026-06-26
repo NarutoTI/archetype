@@ -3,6 +3,7 @@ import { createPinia } from 'pinia';
 import { IonicVue } from '@ionic/vue';
 import { addIcons } from 'ionicons';
 import { close } from 'ionicons/icons';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import App from './App.vue';
 import router from './router';
 import i18n from './i18n';
@@ -14,6 +15,7 @@ import { shareEntry } from './services/shareEntry';
 import { resolveBootReadyPromise } from './services/boot';
 import { useSettingsStore } from './stores/settingsStore';
 import { logger } from './utils/logger';
+import { DEFAULT_NOTIFICATION_OPEN_PATH } from './constants/notificationRoutes';
 
 import '@ionic/vue/css/core.css';
 import '@ionic/vue/css/normalize.css';
@@ -54,6 +56,17 @@ const initializeApp = async () => {
     await biometricService.checkBiometricAuth();
     await authService.initializeAuth();
 
+    void LocalNotifications.addListener('localNotificationActionPerformed', (event) => {
+      const routePath = (event as any)?.notification?.extra?.routePath;
+      const target = typeof routePath === 'string' && routePath.startsWith('/')
+        ? routePath
+        : DEFAULT_NOTIFICATION_OPEN_PATH;
+
+      router.isReady()
+        .then(() => router.push(target))
+        .catch((error) => logger.error('Error routing from notification action:', error));
+    }).catch((error) => logger.debug('LocalNotifications listener bind skipped:', error));
+
     resolveBootReadyPromise();
 
     const settingsStore = useSettingsStore();
@@ -61,9 +74,45 @@ const initializeApp = async () => {
     await mountApp();
 
     void settingsStore.loadSettings();
-    void shareEntry.dispatchIfPending('cold-start');
+
+    // Cold-start share dispatch starts now, after mount, but we keep its Promise
+    // so Phase 3 can give share priority over the lower-priority delivered
+    // notification prompt (launcher-icon/badge case).
+    const coldStartShareDispatch = shareEntry.dispatchIfPending('cold-start')
+      .catch((error) => {
+        logger.error('Error dispatching cold-start share entry:', error);
+        return false;
+      });
 
     setTimeout(() => {
+      // Lazy-load the delivered-notification entry flow only after first paint.
+      // Keeping it here protects startup: no static import, no module evaluation
+      // and no App.addListener bridge competing with the critical boot awaits.
+      // It is always installed (the resume listener must stay active for the
+      // session); only the cold-start dispatch waits on the share result.
+      const notificationEntryReady = import('@/services/notificationEntry')
+        .then(({ notificationEntry }) => {
+          notificationEntry.install(router);
+          return notificationEntry;
+        });
+
+      void (async () => {
+        try {
+          const [notificationEntry, shareDispatched] = await Promise.all([
+            notificationEntryReady,
+            coldStartShareDispatch,
+          ]);
+
+          // Share has priority over launcher-badge prompts; dispatch delivered
+          // notifications only when cold-start share did not navigate.
+          if (!shareDispatched) {
+            await notificationEntry.dispatchIfDelivered('cold-start');
+          }
+        } catch (error) {
+          logger.error('Error dispatching cold-start notification entry:', error);
+        }
+      })();
+
       void notificationService.requestPermissions().catch((error) => {
         logger.error('Error requesting notification permissions:', error);
       });

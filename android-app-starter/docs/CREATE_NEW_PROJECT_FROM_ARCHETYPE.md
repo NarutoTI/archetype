@@ -172,7 +172,13 @@ Se mantiver como base real, renomeie chaves/coleções de demonstração como
 ### Notifications
 
 Mantém exemplo de notificação local genérica. Se o produto tiver lembretes de
-domínio, crie uma camada do domínio chamando `notification.service.ts`.
+domínio, crie uma camada do domínio chamando `notification.service.ts`. Use
+`extra.routePath` para apontar a rota aberta ao tocar diretamente na
+notificação ou ao escolher **Abrir** no prompt de notificação entregue pelo
+ícone com badge. Se o usuário não estiver autenticado, o guard redireciona para
+login e a intenção da notificação não é preservada; isso é aceitável no starter
+por ser uma exceção rara. Produtos que precisem dessa continuidade devem criar
+um redirect pós-login específico para notificações.
 
 ### Mapa
 

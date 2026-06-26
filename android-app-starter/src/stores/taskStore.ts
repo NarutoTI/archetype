@@ -158,6 +158,9 @@ export const useTaskStore = defineStore('tasks', () => {
           body: i18n.global.t('tasks.reminderBody', { title: task.title }),
           date: task.dueDate,
           time: TASK_REMINDER_TIME,
+          // Exemplo: para onde a ação "Abrir" navega quando o app é aberto pelo
+          // ícone com badge. Apps reais podem apontar para a rota de detalhe.
+          extra: { routePath: '/tabs/tasks' },
         });
       } else {
         await cancelTaskReminder(task.id);

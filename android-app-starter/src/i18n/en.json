@@ -155,7 +155,13 @@
     "permissionDenied": "Permission not granted.",
     "notSupported": "Notifications are not available on this device.",
     "testTitle": "Test",
-    "testBody": "Example local notification."
+    "testBody": "Example local notification.",
+    "deliveredTitle": "Notification received",
+    "deliveredTitleMultiple": "{count} notifications received",
+    "deliveredMessage": "You have {count} recent notification(s) on this device.",
+    "deliveredRemaining": "+ {count} other(s)",
+    "deliveredOpen": "Open",
+    "deliveredView": "View notifications"
   },
   "settings": {
     "title": "Settings",

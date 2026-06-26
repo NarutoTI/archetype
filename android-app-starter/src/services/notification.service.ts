@@ -1,6 +1,7 @@
 import {
   LocalNotifications,
   type PendingLocalNotificationSchema,
+  type DeliveredNotificationSchema,
   type Schedule,
   Weekday,
 } from '@capacitor/local-notifications';
@@ -9,6 +10,7 @@ import type { AlertButton } from '@ionic/core';
 import i18n from '@/i18n';
 import { alertService } from '@/services/alert.service';
 import { capacitorService } from '@/services/capacitor.service';
+import { notificationLaunchIndexService } from '@/services/notificationLaunchIndex.service';
 import { createLocalDateTime, dateTimeToLocaleString } from '@/utils/date.utils';
 import { logger } from '@/utils/logger';
 
@@ -213,11 +215,12 @@ class NotificationService {
     if (!ok) return null;
 
     const id = this.generateNotificationId(input.key);
+    const body = input.body || '';
     await LocalNotifications.schedule({
       notifications: [{
         id,
         title: input.title,
-        body: input.body || '',
+        body,
         schedule: this.buildSchedule(input),
         channelId: this.platform === 'android' ? 'default' : undefined,
         actionTypeId: 'OPEN_APP',
@@ -228,19 +231,63 @@ class NotificationService {
       }],
     });
 
+    // Best-effort: índice local para o caso de abertura pelo ícone com badge.
+    // Nunca deve quebrar o agendamento se a persistência falhar.
+    const scheduledAt = input.at
+      || (input.date && input.time ? createLocalDateTime(input.date, input.time) : undefined);
+    const routePath = typeof input.extra?.routePath === 'string' ? input.extra.routePath : undefined;
+    try {
+      await notificationLaunchIndexService.upsertEntries([{
+        id,
+        key: input.key,
+        title: input.title,
+        body,
+        routePath,
+        scheduledAtMs: scheduledAt?.getTime(),
+      }]);
+    } catch (error) {
+      logger.warn('Failed to update notification launch index:', error);
+    }
+
     return id;
   }
 
   async cancelNotification(id: number): Promise<void> {
     await LocalNotifications.cancel({ notifications: [{ id }] });
+    await notificationLaunchIndexService.removeEntriesByIds([id]).catch((error) =>
+      logger.warn('Failed to remove notification launch index entry:', error));
   }
 
   async cancelAllNotifications(): Promise<void> {
     const pending = await this.getPendingNotifications();
-    if (!pending.length) return;
+    if (!pending.length) {
+      await notificationLaunchIndexService.clear().catch(() => {});
+      return;
+    }
     await LocalNotifications.cancel({
       notifications: pending.map((notification) => ({ id: notification.id })),
     });
+    await notificationLaunchIndexService.clear().catch((error) =>
+      logger.warn('Failed to clear notification launch index:', error));
+  }
+
+  async getDeliveredNotifications(): Promise<DeliveredNotificationSchema[]> {
+    try {
+      const result = await LocalNotifications.getDeliveredNotifications();
+      return result.notifications || [];
+    } catch (error) {
+      logger.error('Error getting delivered notifications:', error);
+      return [];
+    }
+  }
+
+  async removeDeliveredNotifications(notifications: DeliveredNotificationSchema[]): Promise<void> {
+    if (!notifications.length) return;
+    try {
+      await LocalNotifications.removeDeliveredNotifications({ notifications });
+    } catch (error) {
+      logger.error('Error removing delivered notifications:', error);
+    }
   }
 
   async getPendingNotifications(): Promise<PendingLocalNotificationSchema[]> {
