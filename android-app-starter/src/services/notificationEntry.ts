@@ -97,7 +97,7 @@ class NotificationEntry {
     const result = await alertService.presentCustomAlert({
       header: i18n.global.t('notifications.deliveredTitle'),
       message: this.buildSingleNotificationMessage(entry),
-      cssClass: 'alert-warning',
+      cssClass: 'alert-warning notification-delivered-alert',
       buttons: [
         {
           text: i18n.global.t('common.close'),
@@ -132,7 +132,7 @@ class NotificationEntry {
     const result = await alertService.presentCustomAlert({
       header: i18n.global.t('notifications.deliveredTitleMultiple', { count: entries.length }),
       message: this.buildMultipleNotificationsMessage(entries),
-      cssClass: 'alert-warning',
+      cssClass: 'alert-warning notification-delivered-alert',
       buttons: [
         {
           text: i18n.global.t('common.close'),
@@ -153,34 +153,35 @@ class NotificationEntry {
     return true;
   }
 
+  // Mensagens em texto puro: o Ionic 8 não renderiza mais HTML em alert por
+  // padrão (innerHTMLTemplatesEnabled=false). As quebras de linha aparecem via
+  // `white-space: pre-line` na classe .notification-delivered-alert (theme).
   private buildSingleNotificationMessage(entry: NotificationLaunchEntry): string {
-    const parts = [
-      `<p><strong>${this.escapeHtml(entry.title)}</strong></p>`,
-    ];
+    const parts = [entry.title];
 
     if (entry.body) {
-      parts.push(`<p>${this.escapeHtml(entry.body)}</p>`);
+      parts.push(entry.body);
     }
 
-    return parts.join('');
+    return parts.join('\n\n');
   }
 
   private buildMultipleNotificationsMessage(entries: NotificationLaunchEntry[]): string {
     const previewItems = entries
       .slice(0, 3)
-      .map(entry => `<li>${this.escapeHtml(entry.title)}</li>`)
-      .join('');
+      .map(entry => `- ${entry.title}`)
+      .join('\n');
 
     const remaining = Math.max(entries.length - 3, 0);
     const remainingText = remaining > 0
-      ? `<p>${this.escapeHtml(i18n.global.t('notifications.deliveredRemaining', { count: remaining }))}</p>`
+      ? i18n.global.t('notifications.deliveredRemaining', { count: remaining })
       : '';
 
     return [
-      `<p>${this.escapeHtml(i18n.global.t('notifications.deliveredMessage', { count: entries.length }))}</p>`,
-      previewItems ? `<ul>${previewItems}</ul>` : '',
+      i18n.global.t('notifications.deliveredMessage', { count: entries.length }),
+      previewItems,
       remainingText,
-    ].join('');
+    ].filter(Boolean).join('\n\n');
   }
 
   private async openTarget(
@@ -196,15 +197,6 @@ class NotificationEntry {
 
   private async openNotificationsList(): Promise<void> {
     await this.router!.push(NOTIFICATIONS_PATH);
-  }
-
-  private escapeHtml(value: string): string {
-    return value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 
   _resetForTests(): void {

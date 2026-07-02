@@ -58,6 +58,12 @@
   -webkit-text-fill-color: var(--alert-accent) !important;
 }
 
+/* Prompt de notificação entregue: mensagem em texto puro (Ionic 8 não aceita
+   HTML por padrão); pre-line preserva as quebras de linha do notificationEntry. */
+.notification-delivered-alert .alert-message {
+  white-space: pre-line;
+}
+
 .alert-button-success { color: var(--ion-color-success) !important; }
 .alert-button-danger { color: var(--ion-color-danger) !important; }
 .alert-button-warning { color: var(--ion-color-warning) !important; }

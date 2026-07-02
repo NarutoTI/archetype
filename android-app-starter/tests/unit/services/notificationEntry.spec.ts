@@ -131,6 +131,8 @@ describe('notificationEntry', () => {
     expect(handled).toBe(true);
     expect(hoisted.presentCustomAlert).toHaveBeenCalledWith(expect.objectContaining({
       header: 'notifications.deliveredTitle',
+      message: 'Reminder title\n\nReminder body',
+      cssClass: 'alert-warning notification-delivered-alert',
     }));
     expect(hoisted.removeDeliveredNotifications).toHaveBeenCalledWith(delivered);
     expect(hoisted.removeEntriesByIds).toHaveBeenCalledWith([101]);
