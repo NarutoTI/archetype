@@ -24,16 +24,6 @@ vi.mock('@capacitor/preferences', () => ({
   Preferences: preferencesMock,
 }));
 
-vi.mock('@capacitor/status-bar', () => ({
-  StatusBar: {
-    setStyle: vi.fn(async () => {}),
-  },
-  Style: {
-    Dark: 'DARK',
-    Light: 'LIGHT',
-  },
-}));
-
 vi.mock('@/i18n', () => ({
   default: {
     global: {

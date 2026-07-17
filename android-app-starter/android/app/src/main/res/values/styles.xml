@@ -20,9 +20,6 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
-        <item name="android:windowFullscreen">false</item>
-        <item name="android:fitsSystemWindows">true</item>
-        
 
         <!-- Dynamic Colors for Light and Dark Modes -->
         <item name="android:statusBarColor">@android:color/transparent</item>

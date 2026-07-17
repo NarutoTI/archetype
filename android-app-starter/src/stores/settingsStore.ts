@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { Preferences as CapacitorPreferences } from '@capacitor/preferences';
-import { StatusBar, Style } from '@capacitor/status-bar';
+import { SystemBars, SystemBarsStyle } from '@capacitor/core';
 import i18n from '@/i18n';
 import { logger } from '@/utils/logger';
 import {
@@ -40,9 +40,10 @@ export const useSettingsStore = defineStore('settings', () => {
   const syncStatusBar = async () => {
     try {
       const isDark = document.documentElement.classList.contains('ion-palette-dark');
-      await StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light });
+      // Aplica nas duas barras (status e navegação) — sem filtro `bar`.
+      await SystemBars.setStyle({ style: isDark ? SystemBarsStyle.Dark : SystemBarsStyle.Light });
     } catch {
-      // StatusBar só existe nas plataformas nativas.
+      // SystemBars só existe nas plataformas nativas.
     }
   };
 

@@ -5,20 +5,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
 import { IonApp, IonRouterOutlet } from '@ionic/vue';
-import { Capacitor } from '@capacitor/core';
-import { logger } from './utils/logger';
 
-onMounted(async () => {
-  if (!Capacitor.isNativePlatform()) return;
-
-  try {
-    const { StatusBar } = await import('@capacitor/status-bar');
-    await StatusBar.setOverlaysWebView({ overlay: false });
-    await StatusBar.show();
-  } catch (error) {
-    logger.error('Error setting status bar:', error);
-  }
-});
+// As system bars (status/navegação) são gerenciadas nativamente pelo plugin
+// SystemBars do core do Capacitor 8; o sync de tema fica no settingsStore.
 </script>
