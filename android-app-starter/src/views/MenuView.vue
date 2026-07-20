@@ -47,6 +47,20 @@
           </ion-select>
         </ion-item>
 
+        <ion-item v-if="supportsServerPush">
+          <ion-icon :icon="notificationsOutline" slot="start" color="warning" />
+          <ion-select
+            :label="$t('settings.reminderDelivery')"
+            :value="desiredDeliveryMode"
+            interface="popover"
+            :disabled="deliveryModeBusy"
+            @ionChange="onDeliveryModeChange($event.detail.value)"
+          >
+            <ion-select-option value="push">{{ $t('settings.reminderDeliveryPush') }}</ion-select-option>
+            <ion-select-option value="local">{{ $t('settings.reminderDeliveryLocal') }}</ion-select-option>
+          </ion-select>
+        </ion-item>
+
         <ion-item v-if="biometricAvailable">
           <ion-icon :icon="fingerPrintOutline" slot="start" color="success" />
           <ion-label>
@@ -153,6 +167,11 @@ import { biometricService } from '@/services/biometric.service';
 import { capacitorService } from '@/services/capacitor.service';
 import { LocationService, type AppLocation } from '@/services/location.service';
 import { notificationService } from '@/services/notification.service';
+import { pushNotificationService } from '@/services/pushNotification.service';
+import {
+  reminderDeliveryService,
+  type ReminderDeliveryMode,
+} from '@/services/reminderDelivery.service';
 import { toastService } from '@/services/toast.service';
 import { versionService } from '@/services/version.service';
 import { alertService } from '@/services/alert.service';
@@ -166,6 +185,26 @@ const userStore = useUserStore();
 const biometricAvailable = ref(false);
 const isLocationPickerOpen = ref(false);
 const isDevelopmentMode = import.meta.env.DEV;
+const supportsServerPush = reminderDeliveryService.supportsServerPush;
+const desiredDeliveryMode = ref<ReminderDeliveryMode>(reminderDeliveryService.desiredMode.value);
+const deliveryModeBusy = ref(false);
+
+const onDeliveryModeChange = async (mode: ReminderDeliveryMode) => {
+  if (!mode || mode === desiredDeliveryMode.value || deliveryModeBusy.value) return;
+  deliveryModeBusy.value = true;
+  try {
+    const effective = await pushNotificationService.setDeliveryMode(mode);
+    desiredDeliveryMode.value = reminderDeliveryService.desiredMode.value;
+    if (mode === 'push' && effective !== 'push') {
+      await toastService.presentToastWarning(t('settings.reminderDeliveryPushFailed'));
+    }
+  } catch {
+    desiredDeliveryMode.value = reminderDeliveryService.desiredMode.value;
+    await toastService.presentToastError(t('settings.reminderDeliveryPushFailed'));
+  } finally {
+    deliveryModeBusy.value = false;
+  }
+};
 
 const testNotification = async () => {
   await notificationService.testNotification();
@@ -246,5 +285,7 @@ const signOut = async () => {
 
 onMounted(async () => {
   biometricAvailable.value = await biometricService.isAvailable();
+  await reminderDeliveryService.initialize();
+  desiredDeliveryMode.value = reminderDeliveryService.desiredMode.value;
 });
 </script>

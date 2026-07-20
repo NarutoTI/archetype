@@ -3,8 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const hoisted = vi.hoisted(() => ({
   appStateCallbacks: [] as Array<(state: { isActive: boolean }) => void>,
   isNativePlatform: vi.fn(() => true),
+  isPluginAvailable: vi.fn(() => false),
   getDeliveredNotifications: vi.fn(),
   removeDeliveredNotifications: vi.fn(),
+  getPushDeliveredNotifications: vi.fn(),
+  removePushDeliveredNotifications: vi.fn(),
   getEntriesByIds: vi.fn(),
   removeEntriesByIds: vi.fn(),
   presentCustomAlert: vi.fn(),
@@ -23,6 +26,14 @@ vi.mock('@capacitor/app', () => ({
 vi.mock('@capacitor/core', () => ({
   Capacitor: {
     isNativePlatform: hoisted.isNativePlatform,
+    isPluginAvailable: hoisted.isPluginAvailable,
+  },
+}));
+
+vi.mock('@capacitor/push-notifications', () => ({
+  PushNotifications: {
+    getDeliveredNotifications: hoisted.getPushDeliveredNotifications,
+    removeDeliveredNotifications: hoisted.removePushDeliveredNotifications,
   },
 }));
 
@@ -61,6 +72,7 @@ vi.mock('@/stores/userStore', () => ({
 vi.mock('@/utils/logger', () => ({
   logger: {
     log: vi.fn(),
+    warn: vi.fn(),
     error: vi.fn(),
   },
 }));
@@ -90,8 +102,11 @@ async function freshEntry() {
   hoisted.appStateCallbacks.length = 0;
   vi.clearAllMocks();
   hoisted.isNativePlatform.mockReturnValue(true);
+  hoisted.isPluginAvailable.mockReturnValue(false);
   hoisted.getDeliveredNotifications.mockResolvedValue([]);
   hoisted.removeDeliveredNotifications.mockResolvedValue(undefined);
+  hoisted.getPushDeliveredNotifications.mockResolvedValue({ notifications: [] });
+  hoisted.removePushDeliveredNotifications.mockResolvedValue(undefined);
   hoisted.getEntriesByIds.mockResolvedValue([]);
   hoisted.removeEntriesByIds.mockResolvedValue(undefined);
   hoisted.presentCustomAlert.mockResolvedValue({ role: 'cancel' });
@@ -202,5 +217,31 @@ describe('notificationEntry', () => {
     await new Promise(resolve => setTimeout(resolve, 0));
 
     expect(hoisted.presentCustomAlert).toHaveBeenCalled();
+  });
+
+  it('opens a delivered push notification from the FCM tray', async () => {
+    const entry = await freshEntry();
+    const router = makeRouter();
+    const pushNotification = {
+      id: 'fcm-1',
+      title: 'Push title',
+      body: 'Push body',
+      data: { routePath: '/tabs/tasks', key: 'task-1' },
+    };
+
+    hoisted.isPluginAvailable.mockReturnValue(true);
+    hoisted.getPushDeliveredNotifications.mockResolvedValue({
+      notifications: [pushNotification],
+    });
+    hoisted.presentCustomAlert.mockResolvedValue({ role: 'open-target' });
+
+    entry.install(router as any);
+    const handled = await entry.dispatchIfDelivered('cold-start');
+
+    expect(handled).toBe(true);
+    expect(hoisted.removePushDeliveredNotifications).toHaveBeenCalledWith({
+      notifications: [pushNotification],
+    });
+    expect(router.push).toHaveBeenCalledWith('/tabs/tasks');
   });
 });

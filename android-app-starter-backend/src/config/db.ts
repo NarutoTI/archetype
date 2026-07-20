@@ -34,6 +34,16 @@ async function createIndexes(): Promise<void> {
   await db.collection('versions').createIndex({ platform: 1 }, { unique: true });
   await db.collection('tasks').createIndex({ userId: 1, dueDate: 1 });
   await db.collection('tasks').createIndex({ userId: 1, completed: 1 });
+  await db.collection('tasks').createIndex(
+    { 'push.nextAtUtc': 1 },
+    { partialFilterExpression: { 'push.nextAtUtc': { $exists: true } } },
+  );
+  await db.collection('push_devices').createIndex({ deviceId: 1 }, { unique: true });
+  await db.collection('push_devices').createIndex(
+    { targetKind: 1, targetId: 1 },
+    { unique: true },
+  );
+  await db.collection('push_devices').createIndex({ userId: 1 });
   logger.info('Database indexes created successfully');
 }
 

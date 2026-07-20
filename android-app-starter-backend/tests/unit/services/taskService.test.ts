@@ -14,6 +14,7 @@ import {
 
 const collection = {
   find: vi.fn(),
+  findOne: vi.fn(),
   findOneAndUpdate: vi.fn(),
   insertOne: vi.fn(),
   deleteOne: vi.fn()
@@ -95,6 +96,15 @@ describe('taskService', () => {
 
   it('updates only the owner task', async () => {
     const taskId = new ObjectId();
+    collection.findOne.mockResolvedValue({
+      _id: taskId,
+      userId: 'user-1',
+      title: 'Done',
+      dueDate: '2026-06-09',
+      completed: false,
+      createdAt: 123,
+      updatedAt: 123
+    });
     collection.findOneAndUpdate.mockResolvedValue({
       _id: taskId,
       userId: 'user-1',
@@ -109,7 +119,10 @@ describe('taskService', () => {
 
     expect(collection.findOneAndUpdate).toHaveBeenCalledWith(
       { _id: taskId, userId: 'user-1' },
-      { $set: expect.objectContaining({ completed: true }) },
+      expect.objectContaining({
+        $set: expect.objectContaining({ completed: true }),
+        $unset: { push: '' },
+      }),
       { returnDocument: 'after' }
     );
     expect(updated).not.toBeNull();

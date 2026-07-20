@@ -12,6 +12,8 @@ Backend TypeScript + Node.js + Express + MongoDB para o Android App Starter.
 - Endpoint `/api/version` para checagem de versão do app.
 - Exemplo full-stack `Tasks` em `/api/tasks`, usado pelo frontend starter para
   demonstrar store com cache local + backend.
+- Push FCM: `/api/push/*`, materialização de `push` nas Tasks, scheduler tick
+  (~60s) com kill switch `PUSH_SCHEDULER_ENABLED`.
 - Contrato de erro `{ success: false, code, message, details? }`.
 
 ## Rodando
@@ -82,9 +84,15 @@ Rotas protegidas por JWT:
 
 Convenção de datas: `dueDate` é uma data de calendário local (`YYYY-MM-DD`,
 sem timezone); `createdAt` e `updatedAt` são timestamps em epoch ms gerados
-pelo servidor.
+pelo servidor. Lembrete push one-shot: `dueDate` + `09:00` no timezone da
+conta (`users.timezone` / device), cursor embutido em `push` (não vai no wire).
 
-Esse módulo é uma vertical slice de referência. Ao criar um domínio real,
-remova `src/routes/taskRoutes.ts`, `src/controllers/taskController.ts`,
-`src/services/taskService.ts`, os índices de `tasks` em `src/config/db.ts` e
-os testes relacionados.
+## Push / FCM
+
+Rotas JWT em `/api/push` (devices, delivery-mode, timezone, test). O tick só
+arma com `PUSH_SCHEDULER_ENABLED=true` e `FIREBASE_SERVICE_ACCOUNT_B64` válido.
+Detalhes: frontend `docs/PUSH-NOTIFICATIONS.md`.
+
+Esse módulo Tasks é uma vertical slice de referência. Ao criar um domínio real,
+remova as rotas/serviços de tasks (e adapte a materialização de `push` para a
+nova entidade), os índices relacionados em `src/config/db.ts` e os testes.

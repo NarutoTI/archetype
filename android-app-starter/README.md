@@ -8,7 +8,7 @@ O backend complementar fica em [`../android-app-starter-backend`](../android-app
 - Autenticação por email/senha e Google OAuth.
 - Deep link mobile `androidstarter://auth`.
 - Biometria opcional no boot do app.
-- Serviços base de alert, toast, API, versionamento, localização, notificações locais, imagem/galeria, arquivos e share intent Android.
+- Serviços base de alert, toast, API, versionamento, localização, notificações locais + cliente push Android, imagem/galeria, arquivos e share intent Android.
 - Shell com tabs: `Tasks`, `Media`, `Notifications` e `Menu`.
 - Tela `Media` com galeria, lightbox com zoom e exemplo de arquivos anexos.
 - Seletor de localização com mapa (Leaflet + OpenStreetMap), acessível pelo Menu.
@@ -201,6 +201,9 @@ Mantenha `VITE_DEEP_LINK_SCHEME` alinhado com:
 
 Para criar dois novos projetos a partir do archetype, use
 [`docs/CREATE_NEW_PROJECT_FROM_ARCHETYPE.md`](docs/CREATE_NEW_PROJECT_FROM_ARCHETYPE.md).
+
+Cliente push Android (contrato HTTP + `google-services.json`):
+[`docs/PUSH-NOTIFICATIONS.md`](docs/PUSH-NOTIFICATIONS.md).
 
 Para o rename nativo Android, veja também
 [`docs/ANDROID_RENAME_CHECKLIST.md`](docs/ANDROID_RENAME_CHECKLIST.md).

@@ -10,8 +10,8 @@ import type { Task } from '@/types/Task';
 import { useUserStore } from '@/stores/userStore';
 
 const TASK_CACHE_PREFIX = 'starter-tasks-cache';
-// Notificação local disparada no vencimento da tarefa. Por desenho, ela fica
-// só no aparelho e não sincroniza entre dispositivos neste starter.
+// Horário do lembrete (local e push). O backend materializa o mesmo instante
+// em `push.nextAtUtc` — manter alinhado com TASK_REMINDER_TIME do servidor.
 const TASK_REMINDER_TIME = '09:00';
 
 const getTaskYear = (task: Pick<Task, 'dueDate'>): number => Number(task.dueDate.slice(0, 4));

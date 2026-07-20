@@ -73,6 +73,9 @@ class AuthService {
     await this.storeToken(token);
     const user = this.setCurrentUserFromPayload(payload);
     await useSettingsStore().loadSettings();
+    void import('@/services/pushNotification.service')
+      .then(({ pushNotificationService }) => pushNotificationService.reconcileAfterLogin())
+      .catch((error) => logger.warn('Push reconciliation after login failed:', error));
     return user;
   }
 
@@ -340,6 +343,12 @@ class AuthService {
   }
 
   async signOut(): Promise<void> {
+    try {
+      const { pushNotificationService } = await import('@/services/pushNotification.service');
+      await pushNotificationService.unregisterBeforeLogout();
+    } catch (error) {
+      logger.warn('Could not unregister push device before logout:', error);
+    }
     await this.cleanupDeepLinkListener();
     await this.clearToken();
   }

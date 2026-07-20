@@ -7,6 +7,11 @@ import passport, { isGoogleOAuthEnabled } from './config/passport.js';
 import { connectToMongo, getDb } from './config/db.js';
 import logger from './config/logger.js';
 import { generalRateLimit } from './middlewares/rateLimitMiddleware.js';
+import {
+  getSchedulerHealth,
+  startPushScheduler,
+  stopPushScheduler,
+} from './services/pushSchedulerService.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -17,7 +22,8 @@ const healthPayload = () => ({
   status: 'ok',
   timestamp: Date.now(),
   env: process.env.NODE_ENV || 'development',
-  port: PORT
+  port: PORT,
+  scheduler: getSchedulerHealth(),
 });
 
 app.get('/health', (_req, res) => res.status(200).json(healthPayload()));
@@ -74,19 +80,32 @@ async function startServer() {
     });
 
     await connectToMongo();
-    app.locals.db = getDb();
+    const database = getDb();
+    app.locals.db = database;
 
     const authRoutes = (await import('./routes/auth/authRoutes.js')).default;
     const userRoutes = (await import('./routes/userRoutes.js')).default;
     const taskRoutes = (await import('./routes/taskRoutes.js')).default;
+    const pushRoutes = (await import('./routes/push.routes.js')).default;
     const versionRoutes = (await import('./routes/version.routes.js')).default;
 
     app.use('/auth', authRoutes);
     app.use('/api', versionRoutes);
     app.use('/api', userRoutes);
     app.use('/api', taskRoutes);
+    app.use('/api/push', pushRoutes);
 
     app.use(unhandledErrorHandler);
+
+    await startPushScheduler(database);
+
+    const shutdown = (signal: string) => {
+      logger.info({ signal }, 'Shutting down');
+      stopPushScheduler();
+      server.close(() => process.exit(0));
+    };
+    process.once('SIGTERM', () => shutdown('SIGTERM'));
+    process.once('SIGINT', () => shutdown('SIGINT'));
 
     return server;
   } catch (error) {

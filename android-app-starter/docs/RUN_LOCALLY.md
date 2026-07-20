@@ -95,7 +95,8 @@ Com `VITE_USE_FAKE_LOGIN=true`, o botão "Continuar com Google" chama
 - Criar, editar, concluir, excluir e puxar para atualizar em `Tasks`.
 - Adicionar imagem, abrir lightbox, dar zoom e remover em `Media`.
 - Adicionar, abrir e remover arquivo em `Media`.
-- Agendar teste em `Notifications`.
+- Agendar teste em `Notifications` (entrega **local**; push exige
+  `google-services.json` + backend — ver [PUSH-NOTIFICATIONS.md](./PUSH-NOTIFICATIONS.md)).
 - Abrir o seletor de mapa pelo `Menu`.
 - Testar tema claro/escuro/sistema no `Menu`.
 

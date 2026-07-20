@@ -23,12 +23,13 @@ O `main.ts` inicializa em **fases**, com um ponto de sincronização único.
 | **0** | `shareEntry.install(router)` | Não |
 | **1** | Biometria → `authService.initializeAuth()` | Sim (até biometria/auth) |
 | **1** | Listener de toque em notificação (`localNotificationActionPerformed`) | Não |
+| **1** | `reminderDelivery` + `pushNotificationService.install` (Android) | Não |
 | **1** | `resolveBootReadyPromise()` | Libera os guards do router |
 | **2** | `settingsStore.loadBootSettings()` (tema, idioma, modos de view) | Sim, antes do mount (evita flash) |
 | **2** | `app.mount()` | — (UI visível) |
 | **2b** | `settingsStore.loadSettings()` (resto das prefs, em background) | Não |
 | **2b** | `shareEntry.dispatchIfPending('cold-start')` | Não |
-| **3** (+1s) | Prompt de notificação entregue (lazy), permissões, check de versão | Não |
+| **3** (+1s) | Prompt badge (lazy), reconcile push se logado, permissão local se efetiva, versão | Não |
 
 ### Por que `bootReadyPromise` existe
 
@@ -146,10 +147,11 @@ Arquivos âncora: [services/share-intake.service.ts](../src/services/share-intak
 
 ---
 
-## 4. Notificações locais e abertura do app
+## 4. Notificações (local + push) e abertura do app
 
-Há **três** caminhos de entrada distintos, tratados em lugares diferentes de
-propósito.
+Há caminhos de entrada distintos, tratados em lugares diferentes de propósito.
+O canal de entrega é **local** ou **push** (`reminderDelivery.service.ts`);
+detalhe do contrato HTTP e Firebase: [PUSH-NOTIFICATIONS.md](./PUSH-NOTIFICATIONS.md).
 
 ### 4.1 Toque direto na notificação
 
@@ -172,9 +174,9 @@ notificação. Para cobrir isso:
   (`notificationId → key/title/body/routePath`), em
   [notificationLaunchIndex.service.ts](../src/services/notificationLaunchIndex.service.ts)
   (user-scoped, com teto de entradas mantendo as agendadas mais próximas).
-- [notificationEntry.ts](../src/services/notificationEntry.ts) consulta
-  `getDeliveredNotifications()` (o que está na bandeja/badge), cruza com o índice
-  e mostra um prompt com ações **Abrir** / **Ver notificações** / **Fechar**.
+- [notificationEntry.ts](../src/services/notificationEntry.ts) lê a bandeja
+  **local + push**, cruza local com o índice e mostra um prompt com ações
+  **Abrir** / **Ver notificações** / **Fechar**.
 
 **Decisão de carregamento:** o `notificationEntry` é **lazy** (`import()` na
 Fase 3), porque o caso do badge é secundário e pode aparecer depois da primeira
@@ -186,17 +188,24 @@ ficar ativo a sessão toda), mas o *dispatch de cold-start* só roda se o share
 não lembretes apenas agendados para o futuro. A checagem ocorre no **cold-start**
 e no **resume**.
 
-### 4.3 `extra.routePath` unifica os dois
+### 4.3 `routePath` unifica local e push
 
-Tanto o toque direto (§4.1) quanto o **Abrir** do prompt (§4.2) usam o mesmo
-`extra.routePath` para decidir o destino, com fallback para a constante padrão.
-As rotas vivem em [constants/notificationRoutes.ts](../src/constants/notificationRoutes.ts)
-(`DEFAULT_NOTIFICATION_OPEN_PATH`, `NOTIFICATIONS_PATH`) — fonte única, sem
-duplicar strings entre `main.ts` e `notificationEntry.ts`.
+Toque local (`extra.routePath`), toque push (`data.routePath` / `data.path`) e o
+**Abrir** do prompt (§4.2) usam a mesma convenção, com fallback para a constante
+padrão em [constants/notificationRoutes.ts](../src/constants/notificationRoutes.ts).
 
 > O `routePath` passado pelo domínio (ex.: o lembrete de Task em `taskStore.ts`)
 > é **literal de propósito**: representa "para onde *esta* notificação abre", uma
 > decisão de domínio, não o fallback genérico. Não troque por constante ali.
+
+### 4.3b Push (cliente + servidor)
+
+- App: `@capacitor/push-notifications`, reconcile após login / Fase 3; com
+  `effectiveMode === 'push'` não agenda local; logout faz DELETE do device.
+- Backend (`android-app-starter-backend`): registra devices, materializa
+  `push.nextAtUtc` nas Tasks (`dueDate` + `09:00`), tick ~60s com claim CAS +
+  FCM. Kill switch: `PUSH_SCHEDULER_ENABLED`.
+- Web Push (browser) fica fora do molde — ver [PUSH-NOTIFICATIONS.md](./PUSH-NOTIFICATIONS.md).
 
 ### 4.4 Decisão: não interromper a edição
 
@@ -223,6 +232,8 @@ criação de projeto.)
 Arquivos âncora: [services/notification.service.ts](../src/services/notification.service.ts),
 [services/notificationEntry.ts](../src/services/notificationEntry.ts),
 [services/notificationLaunchIndex.service.ts](../src/services/notificationLaunchIndex.service.ts),
+[services/pushNotification.service.ts](../src/services/pushNotification.service.ts),
+[services/reminderDelivery.service.ts](../src/services/reminderDelivery.service.ts),
 [constants/notificationRoutes.ts](../src/constants/notificationRoutes.ts).
 
 ---
@@ -368,8 +379,11 @@ usuário novo).
 | Share — camada baixa | [services/share-intake.service.ts](../src/services/share-intake.service.ts) |
 | Share — navegação | [services/shareEntry.ts](../src/services/shareEntry.ts) |
 | Notificação — agendar + índice + entregues | [services/notification.service.ts](../src/services/notification.service.ts) |
-| Notificação — prompt do badge | [services/notificationEntry.ts](../src/services/notificationEntry.ts) |
+| Notificação — prompt do badge (local + push) | [services/notificationEntry.ts](../src/services/notificationEntry.ts) |
 | Notificação — índice local | [services/notificationLaunchIndex.service.ts](../src/services/notificationLaunchIndex.service.ts) |
+| Push — registro / reconcile | [services/pushNotification.service.ts](../src/services/pushNotification.service.ts) |
+| Push — modo desired/effective | [services/reminderDelivery.service.ts](../src/services/reminderDelivery.service.ts) |
+| Push — setup e contrato HTTP | [PUSH-NOTIFICATIONS.md](./PUSH-NOTIFICATIONS.md) |
 | Rotas de notificação (constantes) | [constants/notificationRoutes.ts](../src/constants/notificationRoutes.ts) |
 | Permissões (fluxo único) | [services/capacitor.service.ts](../src/services/capacitor.service.ts) |
 | Datas/timezone | [utils/date.utils.ts](../src/utils/date.utils.ts) |

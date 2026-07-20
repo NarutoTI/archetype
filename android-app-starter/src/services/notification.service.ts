@@ -211,6 +211,11 @@ class NotificationService {
       throw new Error(i18n.global.t('notifications.notSupported'));
     }
 
+    const { reminderDeliveryService } = await import('@/services/reminderDelivery.service');
+    if (!(await reminderDeliveryService.shouldScheduleLocally())) {
+      return null;
+    }
+
     const ok = await this.checkAndRequestPermissions(true);
     if (!ok) return null;
 

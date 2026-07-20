@@ -1,15 +1,24 @@
-import { ObjectId } from 'mongodb';
+import { ObjectId, type UpdateFilter } from 'mongodb';
 import CrudRepository from '../repositories/crudRepository.js';
 import logger from '../config/logger.js';
+import type { PushSchedule } from '../types/push.js';
 import type { CreateTaskInput, Task, UpdateTaskInput } from '../types/schemas.js';
+import {
+  addMaterializedPushToTask,
+  buildTaskPushScheduleUpdate,
+} from './taskReminderScheduleService.js';
 
-type TaskDocument = Task & { _id?: ObjectId | string };
+type TaskDocument = Task & {
+  _id?: ObjectId | string;
+  push?: PushSchedule;
+};
 
 const taskRepository = new CrudRepository<TaskDocument>('tasks');
 
 function normalizeTask(task: TaskDocument | null): Task | null {
   if (!task) return null;
 
+  // Never expose server-only push cursor on the public wire.
   return {
     id: task._id?.toString() || task.id,
     userId: task.userId?.toString?.() || task.userId,
@@ -85,14 +94,14 @@ export async function createTask(userId: string, data: CreateTaskInput): Promise
   try {
     // Timestamps técnicos usam epoch ms; dueDate segue como data local YYYY-MM-DD.
     const now = Date.now();
-    const task: TaskDocument = {
+    const task: TaskDocument = await addMaterializedPushToTask({
       userId: String(userId),
       title: data.title.trim(),
       dueDate: data.dueDate,
       completed: false,
       createdAt: now,
       updatedAt: now
-    };
+    });
 
     const result = await taskRepository.insert(task);
     return normalizeTask({
@@ -109,28 +118,50 @@ export async function updateTask(id: string, userId: string, data: UpdateTaskInp
   try {
     if (!ObjectId.isValid(id)) return null;
 
-    const update: Partial<TaskDocument> = {
+    const filter = {
+      _id: ObjectId.createFromHexString(id),
+      userId: String(userId)
+    };
+    const existing = await taskRepository.getCollection().findOne(filter);
+    if (!existing) return null;
+
+    const setFields: Record<string, unknown> = {
       updatedAt: Date.now()
     };
 
     if (typeof data.title === 'string') {
-      update.title = data.title.trim();
+      setFields.title = data.title.trim();
     }
 
     if (typeof data.dueDate === 'string') {
-      update.dueDate = data.dueDate;
+      setFields.dueDate = data.dueDate;
     }
 
     if (typeof data.completed === 'boolean') {
-      update.completed = data.completed;
+      setFields.completed = data.completed;
+    }
+
+    const scheduleChanged = typeof data.dueDate === 'string'
+      || typeof data.completed === 'boolean';
+
+    const mongoUpdate: UpdateFilter<TaskDocument> = { $set: setFields };
+    if (scheduleChanged) {
+      const pushUpdate = await buildTaskPushScheduleUpdate({
+        userId: String(userId),
+        dueDate: typeof data.dueDate === 'string' ? data.dueDate : existing.dueDate,
+        completed: typeof data.completed === 'boolean' ? data.completed : existing.completed,
+      });
+      if (pushUpdate.$set && typeof pushUpdate.$set === 'object') {
+        Object.assign(setFields, pushUpdate.$set);
+      }
+      if (pushUpdate.$unset) {
+        mongoUpdate.$unset = pushUpdate.$unset as UpdateFilter<TaskDocument>['$unset'];
+      }
     }
 
     const response = await taskRepository.getCollection().findOneAndUpdate(
-      {
-        _id: ObjectId.createFromHexString(id),
-        userId: String(userId)
-      },
-      { $set: update },
+      filter,
+      mongoUpdate,
       { returnDocument: 'after' }
     );
 

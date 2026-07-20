@@ -10,10 +10,13 @@ import i18n from './i18n';
 import { authService } from './services/auth.service';
 import { biometricService } from './services/biometric.service';
 import { notificationService } from './services/notification.service';
+import { pushNotificationService } from './services/pushNotification.service';
+import { reminderDeliveryService } from './services/reminderDelivery.service';
 import { versionService } from './services/version.service';
 import { shareEntry } from './services/shareEntry';
 import { resolveBootReadyPromise } from './services/boot';
 import { useSettingsStore } from './stores/settingsStore';
+import { useUserStore } from './stores/userStore';
 import { logger } from './utils/logger';
 import { DEFAULT_NOTIFICATION_OPEN_PATH } from './constants/notificationRoutes';
 
@@ -55,6 +58,8 @@ const initializeApp = async () => {
 
     await biometricService.checkBiometricAuth();
     await authService.initializeAuth();
+    await reminderDeliveryService.initialize();
+    await pushNotificationService.install(router);
 
     void LocalNotifications.addListener('localNotificationActionPerformed', (event) => {
       const routePath = (event as any)?.notification?.extra?.routePath;
@@ -113,9 +118,18 @@ const initializeApp = async () => {
         }
       })();
 
-      void notificationService.requestPermissions().catch((error) => {
-        logger.error('Error requesting notification permissions:', error);
-      });
+      void (async () => {
+        try {
+          if (useUserStore().isAuthenticated) {
+            await pushNotificationService.reconcileAfterLogin();
+          }
+          if (await reminderDeliveryService.shouldScheduleLocally()) {
+            await notificationService.requestPermissions();
+          }
+        } catch (error) {
+          logger.error('Error reconciling reminder delivery / permissions:', error);
+        }
+      })();
 
       void versionService.checkAndPromptForUpdate(false).catch((error) => {
         logger.error('Error checking app version:', error);

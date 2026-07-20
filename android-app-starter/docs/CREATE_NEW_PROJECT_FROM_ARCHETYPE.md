@@ -171,14 +171,16 @@ Se mantiver como base real, renomeie chaves/coleções de demonstração como
 
 ### Notifications
 
-Mantém exemplo de notificação local genérica. Se o produto tiver lembretes de
-domínio, crie uma camada do domínio chamando `notification.service.ts`. Use
-`extra.routePath` para apontar a rota aberta ao tocar diretamente na
-notificação ou ao escolher **Abrir** no prompt de notificação entregue pelo
-ícone com badge. Se o usuário não estiver autenticado, o guard redireciona para
-login e a intenção da notificação não é preservada; isso é aceitável no starter
-por ser uma exceção rara. Produtos que precisem dessa continuidade devem criar
-um redirect pós-login específico para notificações.
+Mantém notificação **local**, **cliente push** Android e o **backend push**
+(devices + FCM + scheduler nas Tasks). Sem `google-services.json` /
+`FIREBASE_SERVICE_ACCOUNT_B64`, o app fica em entrega local e o tick não arma.
+
+No produto: adapte a materialização do `push` da entidade real (hoje: Task
+`dueDate` + `09:00`). Use `routePath` no toque/badge. Detalhes:
+[PUSH-NOTIFICATIONS.md](./PUSH-NOTIFICATIONS.md).
+
+Se o usuário não estiver autenticado, o guard redireciona para login e a
+intenção da notificação não é preservada; aceitável no starter.
 
 ### Mapa
 

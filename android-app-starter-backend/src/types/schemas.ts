@@ -25,6 +25,8 @@ export interface AppUser {
   emailVerified?: boolean;
   isDevelopment?: boolean;
   language?: string;
+  /** IANA timezone used to materialize Task push schedules. */
+  timezone?: string | null;
   picture?: string | null;
   tokenType?: string;
   googleAccessToken?: string | null;
