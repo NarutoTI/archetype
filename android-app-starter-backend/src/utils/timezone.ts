@@ -4,7 +4,13 @@ const CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const CLOCK_TIME = /^(\d{2}):(\d{2})(?::(\d{2}))?$/;
 
 export function isValidIanaTimeZone(timeZone: string): boolean {
-  return DateTime.now().setZone(timeZone).isValid;
+  // Aceita só fusos absolutos: IANA nomeado (America/Sao_Paulo) e offsets
+  // fixos (UTC, GMT, +03:00). Recusa palavras relativas da Luxon
+  // ('local' / 'system' / 'default', além de null/undefined) — passam em
+  // isValid mas resolvem para o fuso do SERVIDOR, calculando lembretes errados
+  // em produção UTC sem erro aparente.
+  const zoned = DateTime.now().setZone(timeZone);
+  return zoned.isValid && zoned.zone.type !== 'system';
 }
 
 /** Convert a wall-clock date and time in an IANA zone to a UTC instant. */

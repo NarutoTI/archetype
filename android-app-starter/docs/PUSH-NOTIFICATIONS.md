@@ -34,6 +34,13 @@ Stack funcional do starter: **cliente Capacitor** + **backend FCM + tick**.
 | `taskReminderScheduleService.ts` | materializa `push` em Tasks |
 | `taskService.ts` | create/update ligam o schedule |
 
+### Timezone no registro / materialização
+
+`isValidIanaTimeZone` aceita fusos **absolutos** (IANA nomeado ou offset fixo
+como `UTC` / `+03:00`) e rejeita palavras relativas da Luxon (`local`, `system`,
+`default`) — essas passariam em `isValid` mas resolveriam para o fuso do
+servidor, corrompendo `push.nextAtUtc` em silêncio.
+
 ### `lastSeenAt` (device vivo)
 
 `lastSeenAt` significa **último check-in do app** (registro, reconcile ou troca de
