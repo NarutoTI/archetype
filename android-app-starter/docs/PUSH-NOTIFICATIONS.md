@@ -20,7 +20,8 @@ Stack funcional do starter: **cliente Capacitor** + **backend FCM + tick**.
 | `pushNotification.service.ts` | registro, reconcile, logout |
 | `notification.service.ts` | agenda local só se effective = local |
 | `notificationEntry.ts` | badge lê bandeja local + push |
-| Menu → entrega | troca push ↔ local (Android) |
+| Menu → entrega | troca push ↔ local (Android); seções com `ion-list-header` |
+| Menu → teste | toque dispara push (`POST /api/push/test`) ou local conforme o modo efetivo |
 
 ## Backend
 
@@ -32,6 +33,13 @@ Stack funcional do starter: **cliente Capacitor** + **backend FCM + tick**.
 | `pushSchedulerService.ts` | tick + health |
 | `taskReminderScheduleService.ts` | materializa `push` em Tasks |
 | `taskService.ts` | create/update ligam o schedule |
+
+### `lastSeenAt` (device vivo)
+
+`lastSeenAt` significa **último check-in do app** (registro, reconcile ou troca de
+modo). **Não** é atualizado quando o FCM aceita um envio. Bumpar no delivery
+igualava todos os devices da conta a cada tick e atrapalhava a poda por
+recência (`cap` de devices). Sucesso de entrega só zera `failCount`.
 
 ### HTTP (JWT)
 

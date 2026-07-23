@@ -10,7 +10,7 @@ import {
   type Preferences as AppPreferences,
 } from '@/types/Preferences';
 
-type ThemeOption = 'system' | 'light' | 'dark';
+export type ThemeOption = 'system' | 'light' | 'dark';
 
 const SUPPORTED_LOCALES = ['pt', 'en'] as const;
 type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];

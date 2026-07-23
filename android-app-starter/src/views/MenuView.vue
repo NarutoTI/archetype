@@ -1,64 +1,43 @@
 <template>
   <ion-page>
-    <ion-header>
-      <ion-toolbar>
+    <ion-header :translucent="false">
+      <ion-toolbar color="primary">
         <ion-title>{{ $t('common.menu') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content>
-      <ion-list inset>
-        <ion-item>
-          <ion-avatar slot="start">
-            <ion-icon :icon="personCircleOutline" size="large" />
-          </ion-avatar>
+    <ion-content :fullscreen="false">
+      <!-- Perfil -->
+      <ion-item lines="full" class="user-profile-item">
+        <ion-avatar slot="start">
+          <ion-icon :icon="personCircleOutline" size="large" />
+        </ion-avatar>
+        <ion-label>
+          <h2>{{ userStore.currentUser?.name || $t('common.user') }}</h2>
+          <p>{{ userStore.currentUser?.email }}</p>
+        </ion-label>
+      </ion-item>
+
+      <!-- Preferências -->
+      <ion-list>
+        <ion-list-header>
+          <ion-label>{{ $t('settings.sections.preferences') }}</ion-label>
+        </ion-list-header>
+
+        <ion-item button @click="showLanguageModal = true">
+          <ion-icon :icon="languageOutline" slot="start" color="primary" />
           <ion-label>
-            <h2>{{ userStore.currentUser?.name || $t('common.user') }}</h2>
-            <p>{{ userStore.currentUser?.email }}</p>
+            <h3>{{ $t('common.language') }}</h3>
+            <p>{{ currentLanguageName }}</p>
           </ion-label>
         </ion-item>
-      </ion-list>
 
-      <ion-list inset>
-        <ion-item>
-          <ion-icon :icon="languageOutline" slot="start" color="primary" />
-          <ion-select
-            :label="$t('common.language')"
-            :value="settingsStore.language"
-            interface="popover"
-            @ionChange="settingsStore.setLanguage($event.detail.value)"
-          >
-            <ion-select-option value="pt">Português</ion-select-option>
-            <ion-select-option value="en">English</ion-select-option>
-          </ion-select>
-        </ion-item>
-
-        <ion-item>
+        <ion-item button @click="showThemeModal = true">
           <ion-icon :icon="moonOutline" slot="start" color="primary" />
-          <ion-select
-            :label="$t('settings.theme')"
-            :value="settingsStore.theme"
-            interface="popover"
-            @ionChange="settingsStore.setTheme($event.detail.value)"
-          >
-            <ion-select-option value="system">{{ $t('settings.themeSystem') }}</ion-select-option>
-            <ion-select-option value="light">{{ $t('settings.themeLight') }}</ion-select-option>
-            <ion-select-option value="dark">{{ $t('settings.themeDark') }}</ion-select-option>
-          </ion-select>
-        </ion-item>
-
-        <ion-item v-if="supportsServerPush">
-          <ion-icon :icon="notificationsOutline" slot="start" color="warning" />
-          <ion-select
-            :label="$t('settings.reminderDelivery')"
-            :value="desiredDeliveryMode"
-            interface="popover"
-            :disabled="deliveryModeBusy"
-            @ionChange="onDeliveryModeChange($event.detail.value)"
-          >
-            <ion-select-option value="push">{{ $t('settings.reminderDeliveryPush') }}</ion-select-option>
-            <ion-select-option value="local">{{ $t('settings.reminderDeliveryLocal') }}</ion-select-option>
-          </ion-select>
+          <ion-label>
+            <h3>{{ $t('settings.theme') }}</h3>
+            <p>{{ currentThemeName }}</p>
+          </ion-label>
         </ion-item>
 
         <ion-item v-if="biometricAvailable">
@@ -69,53 +48,206 @@
           </ion-label>
           <ion-toggle
             slot="end"
+            color="success"
             :checked="settingsStore.biometryEnabled"
             @ionChange="settingsStore.setBiometryEnabled($event.detail.checked)"
           />
         </ion-item>
       </ion-list>
 
-      <ion-list inset>
-        <ion-item button @click="testNotification">
-          <ion-icon :icon="notificationsOutline" slot="start" color="warning" />
-          <ion-label>{{ $t('settings.testNotification') }}</ion-label>
+      <!-- Notificações -->
+      <ion-list>
+        <ion-list-header>
+          <ion-label>{{ $t('settings.sections.notifications') }}</ion-label>
+        </ion-list-header>
+
+        <ion-item v-if="supportsServerPush">
+          <ion-icon :icon="serverOutline" slot="start" color="primary" />
+          <ion-label>
+            <h3>{{ $t('settings.reminderDelivery') }}</h3>
+            <p>{{ reminderDeliveryDescription }}</p>
+          </ion-label>
+          <ion-select
+            slot="end"
+            interface="popover"
+            :value="desiredDeliveryMode"
+            :disabled="deliveryModeBusy"
+            @ionChange="onDeliveryModeChange($event.detail.value)"
+          >
+            <ion-select-option value="push">{{ $t('settings.reminderDeliveryPush') }}</ion-select-option>
+            <ion-select-option value="local">{{ $t('settings.reminderDeliveryLocal') }}</ion-select-option>
+          </ion-select>
         </ion-item>
+
+        <!-- Toque na linha dispara; descrição indica canal efetivo (push vs local). -->
+        <ion-item button :disabled="isTestingNotification" @click="testNotification">
+          <ion-icon :icon="notificationsOutline" slot="start" color="warning" />
+          <ion-label>
+            <h3>{{ $t('settings.testNotification') }}</h3>
+            <p>{{ testNotificationDescription }}</p>
+          </ion-label>
+          <ion-spinner v-if="isTestingNotification" slot="end" name="crescent" />
+        </ion-item>
+
         <ion-item button @click="openSettings">
           <ion-icon :icon="settingsOutline" slot="start" color="primary" />
           <ion-label>{{ $t('settings.openNotificationSettings') }}</ion-label>
         </ion-item>
+      </ion-list>
+
+      <!-- Manutenção -->
+      <ion-list>
+        <ion-list-header>
+          <ion-label>{{ $t('settings.sections.maintenance') }}</ion-label>
+        </ion-list-header>
+
         <ion-item button @click="checkForUpdates">
           <ion-icon :icon="cloudDownloadOutline" slot="start" color="success" />
           <ion-label>{{ $t('version.checkForUpdates') }}</ion-label>
         </ion-item>
-        <ion-item button @click="debugNotificationStatus">
-          <ion-icon :icon="bugOutline" slot="start" color="secondary" />
-          <ion-label>{{ $t('settings.debugNotificationStatus') }}</ion-label>
-        </ion-item>
-        <ion-item button @click="debugLocationStatus">
-          <ion-icon :icon="locationOutline" slot="start" color="tertiary" />
-          <ion-label>{{ $t('settings.debugLocationStatus') }}</ion-label>
-        </ion-item>
-        <ion-item button @click="isLocationPickerOpen = true">
-          <ion-icon :icon="mapOutline" slot="start" color="primary" />
-          <ion-label>{{ $t('location.demoEntry') }}</ion-label>
-        </ion-item>
-        <ion-item v-if="isDevelopmentMode" button @click="testAlerts">
-          <ion-icon :icon="alertCircleOutline" slot="start" color="tertiary" />
-          <ion-label>{{ $t('settings.testAlerts') }}</ion-label>
-        </ion-item>
       </ion-list>
 
-      <ion-list inset>
+      <!-- Diagnóstico (accordion; demos e status) -->
+      <ion-accordion-group>
+        <ion-accordion value="diagnostics">
+          <ion-item slot="header">
+            <ion-icon :icon="bugOutline" slot="start" color="secondary" />
+            <ion-label>{{ $t('settings.sections.diagnostics') }}</ion-label>
+          </ion-item>
+          <div slot="content">
+            <ion-item button @click="debugNotificationStatus">
+              <ion-icon :icon="notificationsOutline" slot="start" color="secondary" />
+              <ion-label>{{ $t('settings.debugNotificationStatus') }}</ion-label>
+            </ion-item>
+
+            <ion-item button @click="debugLocationStatus">
+              <ion-icon :icon="locationOutline" slot="start" color="tertiary" />
+              <ion-label>{{ $t('settings.debugLocationStatus') }}</ion-label>
+            </ion-item>
+
+            <ion-item button @click="isLocationPickerOpen = true">
+              <ion-icon :icon="mapOutline" slot="start" color="primary" />
+              <ion-label>{{ $t('location.demoEntry') }}</ion-label>
+            </ion-item>
+
+            <ion-item v-if="isDevelopmentMode" button @click="testAlerts">
+              <ion-icon :icon="alertCircleOutline" slot="start" color="tertiary" />
+              <ion-label>{{ $t('settings.testAlerts') }}</ion-label>
+            </ion-item>
+          </div>
+        </ion-accordion>
+      </ion-accordion-group>
+
+      <!-- Conta -->
+      <ion-list>
+        <ion-list-header>
+          <ion-label>{{ $t('settings.sections.account') }}</ion-label>
+        </ion-list-header>
+
         <ion-item button router-link="/tabs/delete-account">
           <ion-icon :icon="trashOutline" slot="start" color="danger" />
           <ion-label color="danger">{{ $t('account.deleteTitle') }}</ion-label>
         </ion-item>
+
         <ion-item button @click="signOut">
-          <ion-icon :icon="logOutOutline" slot="start" />
-          <ion-label>{{ $t('auth.signOut') }}</ion-label>
+          <ion-icon :icon="logOutOutline" slot="start" color="danger" />
+          <ion-label color="danger">{{ $t('auth.signOut') }}</ion-label>
         </ion-item>
       </ion-list>
+
+      <!-- Modal de idioma -->
+      <ion-modal :is-open="showLanguageModal" @did-dismiss="showLanguageModal = false">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>{{ $t('common.language') }}</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="showLanguageModal = false">
+                <ion-icon :icon="closeOutline" />
+              </ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          <ion-list>
+            <ion-item button @click="changeLanguage('pt')">
+              <ion-label>
+                <h3>Português</h3>
+              </ion-label>
+              <ion-icon
+                v-if="settingsStore.language === 'pt'"
+                :icon="checkmarkOutline"
+                slot="end"
+                color="primary"
+              />
+            </ion-item>
+            <ion-item button @click="changeLanguage('en')">
+              <ion-label>
+                <h3>English</h3>
+              </ion-label>
+              <ion-icon
+                v-if="settingsStore.language === 'en'"
+                :icon="checkmarkOutline"
+                slot="end"
+                color="primary"
+              />
+            </ion-item>
+          </ion-list>
+        </ion-content>
+      </ion-modal>
+
+      <!-- Modal de tema (sem emoji na linha principal do menu) -->
+      <ion-modal :is-open="showThemeModal" @did-dismiss="showThemeModal = false">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>{{ $t('settings.theme') }}</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="showThemeModal = false">
+                <ion-icon :icon="closeOutline" />
+              </ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          <ion-list>
+            <ion-item button @click="changeTheme('system')">
+              <ion-label>
+                <h3>{{ $t('settings.themeSystem') }}</h3>
+                <p>{{ $t('settings.themeSystemDescription') }}</p>
+              </ion-label>
+              <ion-icon
+                v-if="settingsStore.theme === 'system'"
+                :icon="checkmarkOutline"
+                slot="end"
+                color="primary"
+              />
+            </ion-item>
+            <ion-item button @click="changeTheme('light')">
+              <ion-label>
+                <h3>{{ $t('settings.themeLight') }}</h3>
+                <p>{{ $t('settings.themeLightDescription') }}</p>
+              </ion-label>
+              <ion-icon
+                v-if="settingsStore.theme === 'light'"
+                :icon="checkmarkOutline"
+                slot="end"
+                color="primary"
+              />
+            </ion-item>
+            <ion-item button @click="changeTheme('dark')">
+              <ion-label>
+                <h3>{{ $t('settings.themeDark') }}</h3>
+                <p>{{ $t('settings.themeDarkDescription') }}</p>
+              </ion-label>
+              <ion-icon
+                v-if="settingsStore.theme === 'dark'"
+                :icon="checkmarkOutline"
+                slot="end"
+                color="primary"
+              />
+            </ion-item>
+          </ion-list>
+        </ion-content>
+      </ion-modal>
 
       <MapLocationPicker
         :is-open="isLocationPickerOpen"
@@ -128,23 +260,33 @@
 
 <script setup lang="ts">
 import {
+  IonAccordion,
+  IonAccordionGroup,
   IonAvatar,
+  IonButton,
+  IonButtons,
   IonContent,
   IonHeader,
   IonIcon,
   IonItem,
   IonLabel,
   IonList,
+  IonListHeader,
+  IonModal,
   IonPage,
   IonSelect,
   IonSelectOption,
+  IonSpinner,
   IonTitle,
   IonToggle,
   IonToolbar,
+  actionSheetController,
 } from '@ionic/vue';
 import {
   alertCircleOutline,
   bugOutline,
+  checkmarkOutline,
+  closeOutline,
   cloudDownloadOutline,
   fingerPrintOutline,
   languageOutline,
@@ -154,14 +296,15 @@ import {
   moonOutline,
   notificationsOutline,
   personCircleOutline,
+  serverOutline,
   settingsOutline,
   trashOutline,
 } from 'ionicons/icons';
-import { actionSheetController } from '@ionic/vue';
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import MapLocationPicker from '@/views/components/MapLocationPicker.vue';
+import { alertService } from '@/services/alert.service';
 import { authService } from '@/services/auth.service';
 import { biometricService } from '@/services/biometric.service';
 import { capacitorService } from '@/services/capacitor.service';
@@ -174,32 +317,72 @@ import {
 } from '@/services/reminderDelivery.service';
 import { toastService } from '@/services/toast.service';
 import { versionService } from '@/services/version.service';
-import { alertService } from '@/services/alert.service';
-import { useSettingsStore } from '@/stores/settingsStore';
+import { useSettingsStore, type ThemeOption } from '@/stores/settingsStore';
 import { useUserStore } from '@/stores/userStore';
+import { logger } from '@/utils/logger';
 
 const router = useRouter();
 const { t } = useI18n();
 const settingsStore = useSettingsStore();
 const userStore = useUserStore();
+
 const biometricAvailable = ref(false);
 const isLocationPickerOpen = ref(false);
+const showLanguageModal = ref(false);
+const showThemeModal = ref(false);
+const deliveryModeBusy = ref(false);
+const isTestingNotification = ref(false);
 const isDevelopmentMode = import.meta.env.DEV;
 const supportsServerPush = reminderDeliveryService.supportsServerPush;
-const desiredDeliveryMode = ref<ReminderDeliveryMode>(reminderDeliveryService.desiredMode.value);
-const deliveryModeBusy = ref(false);
+
+const desiredDeliveryMode = computed(() => reminderDeliveryService.desiredMode.value);
+const effectiveDeliveryMode = computed(() => reminderDeliveryService.effectiveMode.value);
+
+const currentLanguageName = computed(() =>
+  settingsStore.language === 'pt' ? 'Português' : 'English',
+);
+
+const currentThemeName = computed(() => {
+  if (settingsStore.theme === 'light') return t('settings.themeLight');
+  if (settingsStore.theme === 'dark') return t('settings.themeDark');
+  return t('settings.themeSystem');
+});
+
+const reminderDeliveryDescription = computed(() => {
+  if (desiredDeliveryMode.value === 'push' && effectiveDeliveryMode.value === 'local') {
+    return t('settings.reminderDeliveryLocalFallback');
+  }
+  return effectiveDeliveryMode.value === 'push'
+    ? t('settings.reminderDeliveryPushDescription')
+    : t('settings.reminderDeliveryLocalDescription');
+});
+
+const testNotificationDescription = computed(() =>
+  effectiveDeliveryMode.value === 'push'
+    ? t('settings.testNotificationPushDescription')
+    : t('settings.testNotificationLocalDescription'),
+);
+
+const changeLanguage = async (language: 'pt' | 'en') => {
+  await settingsStore.setLanguage(language);
+  showLanguageModal.value = false;
+};
+
+const changeTheme = async (theme: ThemeOption) => {
+  await settingsStore.setTheme(theme);
+  showThemeModal.value = false;
+  await toastService.presentToastSuccess(t('settings.themeUpdated'));
+};
 
 const onDeliveryModeChange = async (mode: ReminderDeliveryMode) => {
   if (!mode || mode === desiredDeliveryMode.value || deliveryModeBusy.value) return;
   deliveryModeBusy.value = true;
   try {
     const effective = await pushNotificationService.setDeliveryMode(mode);
-    desiredDeliveryMode.value = reminderDeliveryService.desiredMode.value;
     if (mode === 'push' && effective !== 'push') {
       await toastService.presentToastWarning(t('settings.reminderDeliveryPushFailed'));
     }
   } catch {
-    desiredDeliveryMode.value = reminderDeliveryService.desiredMode.value;
     await toastService.presentToastError(t('settings.reminderDeliveryPushFailed'));
   } finally {
     deliveryModeBusy.value = false;
@@ -207,7 +390,26 @@ const onDeliveryModeChange = async (mode: ReminderDeliveryMode) => {
 };
 
 const testNotification = async () => {
-  await notificationService.testNotification();
+  if (isTestingNotification.value) return;
+  isTestingNotification.value = true;
+  try {
+    if (effectiveDeliveryMode.value === 'push') {
+      // Sem toast de sucesso: a prova é a mensagem FCM (foreground/background).
+      await pushNotificationService.sendTestPush();
+      return;
+    }
+    const success = await notificationService.testNotification();
+    if (success) {
+      await toastService.presentToastSuccess(t('settings.notificationTestScheduled'));
+    } else {
+      await toastService.presentToastError(t('settings.notificationTestFailed'));
+    }
+  } catch (error) {
+    logger.error('Error in test notification:', error);
+    await toastService.presentToastError(t('settings.notificationTestFailed'));
+  } finally {
+    isTestingNotification.value = false;
+  }
 };
 
 const openSettings = async () => {
@@ -220,14 +422,14 @@ const checkForUpdates = async () => {
 
 const debugNotificationStatus = async () => {
   await alertService.presentAlertInfo(
-    String(settingsStore.language === 'pt' ? 'Notificações' : 'Notifications'),
+    t('settings.debugNotificationStatus'),
     await notificationService.debugNotificationStatus(),
   );
 };
 
 const debugLocationStatus = async () => {
   await alertService.presentAlertInfo(
-    String(settingsStore.language === 'pt' ? 'Localização' : 'Location'),
+    t('settings.debugLocationStatus'),
     await LocationService.debugLocationStatus(),
   );
 };
@@ -286,6 +488,31 @@ const signOut = async () => {
 onMounted(async () => {
   biometricAvailable.value = await biometricService.isAvailable();
   await reminderDeliveryService.initialize();
-  desiredDeliveryMode.value = reminderDeliveryService.desiredMode.value;
 });
 </script>
+
+<style scoped>
+.user-profile-item {
+  --padding-top: 20px;
+  --padding-bottom: 20px;
+  --background: rgba(var(--ion-color-primary-rgb), 0.1);
+  border-radius: 8px;
+  margin: 10px;
+}
+
+.user-profile-item ion-avatar {
+  width: 60px;
+  height: 60px;
+}
+
+.user-profile-item h2 {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--ion-color-primary);
+}
+
+.user-profile-item p {
+  color: var(--ion-color-medium);
+  font-size: 0.9em;
+}
+</style>

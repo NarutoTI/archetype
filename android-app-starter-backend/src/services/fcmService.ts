@@ -127,9 +127,14 @@ async function persistDeliveryResults(
     const device = devices[index];
     if (!device?._id) return;
     if (response.success) {
+      // Do not touch lastSeenAt on delivery: only the app's own check-ins
+      // (register/reconcile/mode change) mean "this device is alive". Stamping
+      // it here would set every push device of a user to the same instant on
+      // each tick, hiding which device is real and defeating the
+      // lastSeenAt-based eviction in pushDeviceService.registerPushDevice.
       await database.collection<Document>('push_devices').updateOne(
         { _id: device._id } as Document,
-        { $set: { failCount: 0, lastSeenAt: new Date() } },
+        { $set: { failCount: 0 } },
       );
       return;
     }

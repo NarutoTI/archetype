@@ -251,6 +251,11 @@ class PushNotificationService {
     return 'push';
   }
 
+  async sendTestPush(): Promise<void> {
+    const deviceId = await reminderDeliveryService.getDeviceId();
+    await api.post('/push/test', { deviceId });
+  }
+
   async unregisterBeforeLogout(): Promise<void> {
     if (reminderDeliveryService.supportsServerPush) {
       const deviceId = await reminderDeliveryService.getDeviceId();
