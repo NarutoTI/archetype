@@ -16,7 +16,7 @@ Projetos criados a partir do archetype herdam estas versões — ver
 | compileSdk / targetSdk | 36 | `android/variables.gradle` |
 | minSdk | 27 | `android/variables.gradle` |
 | Kotlin (plugins Capacitor) | **2.4.10** | `android/variables.gradle` (`kotlin_version`) |
-| JDK | **21+** | Capacitor 8 compila com `sourceCompatibility` 21 |
+| JDK (toolchain) | **exatamente 21** | exigido pelos plugins Capacitor — ver *JDK* abaixo |
 | Capacitor | 8.4.2 | `package.json` |
 
 O upgrade AGP 8.13.2 → 9.2.1 / Gradle 8.14.3 → 9.4.1 foi feito em **jul/2026**.
@@ -80,6 +80,27 @@ Comportamento do prompt em `src/services/biometric.service.ts`:
 - `description` fica sem valor de propósito — preenchê-lo com o mesmo texto do `subtitle`
   imprime a frase duas vezes no diálogo nativo.
 
+### Armadilha ao testar no emulador
+
+Testar biometria exige cadastrar padrão/PIN no aparelho. No emulador, isso cria um efeito
+colateral confuso: depois de reiniciar, o AVD fica com o **usuário 0 travado** (Direct Boot,
+armazenamento credential-encrypted ainda não liberado). Nesse estado o Android só expõe
+componentes `directBootAware="true"`, então o app não sobe e o erro que aparece é:
+
+> Activity class {…/.MainActivity} does not exist
+
+A mensagem é enganosa — o APK está correto. Sintomas que confirmam: `ceDataInode=0` em
+`adb shell dumpsys package <pkg>`, `adb shell monkey -p <pkg> 1` respondendo *No activities
+found to run*, e `Failed to query usage stats for locked user 0` no logcat.
+
+O AVD ainda pode ficar com a **tela preta** e não acordar — o `keyevent 224` (WAKEUP) pode não
+funcionar, só o `keyevent 26` (POWER), e ele volta a dormir em segundos. Aí nem dá para digitar
+o PIN.
+
+**Solução:** Device Manager → *Wipe Data* no AVD (apaga o lock). Para evitar de vez, **teste
+biometria em aparelho físico** — no emulador ainda seria preciso cadastrar digital simulada
+(Extended Controls → Fingerprint → Touch Sensor).
+
 Dois comportamentos conhecidos, congelados em `tests/unit/services/biometric.service.spec.ts`:
 
 1. **Unlock que não conclui apaga o `auth_token`** e força login completo. Sem botão cancelar
@@ -105,9 +126,22 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 .\gradlew.bat :app:assembleDebug :app:bundleRelease
 ```
 
-**Não é o Gradle rejeitando o Java 25** — ele roda em 25. A exigência vem dos plugins
-`@capacitor/camera`, `@capacitor/filesystem` e `@capacitor/geolocation`, que declaram
-`kotlin { jvmToolchain(21) }`; o Gradle não descobre sozinho a JBR do Studio no Windows.
+**Não é o Gradle rejeitando o Java 25** — ele roda em 25 (`Daemon JVM: jdk-25`). A exigência
+vem de três plugins Capacitor, que declaram `kotlin { jvmToolchain(21) }` no próprio
+`build.gradle`:
+
+```
+node_modules/@capacitor/camera/android/build.gradle:66
+node_modules/@capacitor/filesystem/android/build.gradle:65
+node_modules/@capacitor/geolocation/android/build.gradle:66
+```
+
+O casamento de toolchain no Gradle é por **igualdade** de `languageVersion`: um JDK 25 não
+satisfaz `languageVersion=21`. Não é "21 ou mais novo" — é 21. E o Gradle não descobre
+sozinho a JBR do Studio no Windows.
+
+Quem decide esse número é o Capacitor. Ao subir a versão dos plugins, confira se o número
+mudou: `grep -rn "jvmToolchain" node_modules/@capacitor/*/android/build.gradle`.
 
 Alternativa permanente, sem setar `JAVA_HOME` a cada terminal — registrar a JBR em
 **`~/.gradle/gradle.properties`** (arquivo do usuário, fora do repositório, então o caminho
