@@ -20,7 +20,7 @@ O backend complementar fica em [`../android-app-starter-backend`](../android-app
 
 - Node.js 20+.
 - Docker (para o MongoDB do backend) ou um MongoDB acessível.
-- Para rodar no Android: Android Studio + JDK 17 + um emulador ou dispositivo.
+- Para rodar no Android: Android Studio + JDK 21 + um emulador ou dispositivo.
 
 ## Do zero ao primeiro run
 
@@ -207,6 +207,10 @@ Cliente push Android (contrato HTTP + `google-services.json`):
 
 Para o rename nativo Android, veja também
 [`docs/ANDROID_RENAME_CHECKLIST.md`](docs/ANDROID_RENAME_CHECKLIST.md).
+
+Versões da cadeia de build Android (AGP, Gradle, Kotlin, JDK), flags de compatibilidade
+e comportamento do unlock biométrico:
+[`docs/ANDROID-BUILD-TOOLCHAIN.md`](docs/ANDROID-BUILD-TOOLCHAIN.md).
 
 Este projeto é uma base viva: renomeie, conecte seu backend e cresça o domínio real
 a partir dela. A fatia `Tasks` é apenas o exemplo removível.

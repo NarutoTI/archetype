@@ -1,6 +1,11 @@
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
-import { NativeBiometric, type BiometricOptions, type BiometryType } from 'capacitor-native-biometric';
+import {
+  BiometricAuthError,
+  BiometryType,
+  NativeBiometric,
+  type BiometricOptions,
+} from '@capgo/capacitor-native-biometric';
 import i18n from '@/i18n';
 import { logger } from '@/utils/logger';
 
@@ -46,9 +51,17 @@ class BiometricService {
       reason,
       title,
       subtitle,
-      description: subtitle,
-      negativeButtonText: i18n.global.t('common.cancel'),
-      useFallback: false,
+      // `description` fica de fora de propósito: o diálogo nativo desenha subtitle e
+      // description em linhas separadas, então repetir o subtitle imprimia o texto duas vezes.
+      //
+      // Permitir DEVICE_CREDENTIAL troca o botão cancelar pelo botão de PIN/padrão/senha do
+      // sistema — o BiometricPrompt não aceita os dois juntos. MULTIPLE mantém todas as
+      // classes de biometria cadastradas; combinar DEVICE_CREDENTIAL só com FINGERPRINT
+      // gera uma combinação que o androidx.biometric rejeita nas APIs 28-29.
+      // `negativeButtonText` sai pelo mesmo motivo: não existe mais botão negativo.
+      allowedBiometryTypes: [BiometryType.MULTIPLE, BiometryType.DEVICE_CREDENTIAL],
+      // Equivalente no iOS: oferece o passcode do aparelho (lá o cancelar continua existindo).
+      useFallback: true,
       maxAttempts: 5,
     };
 
@@ -56,21 +69,35 @@ class BiometricService {
       await NativeBiometric.verifyIdentity(options);
       return true;
     } catch (error) {
-      logger.warn('Biometric authentication failed or was cancelled:', error);
+      // No Android o código chega como String num extra do Intent; no iOS, como número.
+      const code = Number((error as { code?: unknown })?.code);
+
+      if (
+        code === BiometricAuthError.USER_CANCEL ||
+        code === BiometricAuthError.USER_FALLBACK ||
+        code === BiometricAuthError.APP_CANCEL ||
+        code === BiometricAuthError.SYSTEM_CANCEL
+      ) {
+        logger.log('Biometric authentication cancelled or interrupted');
+      } else if (
+        code === BiometricAuthError.AUTHENTICATION_FAILED ||
+        code === BiometricAuthError.USER_LOCKOUT ||
+        code === BiometricAuthError.USER_TEMPORARY_LOCKOUT
+      ) {
+        logger.warn('Biometric authentication rejected or locked out');
+      } else if (
+        code === BiometricAuthError.BIOMETRICS_UNAVAILABLE ||
+        code === BiometricAuthError.BIOMETRICS_NOT_ENROLLED ||
+        code === BiometricAuthError.PASSCODE_NOT_SET
+      ) {
+        // Estado do aparelho, não falha operacional. Normalmente já filtrado por isAvailable().
+        logger.warn('Biometric unavailable or not enrolled on this device');
+      } else {
+        logger.error('Biometric authentication failed:', error);
+      }
+
       return false;
     }
-  }
-
-  async isBiometricEnabled(): Promise<boolean> {
-    const result = await Preferences.get({ key: 'biometry-enabled' });
-    return result.value === 'true';
-  }
-
-  async setBiometricEnabled(enabled: boolean): Promise<void> {
-    await Preferences.set({
-      key: 'biometry-enabled',
-      value: enabled ? 'true' : 'false',
-    });
   }
 
   async checkBiometricAuth(): Promise<boolean> {

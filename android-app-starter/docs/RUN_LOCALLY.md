@@ -7,7 +7,7 @@ ou no emulador Android.
 
 - Node.js 20+.
 - Docker Desktop, ou outro MongoDB acessível.
-- Para Android: Android Studio, JDK 17 e um emulador/dispositivo.
+- Para Android: Android Studio, JDK 21 e um emulador/dispositivo.
 
 ## Estrutura Esperada
 

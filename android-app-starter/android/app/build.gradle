@@ -19,7 +19,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             // Embeds native debug symbols in the AAB for Play Console crash/ANR deobfuscation.
             ndk {
                 debugSymbolLevel 'SYMBOL_TABLE'

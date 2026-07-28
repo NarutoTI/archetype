@@ -43,6 +43,11 @@ verificada (ou pulada), token lido do storage, `userStore` atualizado e
 `bootReadyPromise` ([router/index.ts](../src/router/index.ts)) — nenhuma rota
 resolve antes do estado de auth ser real.
 
+O "(ou pulada)" é literal: se o aparelho não tiver biometria disponível, o gate é
+pulado e o token continua valendo. O prompt também não tem botão cancelar — a saída
+é o PIN/senha do aparelho. Detalhes e limites em
+[ANDROID-BUILD-TOOLCHAIN.md](./ANDROID-BUILD-TOOLCHAIN.md) § *Biometria*.
+
 **Regra:** não mova `resolveBootReadyPromise()` sem entender que tudo que
 precede é "garantia de auth", e tudo que segue "já pode confiar no usuário".
 
