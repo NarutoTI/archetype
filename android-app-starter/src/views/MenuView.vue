@@ -309,7 +309,7 @@ import { authService } from '@/services/auth.service';
 import { biometricService } from '@/services/biometric.service';
 import { capacitorService } from '@/services/capacitor.service';
 import { LocationService, type AppLocation } from '@/services/location.service';
-import { notificationService } from '@/services/notification.service';
+import { localNotificationService } from '@/services/localNotification.service';
 import { pushNotificationService } from '@/services/pushNotification.service';
 import {
   reminderDeliveryService,
@@ -398,7 +398,7 @@ const testNotification = async () => {
       await pushNotificationService.sendTestPush();
       return;
     }
-    const success = await notificationService.testNotification();
+    const success = await localNotificationService.testNotification();
     if (success) {
       await toastService.presentToastSuccess(t('settings.notificationTestScheduled'));
     } else {
@@ -423,7 +423,7 @@ const checkForUpdates = async () => {
 const debugNotificationStatus = async () => {
   await alertService.presentAlertInfo(
     t('settings.debugNotificationStatus'),
-    await notificationService.debugNotificationStatus(),
+    await localNotificationService.debugNotificationStatus(),
   );
 };
 

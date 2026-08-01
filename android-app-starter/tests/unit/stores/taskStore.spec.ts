@@ -33,8 +33,8 @@ vi.mock('@/services/task.service', () => ({
   default: taskServiceMock,
 }));
 
-vi.mock('@/services/notification.service', () => ({
-  notificationService: notificationServiceMock,
+vi.mock('@/services/localNotification.service', () => ({
+  localNotificationService: notificationServiceMock,
 }));
 
 import { useTaskStore } from '@/stores/taskStore';

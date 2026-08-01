@@ -27,7 +27,7 @@ export interface AppNotificationInput {
   extra?: Record<string, unknown>;
 }
 
-class NotificationService {
+class LocalNotificationService {
   private isSupported = false;
   private permissionsGranted = false;
   private initialized = false;
@@ -257,13 +257,25 @@ class NotificationService {
     return id;
   }
 
+  /**
+   * Em modo push quem entrega é o servidor: este aparelho não tem agendamento local para
+   * cancelar, e cada chamada abaixo seria uma ida ao plugin nativo sobre uma lista vazia.
+   * Não vale para limpeza/leitura/permissão — o próprio push usa esses caminhos.
+   */
+  private async skipsLocalDelivery(): Promise<boolean> {
+    const { reminderDeliveryService } = await import('@/services/reminderDelivery.service');
+    return !(await reminderDeliveryService.shouldScheduleLocally());
+  }
+
   async cancelNotification(id: number): Promise<void> {
+    if (await this.skipsLocalDelivery()) return;
     await LocalNotifications.cancel({ notifications: [{ id }] });
     await notificationLaunchIndexService.removeEntriesByIds([id]).catch((error) =>
       logger.warn('Failed to remove notification launch index entry:', error));
   }
 
   async cancelAllNotifications(): Promise<void> {
+    if (await this.skipsLocalDelivery()) return;
     const pending = await this.getPendingNotifications();
     if (!pending.length) {
       await notificationLaunchIndexService.clear().catch(() => {});
@@ -328,4 +340,4 @@ class NotificationService {
   }
 }
 
-export const notificationService = new NotificationService();
+export const localNotificationService = new LocalNotificationService();

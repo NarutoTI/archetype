@@ -9,6 +9,7 @@ import { ObjectId, type Db, type Document } from 'mongodb';
 import logger from '../config/logger.js';
 import type { PushDevice, PushTargetKind } from '../types/push.js';
 import { dateToIso } from '../utils/timezone.js';
+import { buildReminderPushNotificationTag } from '../utils/pushNotificationTag.js';
 
 const DEAD_TARGET_CODES = new Set([
   'messaging/registration-token-not-registered',
@@ -238,16 +239,22 @@ export async function sendTaskReminderPush(
     title: trimUtf8(title, 200),
     body: trimUtf8('Task due today', 1500),
   };
+  const routePath = '/tabs/tasks';
   const data = {
     taskId,
     key: `task-reminder-${taskId}`,
-    routePath: '/tabs/tasks',
-    path: '/tabs/tasks',
+    routePath,
+    path: routePath,
     action: 'open_task',
     occurrenceAt: dateToIso(occurrenceAt),
-    link: `${frontendUrl}/tabs/tasks`,
+    link: `${frontendUrl}${routePath}`,
   };
-  const tag = trimUtf8(`task-${taskId}-${occurrenceAt.getTime()}`, 120);
+  // A rota vai na TAG, não só em `data`: no Android o
+  // PushNotifications.getDeliveredNotifications() lê os extras da StatusBarNotification e NÃO
+  // devolve o mapa `data` do FCM. Sem isto, abrir o app pelo ícone (com a notificação ainda na
+  // bandeja) perde o destino e cai na rota padrão. Formato em sincronia com
+  // android-app-starter/src/utils/pushNotificationTag.ts.
+  const tag = trimUtf8(buildReminderPushNotificationTag(routePath, occurrenceAt.getTime()), 120);
   const fidDevices = devices.filter((device) => device.targetKind === 'fid');
   const tokenDevices = devices.filter((device) => device.targetKind === 'token');
   await Promise.all([

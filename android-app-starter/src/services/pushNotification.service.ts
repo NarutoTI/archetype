@@ -198,8 +198,8 @@ class PushNotificationService {
       const target = await this.requestTarget();
       await this.registerWithBackend(target, 'push');
       await reminderDeliveryService.setEffectiveMode('push');
-      const { notificationService } = await import('@/services/notification.service');
-      await notificationService.cancelAllNotifications();
+      const { localNotificationService } = await import('@/services/localNotification.service');
+      await localNotificationService.cancelAllNotifications();
       return 'push';
     } catch (error) {
       // Transient failure while push was already active: keep push.
@@ -246,8 +246,8 @@ class PushNotificationService {
     }
 
     await reminderDeliveryService.setEffectiveMode('push');
-    const { notificationService } = await import('@/services/notification.service');
-    await notificationService.cancelAllNotifications();
+    const { localNotificationService } = await import('@/services/localNotification.service');
+    await localNotificationService.cancelAllNotifications();
     return 'push';
   }
 
@@ -276,8 +276,8 @@ class PushNotificationService {
         logger.warn('Could not clear delivered push notifications on logout:', error);
       }
     }
-    const { notificationService } = await import('@/services/notification.service');
-    await notificationService.cancelAllNotifications();
+    const { localNotificationService } = await import('@/services/localNotification.service');
+    await localNotificationService.cancelAllNotifications();
     await reminderDeliveryService.setEffectiveMode('local');
   }
 }

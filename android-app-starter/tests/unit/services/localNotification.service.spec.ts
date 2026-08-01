@@ -62,14 +62,14 @@ vi.mock('@/services/capacitor.service', () => ({
   },
 }));
 
-import { notificationService } from '@/services/notification.service';
+import { localNotificationService } from '@/services/localNotification.service';
 
-describe('notificationService', () => {
+describe('localNotificationService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (notificationService as { platform?: string; isSupported?: boolean }).platform = 'web';
-    (notificationService as { platform?: string; isSupported?: boolean }).isSupported = true;
-    (notificationService as { initialized?: boolean }).initialized = true;
+    (localNotificationService as { platform?: string; isSupported?: boolean }).platform = 'web';
+    (localNotificationService as { platform?: string; isSupported?: boolean }).isSupported = true;
+    (localNotificationService as { initialized?: boolean }).initialized = true;
   });
 
   afterEach(() => {
@@ -77,8 +77,8 @@ describe('notificationService', () => {
   });
 
   it('generateNotificationId() returns a stable positive id for the same key', () => {
-    const first = notificationService.generateNotificationId('task-reminder-1');
-    const second = notificationService.generateNotificationId('task-reminder-1');
+    const first = localNotificationService.generateNotificationId('task-reminder-1');
+    const second = localNotificationService.generateNotificationId('task-reminder-1');
 
     expect(first).toBe(second);
     expect(first).toBeGreaterThan(0);
@@ -88,7 +88,7 @@ describe('notificationService', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 5, 10, 9, 0, 0));
 
-    const id = await notificationService.scheduleNotification({
+    const id = await localNotificationService.scheduleNotification({
       key: 'task-reminder-created',
       title: 'Task due',
       body: 'Buy bread',
@@ -96,7 +96,7 @@ describe('notificationService', () => {
       time: '09:00',
     });
 
-    expect(id).toBe(notificationService.generateNotificationId('task-reminder-created'));
+    expect(id).toBe(localNotificationService.generateNotificationId('task-reminder-created'));
     expect(hoisted.localNotifications.schedule).toHaveBeenCalledWith(
       expect.objectContaining({
         notifications: [

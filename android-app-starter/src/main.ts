@@ -9,7 +9,7 @@ import router from './router';
 import i18n from './i18n';
 import { authService } from './services/auth.service';
 import { biometricService } from './services/biometric.service';
-import { notificationService } from './services/notification.service';
+import { localNotificationService } from './services/localNotification.service';
 import { pushNotificationService } from './services/pushNotification.service';
 import { reminderDeliveryService } from './services/reminderDelivery.service';
 import { versionService } from './services/version.service';
@@ -124,7 +124,7 @@ const initializeApp = async () => {
             await pushNotificationService.reconcileAfterLogin();
           }
           if (await reminderDeliveryService.shouldScheduleLocally()) {
-            await notificationService.requestPermissions();
+            await localNotificationService.requestPermissions();
           }
         } catch (error) {
           logger.error('Error reconciling reminder delivery / permissions:', error);

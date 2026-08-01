@@ -24,7 +24,7 @@ tests/
 │   │   ├── auth.service.spec.ts
 │   │   ├── boot.spec.ts
 │   │   ├── file.service.spec.ts
-│   │   └── notification.service.spec.ts
+│   │   └── localNotification.service.spec.ts
 │   ├── stores/
 │   │   ├── settingsStore.spec.ts
 │   │   ├── taskStore.spec.ts

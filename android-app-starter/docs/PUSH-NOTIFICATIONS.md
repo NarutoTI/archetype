@@ -18,10 +18,42 @@ Stack funcional do starter: **cliente Capacitor** + **backend FCM + tick**.
 |------|--------|
 | `reminderDelivery.service.ts` | desired vs effective (`push` / `local`) |
 | `pushNotification.service.ts` | registro, reconcile, logout |
-| `notification.service.ts` | agenda local só se effective = local |
-| `notificationEntry.ts` | badge lê bandeja local + push |
+| `localNotification.service.ts` | agenda local só se effective = local; agendar **e cancelar** viram no-op em push (`skipsLocalDelivery`) |
+| `notificationEntry.ts` | badge lê bandeja local + push, resolve o destino e decide o que mostrar |
+| `utils/pushNotificationTag.ts` | lê a rota da tag Android quando o `data` do FCM não vem |
+| `stores/localNotificationStore.ts` | bandeja do aparelho (pendentes); única store que fala com o SO |
 | Menu → entrega | troca push ↔ local (Android); seções com `ion-list-header` |
 | Menu → teste | toque dispara push (`POST /api/push/test`) ou local conforme o modo efetivo |
+
+## Abertura pelo ícone (bandeja) — e por que existe uma tag
+
+Tocar na notificação entrega o payload (`pushNotificationActionPerformed` → `data.routePath`).
+Abrir pelo **ícone do launcher** com a notificação ainda na bandeja **não** entrega nada: o
+`notificationEntry` lê a bandeja com `PushNotifications.getDeliveredNotifications()`, e no Android
+esse retorno traz os extras da `StatusBarNotification` — **sem o mapa `data` do FCM**.
+
+Por isso o backend manda a rota também na `android.notification.tag`:
+
+```text
+push:route:%2Ftabs%2Ftasks:1720000000000
+        ↑ rota percent-encoded        ↑ epoch ms (mantém a tag única por disparo)
+```
+
+O app resolve o destino nesta ordem: `data.routePath` → `data.path` → **tag** → rota padrão.
+Formato definido em `android-app-starter-backend/src/utils/pushNotificationTag.ts` e lido em
+`android-app-starter/src/utils/pushNotificationTag.ts` — **mudou um, mude o outro** (há teste dos
+dois lados justamente para travar esse contrato).
+
+O que aparece depois de resolver:
+
+| Canal | 1 notificação | N notificações |
+|---|---|---|
+| **Push** | abre o destino direto, sem perguntar | action sheet com uma linha por notificação |
+| **Local** | alerta: Abrir / Ver notificações / Fechar | mesma action sheet **+** a linha Ver notificações |
+
+A action sheet (`presentDeliveredChooser`) é uma só para os dois canais: cada linha carrega
+`data: { index }`, então abre a que foi tocada. "Ver notificações" só entra quando há entrada
+local, porque em push a fila de pendentes do aparelho está vazia — quem agenda é o servidor.
 
 ## Backend
 

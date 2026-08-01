@@ -161,7 +161,8 @@
     "deliveredMessage": "You have {count} recent notification(s) on this device.",
     "deliveredRemaining": "+ {count} other(s)",
     "deliveredOpen": "Open",
-    "deliveredView": "View notifications"
+    "deliveredView": "View notifications",
+    "deliveredChoose": "Choose which notification to open"
   },
   "settings": {
     "title": "Settings",

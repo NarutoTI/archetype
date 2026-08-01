@@ -1,5 +1,7 @@
 import type { Router } from 'vue-router';
 import type { DeliveredNotificationSchema } from '@capacitor/local-notifications';
+import type { ActionSheetButton } from '@ionic/core';
+import { closeOutline, listOutline, notificationsOutline } from 'ionicons/icons';
 import { App } from '@capacitor/app';
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import {
@@ -9,13 +11,14 @@ import {
 import { bootReadyPromise } from '@/services/boot';
 import i18n from '@/i18n';
 import { alertService } from '@/services/alert.service';
-import { notificationService } from '@/services/notification.service';
+import { localNotificationService } from '@/services/localNotification.service';
 import {
   notificationLaunchIndexService,
   type NotificationLaunchEntry,
 } from '@/services/notificationLaunchIndex.service';
 import { useUserStore } from '@/stores/userStore';
 import { logger } from '@/utils/logger';
+import { routePathFromPushNotificationTag } from '@/utils/pushNotificationTag';
 import {
   DEFAULT_NOTIFICATION_OPEN_PATH,
   NOTIFICATIONS_PATH,
@@ -87,9 +90,14 @@ class NotificationEntry {
 
     this.isPromptOpen = true;
     try {
-      const handled = entries.length === 1
-        ? await this.presentSingleNotificationPrompt(entries[0])
-        : await this.presentMultipleNotificationsPrompt(entries);
+      // Um item: push abre direto (mesmo efeito do toque na bandeja), local mantém o prompt —
+      // lá a lista de pendentes é real e vale oferecer. Vários: um seletor só, ver
+      // presentDeliveredChooser.
+      const handled = entries.length > 1
+        ? await this.presentDeliveredChooser(entries)
+        : entries[0].source === 'push'
+          ? await this.openTarget(entries[0]).then(() => true)
+          : await this.presentSingleNotificationPrompt(entries[0]);
 
       for (const entry of entries) {
         for (const sourceEntry of this.sourceEntries(entry)) {
@@ -127,7 +135,7 @@ class NotificationEntry {
   }
 
   private async collectLocalDeliveredEntries(): Promise<DeliveredPromptEntry[]> {
-    const deliveredNotifications = await notificationService.getDeliveredNotifications();
+    const deliveredNotifications = await localNotificationService.getDeliveredNotifications();
     const deliveredIds = deliveredNotifications
       .map(notification => notification.id)
       .filter((id): id is number => typeof id === 'number' && !this.handledDeliveredKeys.has(`local:${id}`));
@@ -172,7 +180,9 @@ class NotificationEntry {
         const body = notification.body?.trim()
           || String(notification.data?.body ?? '').trim()
           || undefined;
-        const routePath = this.routePathFromPushData(notification.data);
+        const routePath = this.routePathFromPushData(notification.data)
+          ?? routePathFromPushNotificationTag(notification.tag)
+          ?? undefined;
         const identity = String(notification.data?.key ?? '').trim()
           || routePath
           || key;
@@ -236,25 +246,50 @@ class NotificationEntry {
     return true;
   }
 
-  private async presentMultipleNotificationsPrompt(entries: DeliveredPromptEntry[]): Promise<boolean> {
-    const result = await alertService.presentCustomAlert({
-      header: i18n.global.t('notifications.deliveredTitleMultiple', { count: entries.length }),
-      message: this.buildMultipleNotificationsMessage(entries),
-      cssClass: 'alert-warning notification-delivered-alert',
-      buttons: [
-        {
-          text: i18n.global.t('common.close'),
-          role: 'cancel',
-        },
-        {
-          text: i18n.global.t('notifications.deliveredView'),
-          role: 'view-notifications',
-          cssClass: 'alert-button-warning',
-        },
-      ],
+  /**
+   * Várias notificações na bandeja: um seletor único para os dois canais, com uma linha por
+   * notificação — a tocada é a que abre. A única diferença por canal é a linha "ver
+   * notificações", que só aparece quando há entrada local, porque em push a fila de pendentes
+   * do aparelho está vazia (quem agenda é o servidor).
+   *
+   * Action sheet em vez de alerta porque a escolha **é** a lista: alerta só comporta dois ou
+   * três botões, e era por isso que a versão anterior não conseguia oferecer uma por uma.
+   */
+  private async presentDeliveredChooser(entries: DeliveredPromptEntry[]): Promise<boolean> {
+    const hasLocalEntry = entries.some((entry) => entry.source === 'local');
+
+    const buttons: ActionSheetButton[] = entries.map((entry, index) => ({
+      text: entry.title,
+      icon: notificationsOutline,
+      data: { index },
+      role: 'open-target',
+    }));
+
+    if (hasLocalEntry) {
+      buttons.push({
+        text: i18n.global.t('notifications.deliveredView'),
+        icon: listOutline,
+        role: 'view-notifications',
+      });
+    }
+
+    buttons.push({
+      text: i18n.global.t('common.close'),
+      icon: closeOutline,
+      role: 'cancel',
     });
 
-    if (result.role === 'view-notifications') {
+    const result = await alertService.presentCustomActionSheet({
+      header: i18n.global.t('notifications.deliveredTitleMultiple', { count: entries.length }),
+      subHeader: i18n.global.t('notifications.deliveredChoose'),
+      cssClass: 'action-sheet-warning notification-delivered-sheet',
+      buttons,
+    });
+
+    if (result.role === 'open-target') {
+      const index = (result.data as { index?: number } | undefined)?.index ?? 0;
+      await this.openTarget(entries[index] ?? entries[0]);
+    } else if (result.role === 'view-notifications') {
       await this.openNotificationsList();
     }
 
@@ -270,23 +305,6 @@ class NotificationEntry {
     return parts.join('\n\n');
   }
 
-  private buildMultipleNotificationsMessage(entries: DeliveredPromptEntry[]): string {
-    const previewItems = entries
-      .slice(0, 3)
-      .map(entry => `- ${entry.title}`)
-      .join('\n');
-
-    const remaining = Math.max(entries.length - 3, 0);
-    const remainingText = remaining > 0
-      ? i18n.global.t('notifications.deliveredRemaining', { count: remaining })
-      : '';
-
-    return [
-      i18n.global.t('notifications.deliveredMessage', { count: entries.length }),
-      previewItems,
-      remainingText,
-    ].filter(Boolean).join('\n\n');
-  }
 
   private async openTarget(entry: DeliveredPromptEntry): Promise<void> {
     for (const sourceEntry of this.sourceEntries(entry)) {
@@ -302,7 +320,7 @@ class NotificationEntry {
   private async removeDeliveredEntry(entry: DeliveredPromptEntry): Promise<void> {
     if (entry.source === 'local') {
       if (entry.localDelivered) {
-        await notificationService.removeDeliveredNotifications([entry.localDelivered]);
+        await localNotificationService.removeDeliveredNotifications([entry.localDelivered]);
       }
       if (typeof entry.localId === 'number') {
         await notificationLaunchIndexService.removeEntriesByIds([entry.localId]);

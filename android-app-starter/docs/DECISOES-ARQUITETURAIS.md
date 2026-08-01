@@ -175,7 +175,7 @@ Quando o usuário abre o app pelo **ícone do launcher** (em vez de tocar na
 notificação), o Android inicia via intent `MAIN`/`LAUNCHER`, **sem** o payload da
 notificação. Para cobrir isso:
 
-- `notification.service.ts` grava um **índice local mínimo** ao agendar
+- `localNotification.service.ts` grava um **índice local mínimo** ao agendar
   (`notificationId → key/title/body/routePath`), em
   [notificationLaunchIndex.service.ts](../src/services/notificationLaunchIndex.service.ts)
   (user-scoped, com teto de entradas mantendo as agendadas mais próximas).
@@ -234,7 +234,7 @@ starter** por ser exceção rara. Apps que precisem de continuidade devem guarda
 destino e redirecionar após o login. (Documentado também no README e no guia de
 criação de projeto.)
 
-Arquivos âncora: [services/notification.service.ts](../src/services/notification.service.ts),
+Arquivos âncora: [services/localNotification.service.ts](../src/services/localNotification.service.ts),
 [services/notificationEntry.ts](../src/services/notificationEntry.ts),
 [services/notificationLaunchIndex.service.ts](../src/services/notificationLaunchIndex.service.ts),
 [services/pushNotification.service.ts](../src/services/pushNotification.service.ts),
@@ -310,7 +310,7 @@ Padrões recorrentes, já aplicados acima, que valem manter ao crescer o app:
   de notificação entregue) roda em `setTimeout` após a primeira pintura. O
   `requestPermissions()` *explícito* também está na Fase 3 — **mas note** que o
   `notificationService` é importado no topo do `main.ts` e seu construtor dispara
-  `initialize()` → `checkAndRequestPermissions()` ([notification.service.ts](../src/services/notification.service.ts)),
+  `initialize()` → `checkAndRequestPermissions()` ([localNotification.service.ts](../src/services/localNotification.service.ts)),
   então, em instalação nova, o prompt de permissão pode aparecer **na avaliação do
   módulo**, antes da Fase 3. Não dá para afirmar que toda permissão só ocorre após
   o first paint; avalie se quer manter os dois pontos de pedido.
@@ -383,7 +383,7 @@ usuário novo).
 | Exemplo de store de domínio | [stores/taskStore.ts](../src/stores/taskStore.ts) |
 | Share — camada baixa | [services/share-intake.service.ts](../src/services/share-intake.service.ts) |
 | Share — navegação | [services/shareEntry.ts](../src/services/shareEntry.ts) |
-| Notificação — agendar + índice + entregues | [services/notification.service.ts](../src/services/notification.service.ts) |
+| Notificação — agendar + índice + entregues | [services/localNotification.service.ts](../src/services/localNotification.service.ts) |
 | Notificação — prompt do badge (local + push) | [services/notificationEntry.ts](../src/services/notificationEntry.ts) |
 | Notificação — índice local | [services/notificationLaunchIndex.service.ts](../src/services/notificationLaunchIndex.service.ts) |
 | Push — registro / reconcile | [services/pushNotification.service.ts](../src/services/pushNotification.service.ts) |

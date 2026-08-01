@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import i18n from '@/i18n';
 import { useEntityBucketCache } from '@/composables/useEntityBucketCache';
 import taskService, { type UpdateTaskPayload } from '@/services/task.service';
-import { notificationService } from '@/services/notification.service';
+import { localNotificationService } from '@/services/localNotification.service';
 import { dateToISOString, isPastDateTime, isSameOrFutureDate } from '@/utils/date.utils';
 import { logger } from '@/utils/logger';
 import type { Task } from '@/types/Task';
@@ -152,7 +152,7 @@ export const useTaskStore = defineStore('tasks', () => {
     try {
       const shouldRemind = !task.completed && !isPastDateTime(task.dueDate, TASK_REMINDER_TIME);
       if (shouldRemind) {
-        await notificationService.scheduleNotification({
+        await localNotificationService.scheduleNotification({
           key: taskReminderKey(task.id),
           title: i18n.global.t('tasks.reminderTitle'),
           body: i18n.global.t('tasks.reminderBody', { title: task.title }),
@@ -171,8 +171,8 @@ export const useTaskStore = defineStore('tasks', () => {
   };
 
   const cancelTaskReminder = async (id: string) => {
-    await notificationService.cancelNotification(
-      notificationService.generateNotificationId(taskReminderKey(id)),
+    await localNotificationService.cancelNotification(
+      localNotificationService.generateNotificationId(taskReminderKey(id)),
     );
   };
 

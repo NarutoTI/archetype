@@ -64,6 +64,46 @@
   white-space: pre-line;
 }
 
+/* Action sheet no mesmo idioma visual dos alertas acima. Usado pelo seletor de
+   "várias notificações na bandeja", onde cada linha é uma notificação a abrir
+   (ver notificationEntry.presentDeliveredChooser). */
+.action-sheet-warning { --sheet-accent: var(--ion-color-warning); }
+.action-sheet-primary { --sheet-accent: var(--ion-color-primary); }
+
+:is(.action-sheet-warning, .action-sheet-primary) .action-sheet-group {
+  border-radius: 16px;
+  margin: 8px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--sheet-accent) 8%, var(--ion-background-color, #fff));
+  border: 1px solid color-mix(in srgb, var(--sheet-accent) 30%, transparent);
+}
+
+:is(.action-sheet-warning, .action-sheet-primary) .action-sheet-title {
+  color: var(--sheet-accent);
+  font-weight: 600;
+  padding-bottom: 4px;
+}
+
+:is(.action-sheet-warning, .action-sheet-primary) .action-sheet-sub-title {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+:is(.action-sheet-warning, .action-sheet-primary) .action-sheet-button {
+  color: var(--ion-text-color, #333);
+  border-top: 1px solid color-mix(in srgb, var(--sheet-accent) 14%, transparent);
+}
+
+:is(.action-sheet-warning, .action-sheet-primary) .action-sheet-button .action-sheet-icon {
+  color: var(--sheet-accent);
+  font-size: 1.25rem;
+}
+
+:is(.action-sheet-warning, .action-sheet-primary) .action-sheet-button.action-sheet-cancel {
+  font-weight: 600;
+  border-top-width: 0;
+}
+
 .alert-button-success { color: var(--ion-color-success) !important; }
 .alert-button-danger { color: var(--ion-color-danger) !important; }
 .alert-button-warning { color: var(--ion-color-warning) !important; }

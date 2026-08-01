@@ -1,5 +1,5 @@
-import { alertController } from '@ionic/vue';
-import type { AlertButton } from '@ionic/core';
+import { actionSheetController, alertController } from '@ionic/vue';
+import type { ActionSheetButton, AlertButton } from '@ionic/core';
 import i18n from '@/i18n';
 
 export const alertService = {
@@ -47,6 +47,27 @@ export const alertService = {
     });
     await alert.present();
     return alert.onDidDismiss();
+  },
+
+  /**
+   * Action sheet para escolhas do tipo "uma entre N", onde um alerta só caberia dois ou três
+   * botões. Devolve o `{ role, data }` do dismiss — identifique o botão tocado pelo `data`,
+   * já que vários botões costumam repetir o mesmo `role`.
+   */
+  async presentCustomActionSheet(options: {
+    header: string;
+    subHeader?: string;
+    buttons: ActionSheetButton[];
+    cssClass?: string;
+  }) {
+    const actionSheet = await actionSheetController.create({
+      header: options.header,
+      subHeader: options.subHeader,
+      cssClass: options.cssClass || 'action-sheet-primary',
+      buttons: options.buttons,
+    });
+    await actionSheet.present();
+    return actionSheet.onDidDismiss();
   },
 
   async presentAlertConfirmWarning(

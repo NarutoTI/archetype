@@ -11,6 +11,7 @@ const hoisted = vi.hoisted(() => ({
   getEntriesByIds: vi.fn(),
   removeEntriesByIds: vi.fn(),
   presentCustomAlert: vi.fn(),
+  presentCustomActionSheet: vi.fn(),
   isAuthenticated: true,
 }));
 
@@ -41,8 +42,8 @@ vi.mock('@/services/boot', () => ({
   bootReadyPromise: Promise.resolve(),
 }));
 
-vi.mock('@/services/notification.service', () => ({
-  notificationService: {
+vi.mock('@/services/localNotification.service', () => ({
+  localNotificationService: {
     getDeliveredNotifications: hoisted.getDeliveredNotifications,
     removeDeliveredNotifications: hoisted.removeDeliveredNotifications,
   },
@@ -58,6 +59,7 @@ vi.mock('@/services/notificationLaunchIndex.service', () => ({
 vi.mock('@/services/alert.service', () => ({
   alertService: {
     presentCustomAlert: hoisted.presentCustomAlert,
+    presentCustomActionSheet: hoisted.presentCustomActionSheet,
   },
 }));
 
@@ -110,6 +112,7 @@ async function freshEntry() {
   hoisted.getEntriesByIds.mockResolvedValue([]);
   hoisted.removeEntriesByIds.mockResolvedValue(undefined);
   hoisted.presentCustomAlert.mockResolvedValue({ role: 'cancel' });
+  hoisted.presentCustomActionSheet.mockResolvedValue({ role: 'cancel' });
   hoisted.isAuthenticated = true;
 
   const mod = await import('@/services/notificationEntry');
@@ -243,5 +246,93 @@ describe('notificationEntry', () => {
       notifications: [pushNotification],
     });
     expect(router.push).toHaveBeenCalledWith('/tabs/tasks');
+  });
+
+  // Push sozinho na bandeja: abre direto, como se o usuário tivesse tocado na notificação.
+  it('opens a single delivered push target without any prompt', async () => {
+    const entry = await freshEntry();
+    const router = makeRouter('/tabs/home');
+    const pushNotification = {
+      id: 0,
+      title: 'Push title',
+      data: { routePath: '/tabs/tasks', key: 'task-9' },
+    };
+
+    hoisted.isPluginAvailable.mockReturnValue(true);
+    hoisted.getPushDeliveredNotifications.mockResolvedValue({ notifications: [pushNotification] });
+
+    entry.install(router as any);
+    const handled = await entry.dispatchIfDelivered('cold-start');
+
+    expect(handled).toBe(true);
+    expect(hoisted.presentCustomAlert).not.toHaveBeenCalled();
+    expect(hoisted.presentCustomActionSheet).not.toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith('/tabs/tasks');
+  });
+
+  // No Android a bandeja não devolve o mapa data do FCM: a rota vem da tag.
+  it('recovers the route from the Android tag when FCM data is missing', async () => {
+    const entry = await freshEntry();
+    const router = makeRouter('/tabs/home');
+
+    hoisted.isPluginAvailable.mockReturnValue(true);
+    hoisted.getPushDeliveredNotifications.mockResolvedValue({
+      notifications: [{
+        id: 0,
+        tag: 'push:route:%2Ftabs%2Ftasks:1720000000000',
+        title: 'Push title',
+        data: { 'android.title': 'Push title' },
+      }],
+    });
+
+    entry.install(router as any);
+    await entry.dispatchIfDelivered('cold-start');
+
+    expect(router.push).toHaveBeenCalledWith('/tabs/tasks');
+  });
+
+  it('lists every push item in the chooser and opens the chosen one', async () => {
+    const entry = await freshEntry();
+    const router = makeRouter('/tabs/home');
+
+    hoisted.isPluginAvailable.mockReturnValue(true);
+    hoisted.getPushDeliveredNotifications.mockResolvedValue({
+      notifications: [
+        { id: 1, title: 'A', data: { routePath: '/tabs/tasks', key: 'a' } },
+        { id: 2, title: 'B', data: { routePath: '/tabs/settings', key: 'b' } },
+      ],
+    });
+    hoisted.presentCustomActionSheet.mockResolvedValue({ role: 'open-target', data: { index: 1 } });
+
+    entry.install(router as any);
+    await entry.dispatchIfDelivered('cold-start');
+
+    const buttons = hoisted.presentCustomActionSheet.mock.calls[0][0].buttons;
+    expect(buttons.filter((b: any) => b.role === 'open-target').map((b: any) => b.text)).toEqual(['A', 'B']);
+    expect(buttons.some((b: any) => b.role === 'view-notifications')).toBe(false);
+    expect(router.push).toHaveBeenCalledWith('/tabs/settings');
+  });
+
+  // Local tem fila de pendentes de verdade, então ganha a linha extra.
+  it('adds view-notifications to the chooser when a local entry is present', async () => {
+    const entry = await freshEntry();
+    const router = makeRouter('/tabs/home');
+
+    hoisted.getDeliveredNotifications.mockResolvedValue([
+      { id: 11, title: 'Local A' },
+      { id: 12, title: 'Local B' },
+    ]);
+    hoisted.getEntriesByIds.mockResolvedValue([
+      { id: 11, key: 'k1', title: 'Local A', routePath: '/tabs/tasks', recordedAtMs: 1 },
+      { id: 12, key: 'k2', title: 'Local B', routePath: '/tabs/settings', recordedAtMs: 2 },
+    ]);
+    hoisted.presentCustomActionSheet.mockResolvedValue({ role: 'view-notifications' });
+
+    entry.install(router as any);
+    await entry.dispatchIfDelivered('cold-start');
+
+    const buttons = hoisted.presentCustomActionSheet.mock.calls[0][0].buttons;
+    expect(buttons.filter((b: any) => b.role === 'open-target')).toHaveLength(2);
+    expect(buttons.some((b: any) => b.role === 'view-notifications')).toBe(true);
   });
 });

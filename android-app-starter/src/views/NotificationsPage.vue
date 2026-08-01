@@ -45,28 +45,27 @@ import {
   IonToolbar,
 } from '@ionic/vue';
 import { alarmOutline, trashOutline } from 'ionicons/icons';
-import { onMounted, ref } from 'vue';
-import type { PendingLocalNotificationSchema } from '@capacitor/local-notifications';
+import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { notificationService } from '@/services/notification.service';
+import { localNotificationService } from '@/services/localNotification.service';
+import { useLocalNotificationStore } from '@/stores/localNotificationStore';
 import { toastService } from '@/services/toast.service';
 
 const { t } = useI18n();
-const pending = ref<PendingLocalNotificationSchema[]>([]);
+// A bandeja do aparelho mora na store: a página só lê e dispara ações.
+const localNotificationStore = useLocalNotificationStore();
+const pending = computed(() => localNotificationStore.pending);
 
-const refresh = async () => {
-  pending.value = await notificationService.getPendingNotifications();
-};
+const refresh = () => localNotificationStore.loadPending();
 
 const scheduleTest = async () => {
-  const ok = await notificationService.testNotification();
+  const ok = await localNotificationService.testNotification();
   if (ok) await toastService.presentToastSuccess(t('notifications.scheduled'));
   await refresh();
 };
 
 const clearAll = async () => {
-  await notificationService.cancelAllNotifications();
-  await refresh();
+  await localNotificationStore.cancelAll();
 };
 
 onMounted(refresh);
