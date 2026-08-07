@@ -1,0 +1,11 @@
+# Config do `npm run ota:release`. Copie para `ota.properties` (gitignored) e ajuste.
+# NÃO comite segredos nem URLs reais de produção neste .example.
+
+# Prefixo público dos zips (custom domain do R2). Sem barra no fim.
+OTA_BASE_URL=https://ota.example.com/bundles
+
+# Bucket R2 de destino do wrangler (`r2 object put`).
+OTA_R2_BUCKET=app-ota
+
+# Prefixo do nome do zip: <prefix>-<base>-ota.<n>.zip (ex.: app-1.0.0-ota.1.zip).
+OTA_ZIP_PREFIX=app

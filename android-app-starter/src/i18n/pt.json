@@ -205,13 +205,31 @@
   },
   "version": {
     "checkForUpdates": "Verificar atualizações",
+    "label": "Versão {version}",
     "updateAvailable": "Atualização disponível",
     "updateMessage": "Versão atual: {current}. Nova versão: {latest}.",
     "later": "Depois",
     "updateNow": "Atualizar",
     "upToDate": "App atualizado.",
     "errorChecking": "Não foi possível verificar atualizações.",
-    "errorOpeningStore": "Não foi possível abrir a loja."
+    "errorOpeningStore": "Não foi possível abrir a loja.",
+    "ota": {
+      "updateAvailable": "Atualização disponível",
+      "message": "Uma nova versão está pronta. Atualizar agora?",
+      "applyNow": "Agora",
+      "applyNextOpen": "Depois",
+      "downloading": "Baixando atualização…",
+      "willApplyNextOpen": "A atualização será aplicada na próxima abertura.",
+      "channelTestBadge": "TESTE",
+      "channelEnterTitle": "Canal de teste",
+      "channelEnterMessage": "Receber atualizações de teste (staging) só neste aparelho?",
+      "channelEnterConfirm": "Entrar",
+      "channelLeaveTitle": "Sair do canal de teste",
+      "channelLeaveMessage": "Voltar para atualizações de produção neste aparelho?",
+      "channelLeaveConfirm": "Sair",
+      "channelStagingEnabled": "Canal de teste ativado neste aparelho.",
+      "channelProductionEnabled": "De volta ao canal de produção."
+    }
   },
   "services": {
     "api": {

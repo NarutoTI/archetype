@@ -78,6 +78,11 @@ const initializeApp = async () => {
     await settingsStore.loadBootSettings();
     await mountApp();
 
+    // OTA: confirma que o bundle ativo subiu saudável logo após montar. Pular isso
+    // além do appReadyTimeout faz o plugin reverter pro bundle anterior/builtin.
+    // Import dinâmico p/ o código do updater não pesar o caminho crítico do boot.
+    void import('./services/ota.service').then(({ notifyAppReady }) => notifyAppReady());
+
     void settingsStore.loadSettings();
 
     // Cold-start share dispatch starts now, after mount, but we keep its Promise

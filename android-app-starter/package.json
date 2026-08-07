@@ -9,7 +9,10 @@
     "serve:ionic": "ionic serve --host=0.0.0.0 --port=8101",
     "build": "vue-tsc && vite build --mode production",
     "build:dev": "vue-tsc && vite build --mode development",
+    "build:simulator": "vite build --mode simulator && npx cap sync android",
     "preview": "vite",
+    "ota:release": "node scripts/ota/ota-release.js",
+    "ota:reset-device": "node scripts/ota/ota-reset-device.js",
     "test:unit": "vitest",
     "lint": "eslint .",
     "cap:sync": "npx cap sync",
@@ -33,6 +36,7 @@
     "@capacitor/share": "^8.0.1",
     "@capgo/capacitor-native-biometric": "^8.6.2",
     "@capgo/capacitor-share-target": "^8.0.44",
+    "@capgo/capacitor-updater": "^8.51.3",
     "@ionic/vue": "^8.8.10",
     "@ionic/vue-router": "^8.8.10",
     "axios": "^1.17.0",
@@ -46,6 +50,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.2",
+    "@capgo/cli": "^8.33.0",
     "@types/leaflet": "^1.9.21",
     "@vitejs/plugin-legacy": "^8.0.2",
     "@vitejs/plugin-vue": "^6.0.7",
@@ -59,7 +64,8 @@
     "typescript": "~5.6.2",
     "vite": "^8.0.16",
     "vitest": "^4.1.8",
-    "vue-tsc": "^2.1.10"
+    "vue-tsc": "^2.1.10",
+    "wrangler": "^4.119.0"
   },
   "description": "Ionic Vue Android app starter",
   "engines": {

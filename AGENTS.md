@@ -51,3 +51,9 @@
 
 - Preferir testes focados para regras reutilizáveis e bugs de corrida.
 - Não rodar build final automaticamente; use lint, typecheck e testes unitários para validação durante alterações.
+
+## OTA / Live Updates
+
+- Atualização do bundle web sem passar pela loja, **backend-driven** (alvo vem do `GET /version`). Guia operacional e fonte da verdade: `android-app-starter/docs/native/OTA.md`.
+- Nasce **dormente**: `VITE_OTA_ENABLED` ausente/false e mapas `ota`/`otaStaging` do backend vazios. Não ligar por padrão em projetos gerados.
+- Antes de alterar `ota.service`, `ota-channel.service`, `version.service`, o `versionService` do backend ou `scripts/ota/*`, ler o guia. Nunca assar `VITE_OTA_CHANNEL=staging` num build de produção (o `ota:release` aborta se detectar).

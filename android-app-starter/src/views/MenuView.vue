@@ -255,6 +255,23 @@
         @close="isLocationPickerOpen = false"
       />
     </ion-content>
+
+    <!-- Rodapé com a versão. 12 toques na linha abrem a troca do canal OTA local. -->
+    <ion-footer v-if="bundleLabel || appVersion">
+      <ion-toolbar>
+        <ion-item lines="none" @click="registerOtaTap" @contextmenu.prevent>
+          <ion-label>{{ $t('version.label', { version: bundleLabel || appVersion }) }}</ion-label>
+          <ion-chip
+            v-if="otaChannel === 'staging'"
+            slot="end"
+            color="warning"
+            @click.stop="openOtaChannelPrompt"
+          >
+            {{ $t('version.ota.channelTestBadge') }}
+          </ion-chip>
+        </ion-item>
+      </ion-toolbar>
+    </ion-footer>
   </ion-page>
 </template>
 
@@ -265,7 +282,9 @@ import {
   IonAvatar,
   IonButton,
   IonButtons,
+  IonChip,
   IonContent,
+  IonFooter,
   IonHeader,
   IonIcon,
   IonItem,
@@ -300,9 +319,11 @@ import {
   settingsOutline,
   trashOutline,
 } from 'ionicons/icons';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import MapLocationPicker from '@/views/components/MapLocationPicker.vue';
 import { alertService } from '@/services/alert.service';
 import { authService } from '@/services/auth.service';
@@ -317,6 +338,7 @@ import {
 } from '@/services/reminderDelivery.service';
 import { toastService } from '@/services/toast.service';
 import { versionService } from '@/services/version.service';
+import { getOtaChannel, setOtaChannel, type OtaChannel } from '@/services/ota-channel.service';
 import { useSettingsStore, type ThemeOption } from '@/stores/settingsStore';
 import { useUserStore } from '@/stores/userStore';
 import { logger } from '@/utils/logger';
@@ -420,6 +442,77 @@ const checkForUpdates = async () => {
   await versionService.checkAndPromptForUpdate(true);
 };
 
+// --- OTA: rodapé de versão + canal local (12 toques na linha da versão) ---
+const bundleLabel = ref<string | null>(null);
+const appVersion = ref('');
+const otaChannel = ref<OtaChannel>('production');
+const otaChannelPromptOpen = ref(false);
+
+const OTA_TAP_TARGET = 12;
+const OTA_TAP_WINDOW_MS = 2000;
+const otaTapCount = ref(0);
+const otaTapTimer = ref<ReturnType<typeof setTimeout> | null>(null);
+
+const openOtaChannelPrompt = async () => {
+  if (!Capacitor.isNativePlatform() || otaChannelPromptOpen.value) return;
+  otaChannelPromptOpen.value = true;
+  try {
+    const currentChannel = await getOtaChannel();
+    const enteringStaging = currentChannel === 'production';
+    const result = await alertService.presentCustomAlert({
+      header: enteringStaging ? t('version.ota.channelEnterTitle') : t('version.ota.channelLeaveTitle'),
+      message: enteringStaging ? t('version.ota.channelEnterMessage') : t('version.ota.channelLeaveMessage'),
+      buttons: [
+        { text: t('common.cancel'), role: 'cancel', cssClass: 'alert-button-secondary' },
+        {
+          text: enteringStaging ? t('version.ota.channelEnterConfirm') : t('version.ota.channelLeaveConfirm'),
+          role: 'confirm',
+          cssClass: 'alert-button-primary',
+        },
+      ],
+      cssClass: 'alert-primary',
+    });
+    if (result.role === 'confirm') {
+      const nextChannel: OtaChannel = enteringStaging ? 'staging' : 'production';
+      await setOtaChannel(nextChannel);
+      otaChannel.value = nextChannel;
+      await toastService.presentToastSuccess(
+        nextChannel === 'staging'
+          ? t('version.ota.channelStagingEnabled')
+          : t('version.ota.channelProductionEnabled'),
+      );
+    }
+  } catch (error) {
+    logger.error('Falha ao trocar o canal OTA local:', error);
+    await toastService.presentToastError(t('version.errorChecking'));
+  } finally {
+    otaChannelPromptOpen.value = false;
+  }
+};
+
+// 12 toques na linha da versão (janela ~2 s; pausa zera a contagem).
+const registerOtaTap = () => {
+  if (!Capacitor.isNativePlatform()) return;
+  if (otaTapTimer.value) {
+    clearTimeout(otaTapTimer.value);
+    otaTapTimer.value = null;
+  }
+  otaTapCount.value += 1;
+  if (otaTapCount.value >= OTA_TAP_TARGET) {
+    otaTapCount.value = 0;
+    void openOtaChannelPrompt();
+    return;
+  }
+  otaTapTimer.value = setTimeout(() => {
+    otaTapCount.value = 0;
+    otaTapTimer.value = null;
+  }, OTA_TAP_WINDOW_MS);
+};
+
+onBeforeUnmount(() => {
+  if (otaTapTimer.value) clearTimeout(otaTapTimer.value);
+});
+
 const debugNotificationStatus = async () => {
   await alertService.presentAlertInfo(
     t('settings.debugNotificationStatus'),
@@ -488,6 +581,19 @@ const signOut = async () => {
 onMounted(async () => {
   biometricAvailable.value = await biometricService.isAvailable();
   await reminderDeliveryService.initialize();
+
+  // Rodapé de versão: label do bundle OTA ativo + canal local (só nativo).
+  try {
+    const { getActiveBundleLabel } = await import('@/services/ota.service');
+    const [label, channel] = await Promise.all([getActiveBundleLabel(), getOtaChannel()]);
+    bundleLabel.value = label;
+    otaChannel.value = channel;
+    if (Capacitor.isNativePlatform()) {
+      appVersion.value = (await App.getInfo()).version;
+    }
+  } catch (error) {
+    logger.error('Falha ao carregar info de versão OTA:', error);
+  }
 });
 </script>
 

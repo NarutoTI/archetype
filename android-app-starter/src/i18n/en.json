@@ -205,13 +205,31 @@
   },
   "version": {
     "checkForUpdates": "Check for updates",
+    "label": "Version {version}",
     "updateAvailable": "Update available",
     "updateMessage": "Current version: {current}. New version: {latest}.",
     "later": "Later",
     "updateNow": "Update",
     "upToDate": "App is up to date.",
     "errorChecking": "Could not check updates.",
-    "errorOpeningStore": "Could not open the store."
+    "errorOpeningStore": "Could not open the store.",
+    "ota": {
+      "updateAvailable": "Update available",
+      "message": "A new version is ready. Update now?",
+      "applyNow": "Now",
+      "applyNextOpen": "Later",
+      "downloading": "Downloading update…",
+      "willApplyNextOpen": "Update will apply on next open.",
+      "channelTestBadge": "TEST",
+      "channelEnterTitle": "Test channel",
+      "channelEnterMessage": "Receive test (staging) updates on this device only?",
+      "channelEnterConfirm": "Enter",
+      "channelLeaveTitle": "Leave test channel",
+      "channelLeaveMessage": "Go back to production updates on this device?",
+      "channelLeaveConfirm": "Leave",
+      "channelStagingEnabled": "Test channel enabled on this device.",
+      "channelProductionEnabled": "Back to production channel."
+    }
   },
   "services": {
     "api": {

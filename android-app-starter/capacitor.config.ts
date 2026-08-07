@@ -43,6 +43,13 @@ const config: CapacitorConfig = {
         cameraUsageDescription: "Allow access to camera to take photos",
         photoLibraryUsageDescription: "Allow access to photo library to select images"
       }
+    },
+    // OTA / Live Updates (modo manual, self-hosted). Ver docs/native/OTA.md.
+    // autoUpdate 'off' = nada acontece sozinho; o app dirige cada passo por JS.
+    CapacitorUpdater: {
+      autoUpdate: 'off',
+      appReadyTimeout: 10000,
+      autoDeletePrevious: true,
     }
   },
   android: {

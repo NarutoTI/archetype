@@ -1,23 +1,45 @@
-interface PlatformVersionInfo {
-  version: string;
-  minSupportedVersion: string;
-  storeUrl: string;
-}
+import type { AppVersionInfo, OtaDescriptor } from '../types/version.js';
 
-interface AppVersionInfo {
-  android: PlatformVersionInfo;
-  ios: PlatformVersionInfo;
-}
+/**
+ * Version Service
+ *
+ * Serve o payload público de `GET /version`: a versão de LOJA por plataforma
+ * (dispara o prompt de atualização nativo) E o alvo OTA por linha nativa.
+ *
+ * O controle de OTA mora aqui de propósito — `/version` é público e já é chamado
+ * em todo cold start, então é o lugar único para decidir o que está no ar:
+ * - `ota`        -> alvo OTA de produção, por versão nativa.
+ * - `otaStaging` -> alvo OTA de staging (só builds de teste leem).
+ * - mapa vazio / chave ausente -> sem OTA para aquela linha (kill switch).
+ *
+ * Para publicar um OTA: rode `npm run ota:release` no app e cole a entrada
+ * impressa sob a chave da versão nativa abaixo. Os mapas são tipados
+ * `Record<string, OtaDescriptor>`, então o editor rejeita um descriptor
+ * malformado ou colado sem a chave da versão. Promova um bundle validado copiando
+ * a MESMA entrada de `androidOtaStaging` para `androidOta`, depois faça deploy.
+ *
+ * No starter os mapas nascem VAZIOS = OTA desligado por padrão.
+ */
+
+// Android — alvos OTA de produção, por versão nativa. Vazio = OTA desligado.
+const androidOta: Record<string, OtaDescriptor> = {};
+
+// Android — alvos OTA de staging (só o canal staging / builds de teste leem).
+const androidOtaStaging: Record<string, OtaDescriptor> = {};
 
 export const getAppVersionInfo = (): AppVersionInfo => ({
   android: {
     version: process.env.ANDROID_APP_VERSION || '1.0.0',
     minSupportedVersion: process.env.ANDROID_MIN_SUPPORTED_VERSION || '1.0.0',
-    storeUrl: process.env.ANDROID_STORE_URL || ''
+    storeUrl: process.env.ANDROID_STORE_URL || '',
+    ota: androidOta,
+    otaStaging: androidOtaStaging,
   },
   ios: {
     version: process.env.IOS_APP_VERSION || '1.0.0',
     minSupportedVersion: process.env.IOS_MIN_SUPPORTED_VERSION || '1.0.0',
-    storeUrl: process.env.IOS_STORE_URL || ''
-  }
+    storeUrl: process.env.IOS_STORE_URL || '',
+    ota: {},
+    otaStaging: {},
+  },
 });
