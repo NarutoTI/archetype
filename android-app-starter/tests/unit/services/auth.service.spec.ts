@@ -59,9 +59,27 @@ vi.mock('@/services/errorTranslation.service', () => ({
   },
 }));
 
+// O `signOut()` importa este serviço dinamicamente e só precisa que ele termine. Sem o
+// dublê, a cadeia real entra junto (reminderDelivery, push nativo, localNotification) e o
+// teste passa segundos ali dentro — o que estourava o limite de 5s no run completo, embora
+// passasse isolado. Aqui a fronteira é autenticação; push tem spec próprio.
+vi.mock('@/services/pushNotification.service', () => ({
+  pushNotificationService: {
+    unregisterBeforeLogout: vi.fn(async () => {}),
+  },
+}));
+
+// Superfície COMPLETA do logger de propósito. Um dublê parcial não silencia um nível que
+// falta: ele explode com `logger.<nível> is not a function` na primeira vez que o código
+// chamar o nível ausente — e o erro aparece com a cara de bug do produto, não do teste.
+// Foi o que aconteceu aqui: o `signOut()` avisa por `logger.warn` quando o unregister de
+// push falha, caminho que este spec exercita.
 vi.mock('@/utils/logger', () => ({
   logger: {
     log: vi.fn(),
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
     error: vi.fn(),
   },
 }));

@@ -75,8 +75,13 @@ vi.mock('@/services/errorTranslation.service', () => ({
   },
 }));
 
+// Superfície completa: um dublê parcial explode quando o código chama um nível ausente.
 vi.mock('@/utils/logger', () => ({
   logger: {
+    log: vi.fn(),
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
     error: vi.fn(),
   },
 }));
