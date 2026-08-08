@@ -120,6 +120,35 @@ if (!global.performance) {
 // };
 
 // ============================================================================
+// Mocks de módulos
+// ============================================================================
+
+/**
+ * Logger, mockado para TODOS os specs.
+ *
+ * Antes cada spec trazia seu próprio dublê, e todos parciais em graus diferentes (um só com
+ * `error`, outro só com `warn`). Enquanto o código não chama o nível que falta, passa; no
+ * dia em que chamar, o spec quebra com `logger.<nível> is not a function`, apontando para o
+ * lugar errado.
+ *
+ * O dublê é derivado do módulo **real**, não de uma lista escrita à mão — e a diferença não
+ * é teórica: a lista escrita à mão aqui já nasceu velha quando o `simulatorDebugLog` entrou
+ * no logger. Assim, função nova já nasce dublada.
+ *
+ * Fábrica assíncrona porque `vi.mock` é içado acima dos imports: as referências precisam ser
+ * resolvidas dentro dela.
+ *
+ * Para afirmar sobre chamadas, o spec importa `logger` de `@/utils/logger` — é este objeto.
+ * Para exercitar o logger de verdade (`tests/unit/utils/logger.spec.ts`), o spec usa
+ * `vi.unmock('@/utils/logger')`.
+ */
+vi.mock('@/utils/logger', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  const { mockModuleFunctions } = await import('./test.utils');
+  return mockModuleFunctions(actual);
+});
+
+// ============================================================================
 // Variáveis de ambiente
 // ============================================================================
 

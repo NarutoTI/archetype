@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { logger } from '@/utils/logger';
 
 const hoisted = vi.hoisted(() => ({
   mockIsAvailable: vi.fn(),
@@ -7,13 +8,6 @@ const hoisted = vi.hoisted(() => ({
     get: vi.fn(),
     set: vi.fn(),
     remove: vi.fn(),
-  },
-  mockLogger: {
-    log: vi.fn(),
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
   },
 }));
 
@@ -58,10 +52,6 @@ vi.mock('@capacitor/core', () => ({
 
 vi.mock('@capacitor/preferences', () => ({
   Preferences: hoisted.mockPreferences,
-}));
-
-vi.mock('@/utils/logger', () => ({
-  logger: hoisted.mockLogger,
 }));
 
 vi.mock('@/i18n', () => ({
@@ -122,10 +112,10 @@ describe('biometricService.authenticate', () => {
 
     await expect(biometricService.authenticate()).resolves.toBe(false);
 
-    expect(hoisted.mockLogger.log).toHaveBeenCalledWith(
+    expect(logger.log).toHaveBeenCalledWith(
       'Biometric authentication cancelled or interrupted',
     );
-    expect(hoisted.mockLogger.error).not.toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it.each([10, 2, 4])('trata rejeição / lockout no código %s', async (code) => {
@@ -133,10 +123,10 @@ describe('biometricService.authenticate', () => {
 
     await expect(biometricService.authenticate()).resolves.toBe(false);
 
-    expect(hoisted.mockLogger.warn).toHaveBeenCalledWith(
+    expect(logger.warn).toHaveBeenCalledWith(
       'Biometric authentication rejected or locked out',
     );
-    expect(hoisted.mockLogger.error).not.toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it.each([1, 3, 14])('reporta estado do aparelho no código %s sem log de erro', async (code) => {
@@ -144,10 +134,10 @@ describe('biometricService.authenticate', () => {
 
     await expect(biometricService.authenticate()).resolves.toBe(false);
 
-    expect(hoisted.mockLogger.warn).toHaveBeenCalledWith(
+    expect(logger.warn).toHaveBeenCalledWith(
       'Biometric unavailable or not enrolled on this device',
     );
-    expect(hoisted.mockLogger.error).not.toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('loga erro desconhecido como falha operacional', async () => {
@@ -156,7 +146,7 @@ describe('biometricService.authenticate', () => {
 
     await expect(biometricService.authenticate()).resolves.toBe(false);
 
-    expect(hoisted.mockLogger.error).toHaveBeenCalledWith(
+    expect(logger.error).toHaveBeenCalledWith(
       'Biometric authentication failed:',
       error,
     );
@@ -241,7 +231,7 @@ describe('biometricService.checkBiometricAuth', () => {
     await expect(biometricService.checkBiometricAuth()).resolves.toBe(false);
 
     expect(hoisted.mockPreferences.remove).not.toHaveBeenCalled();
-    expect(hoisted.mockLogger.error).toHaveBeenCalledWith(
+    expect(logger.error).toHaveBeenCalledWith(
       'Error during biometric check:',
       expect.any(Error),
     );
