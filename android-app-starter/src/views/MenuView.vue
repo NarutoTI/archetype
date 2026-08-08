@@ -1,7 +1,10 @@
 <template>
   <ion-page>
+    <!-- Superfície neutra (Material 3): o primary fica nos acentos, não na faixa do topo.
+         Era o único cabeçalho colorido do app, e destoava de todas as outras páginas.
+         Ver docs/APP-CHROME-LAYOUT.md. -->
     <ion-header :translucent="false">
-      <ion-toolbar color="primary">
+      <ion-toolbar>
         <ion-title>{{ $t('common.menu') }}</ion-title>
       </ion-toolbar>
     </ion-header>

@@ -28,6 +28,29 @@ Portanto, nos projetos gerados a partir deste archetype:
 - **Não** setar `android:fitsSystemWindows` no tema.
 - **Não** compensar com CSS próprio (padding/margin manuais) em tab bar/headers — os componentes Ionic já resolvem via `--ion-safe-area-*`.
 
+## Única exceção: o rail em paisagem
+
+Em celular na horizontal a `ion-tab-bar` vira um rail na borda inicial
+([APP-CHROME-LAYOUT.md](APP-CHROME-LAYOUT.md)). O `:host` do componente aplica os **três**
+insets (`padding-left`, `padding-right`, `padding-bottom`) com
+`box-sizing: content-box !important`, ou seja, cada um soma à largura. De pé a conta fecha;
+girada, dois dos três apontam para lugares onde não há recorte nenhum, e a barra precisa
+ficar só com o da borda que ela encosta:
+
+```css
+@media (orientation: landscape) and (max-height: 600px) {
+  ion-tab-bar {
+    padding-bottom: 0;
+    padding-inline-end: 0;                                /* era a barra de navegação somando ao rail */
+    padding-inline-start: var(--ion-safe-area-left, 0);
+  }
+}
+```
+
+Isso **não** contradiz a regra acima: continua proibido injetar `--ion-safe-area-*` por JS,
+mexer no `MainActivity` ou instalar o `@capacitor/status-bar`. O que se faz aqui é
+**consumir** a variável que o SystemBars já publica, num eixo que o componente não trata.
+
 ## Troubleshooting
 
 Se um menu/cabeçalho ficar atrás das barras do sistema na primeira abertura:
