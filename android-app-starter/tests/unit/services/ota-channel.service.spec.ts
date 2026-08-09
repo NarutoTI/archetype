@@ -16,6 +16,7 @@ vi.mock('@capacitor/preferences', () => ({
 }));
 
 beforeEach(() => {
+  vi.unstubAllEnvs();
   h.native = true;
   for (const k of Object.keys(h.prefs)) delete h.prefs[k];
   vi.resetModules(); // getOtaChannel cacheia 1x por lifetime -> módulo fresco por teste
@@ -33,6 +34,12 @@ describe('ota-channel.service', () => {
     await expect(getOtaChannel()).resolves.toBe('staging');
   });
 
+  it('usa o bake staging quando não há preferência local', async () => {
+    vi.stubEnv('VITE_OTA_CHANNEL', 'staging');
+    const { getOtaChannel } = await import('@/services/ota-channel.service');
+    await expect(getOtaChannel()).resolves.toBe('staging');
+  });
+
   it('setOtaChannel(staging) persiste e passa a ler staging', async () => {
     const mod = await import('@/services/ota-channel.service');
     await mod.setOtaChannel('staging');
@@ -40,8 +47,8 @@ describe('ota-channel.service', () => {
     await expect(mod.getOtaChannel()).resolves.toBe('staging');
   });
 
-  it('setOtaChannel(production) grava production explicitamente (vence bake staging)', async () => {
-    h.prefs['ota-channel-override'] = 'staging';
+  it('setOtaChannel(production) grava production explicitamente e vence bake staging', async () => {
+    vi.stubEnv('VITE_OTA_CHANNEL', 'staging');
     const mod = await import('@/services/ota-channel.service');
     await mod.setOtaChannel('production');
     expect(h.prefs['ota-channel-override']).toBe('production');

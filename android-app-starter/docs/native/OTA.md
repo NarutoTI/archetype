@@ -93,7 +93,8 @@ carona. Sem `version.json` no R2 = sem Cache Rule de JSON.
 
 `VITE_OTA_CHANNEL=staging` fica **só no `.env.simulator`** (usado pelo
 `build:simulator`), nunca em produção. `ota:release` **aborta** se o build de
-produção resolver `staging` (guard via `loadEnv` em
+produção resolver `staging` **ou se `VITE_OTA_ENABLED` não for exatamente
+`true`**. O guard via `loadEnv` em
 `scripts/ota/assert-production-channel.js` — cobre `.env.production.local`, aspas e
 variável de ambiente). A preferência do aparelho (12 toques) sempre vence o
 bake-time.

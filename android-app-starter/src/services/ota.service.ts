@@ -215,6 +215,15 @@ export async function notifyAppReady(): Promise<void> {
 }
 
 /**
+ * Reseta o bundle ativo pela API pública do Capgo e volta ao www builtin da
+ * casca nativa. O Capgo recarrega o app imediatamente.
+ */
+export async function resetToBuiltin(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  await CapacitorUpdater.reset();
+}
+
+/**
  * Aplica o descriptor OTA da linha nativa DESTE device (selecionado pelo
  * version.service a partir da resposta de `/version`). Só nativo, nunca bloqueia
  * o boot. Retorna true se agiu nesta sessão (prompt mostrado, ou aplicação

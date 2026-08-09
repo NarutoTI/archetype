@@ -1,10 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import type { CurrentBundleResult } from '@capgo/capacitor-updater';
 
 // Mantém deps nativas/UI fora do caminho — estes testes miram a lógica pura de
 // versão e os guards web, não a ponte do plugin.
+const h = vi.hoisted(() => ({ native: false }));
+
 vi.mock('@capacitor/core', () => ({
-  Capacitor: { isNativePlatform: () => false, getPlatform: () => 'web' },
+  Capacitor: { isNativePlatform: () => h.native, getPlatform: () => 'web' },
   CapacitorHttp: { get: vi.fn() },
 }));
 vi.mock('@capgo/capacitor-updater', () => ({
@@ -14,6 +16,7 @@ vi.mock('@capgo/capacitor-updater', () => ({
     next: vi.fn(),
     set: vi.fn(),
     notifyAppReady: vi.fn().mockResolvedValue({ bundle: {} }),
+    reset: vi.fn(),
   },
 }));
 vi.mock('@/services/alert.service', () => ({ alertService: { presentCustomAlert: vi.fn() } }));
@@ -29,6 +32,7 @@ import {
   formatBundleLabel,
   checkForOtaUpdate,
   notifyAppReady,
+  resetToBuiltin,
   sanitizeOtaDescriptor,
 } from '@/services/ota.service';
 
@@ -38,6 +42,11 @@ function current(id: string, version: string, native: string): CurrentBundleResu
     native,
   };
 }
+
+beforeEach(() => {
+  h.native = false;
+  vi.clearAllMocks();
+});
 
 describe('parseOtaVersion', () => {
   it('faz parse de base + contador ota', () => {
@@ -125,6 +134,18 @@ describe('web guards', () => {
   });
   it('notifyAppReady é no-op na web', async () => {
     await expect(notifyAppReady()).resolves.toBeUndefined();
+  });
+  it('resetToBuiltin é no-op na web', async () => {
+    await expect(resetToBuiltin()).resolves.toBeUndefined();
+  });
+});
+
+describe('resetToBuiltin', () => {
+  it('no nativo chama o reset público do Capgo', async () => {
+    h.native = true;
+    const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
+    await resetToBuiltin();
+    expect(CapacitorUpdater.reset).toHaveBeenCalledTimes(1);
   });
 });
 

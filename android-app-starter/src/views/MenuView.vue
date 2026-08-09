@@ -479,6 +479,13 @@ const openOtaChannelPrompt = async () => {
       const nextChannel: OtaChannel = enteringStaging ? 'staging' : 'production';
       await setOtaChannel(nextChannel);
       otaChannel.value = nextChannel;
+
+      // Trocar de canal é uma ação de desenvolvimento. Reseta pela API do
+      // Capgo para a próxima checagem partir do builtin do último cap sync,
+      // sem manipular arquivos privados do plugin.
+      const { resetToBuiltin } = await import('@/services/ota.service');
+      await resetToBuiltin();
+
       await toastService.presentToastSuccess(
         nextChannel === 'staging'
           ? t('version.ota.channelStagingEnabled')
