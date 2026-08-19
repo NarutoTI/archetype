@@ -41,6 +41,7 @@
 - Computeds derivados de arrays devem criar cópia ou usar filtros que retornam array novo antes de ordenar. Nunca ordenar diretamente o estado da store.
 - Regras genéricas de cache ficam no composable; regras específicas do domínio ficam na store.
 - A store pode expor aliases de domínio para conceitos genéricos do cache, como `loadedYears` e `yearCache`.
+- Store nova de domínio: `useEntityBucketCache` + `reset({ removePersisted: false })` e **registrar** em `auth.service` `resetUserScopedStores()`. Sem isso, a RAM do usuário anterior sobrevive à troca de conta. Sem rede no logout; sem `initialize()` nas fases 0–2. Ordem do `clearToken()`: `docs/DECISOES-ARQUITETURAIS.md` §10.
 
 ## Datas
 

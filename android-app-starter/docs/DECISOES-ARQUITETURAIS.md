@@ -334,6 +334,12 @@ relido se ele voltar. O que é de fato **apagado** no logout
 (`clearUserScopedPreferences`). O índice de notificações é user-scoped, então não
 vaza entre contas mesmo sem limpeza explícita.
 
+**Store nova:** usar `useEntityBucketCache` e **entrar** em
+`resetUserScopedStores()` no [auth.service.ts](../src/services/auth.service.ts).
+Logout = `reset({ removePersisted: false })` (RAM fora, disco fica). Sem fetch
+no logout. Sem `initialize()` no boot. Não repetir aqui o contrato do
+interceptor 401 — isso é só `api.service` + `clearToken()`.
+
 ### Sessão inválida (401) e o loop do logout
 
 O interceptor de 401 ([api.service.ts](../src/services/api.service.ts)) abre **um**
