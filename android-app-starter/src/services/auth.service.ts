@@ -79,11 +79,33 @@ class AuthService {
     return user;
   }
 
+  /**
+   * Apaga a sessão local.
+   *
+   * `clearUserScopedPreferences()` hoje é vazia, mas é o gancho que um projeto
+   * gerado preenche (o my-memories preencheu com dois `Preferences.remove`). Por
+   * isso ela é a única chamada protegida aqui: se estourasse solta, o
+   * `setCurrentUser(null)` seria pulado e o app ficaria com `isAuthenticated`
+   * true sem token — 401 mudo, porque o interceptor cai no early-return, e sem
+   * caminho de volta ao /login.
+   *
+   * A store é resolvida antes de qualquer await para que valha o contrato que o
+   * `signOut()` documenta: se `clearToken()` rejeita, foi em `useUserStore()`,
+   * no reset das stores ou no próprio `remove` — sempre antes de o token sair.
+   */
   private async clearToken() {
+    const userStore = useUserStore();
+
     await this.resetUserScopedStores();
     await Preferences.remove({ key: 'auth_token' });
-    await useSettingsStore().clearUserScopedPreferences();
-    useUserStore().setCurrentUser(null);
+
+    try {
+      await useSettingsStore().clearUserScopedPreferences();
+    } catch (error) {
+      logger.warn('User-scoped preferences cleanup failed during logout:', error);
+    }
+
+    userStore.setCurrentUser(null);
   }
 
   onLoginGoogleSuccess(callback: () => void) {
@@ -364,9 +386,9 @@ class AuthService {
    *
    * As limpezas best-effort (push, listener de deep link) engolem os próprios
    * erros; só `clearToken()` pode rejeitar. Isso é proposital: rejeitar aqui
-   * significa que o token continua no storage (limpeza não terminou), e o
-   * interceptor de 401 usa esse sinal para tentar de novo no próximo 401 em vez
-   * de mandar o usuário para o /login achando que a sessão foi limpa.
+   * significa que o token continua no storage — ver a ordem em `clearToken()` —
+   * e o interceptor de 401 usa esse sinal para tentar de novo no próximo 401 em
+   * vez de mandar o usuário para o /login achando que a sessão foi limpa.
    */
   async signOut(): Promise<void> {
     try {

@@ -21,6 +21,11 @@ const hoisted = vi.hoisted(() => ({
   mockApp: {
     addListener: vi.fn(),
   },
+  mockSettingsStore: {
+    language: 'pt',
+    loadSettings: vi.fn(async () => {}),
+    clearUserScopedPreferences: vi.fn(async () => {}),
+  },
 }));
 
 vi.mock('axios', () => ({
@@ -53,11 +58,7 @@ vi.mock('@/stores/taskStore', () => ({
 }));
 
 vi.mock('@/stores/settingsStore', () => ({
-  useSettingsStore: vi.fn(() => ({
-    language: 'pt',
-    loadSettings: vi.fn(async () => {}),
-    clearUserScopedPreferences: vi.fn(async () => {}),
-  })),
+  useSettingsStore: vi.fn(() => hoisted.mockSettingsStore),
 }));
 
 vi.mock('@/services/errorTranslation.service', () => ({
@@ -97,6 +98,8 @@ describe('authService', () => {
     hoisted.mockCapacitor.isNativePlatform.mockReturnValue(false);
     hoisted.mockCapacitor.getPlatform.mockReturnValue('web');
     hoisted.mockApp.addListener.mockResolvedValue({ remove: vi.fn(async () => {}) });
+    hoisted.mockSettingsStore.loadSettings.mockResolvedValue(undefined);
+    hoisted.mockSettingsStore.clearUserScopedPreferences.mockResolvedValue(undefined);
   });
 
   it('initializeAuth() restores the current user from a saved token', async () => {
@@ -187,5 +190,27 @@ describe('authService', () => {
     // O handle quebrado não pode ficar retido: o segundo logout não tenta remover de novo.
     await authService.signOut();
     expect(remove).toHaveBeenCalledOnce();
+  });
+
+  it('signOut() clears the current user even if the user-scoped cleanup fails', async () => {
+    hoisted.mockSettingsStore.clearUserScopedPreferences.mockRejectedValue(
+      new Error('preferences unavailable')
+    );
+
+    const { authService } = await import('@/services/auth.service');
+    const { useUserStore } = await import('@/stores/userStore');
+
+    useUserStore().setCurrentUser({
+      id: 'user-1',
+      email: 'user@example.com',
+      name: 'User',
+      provider: 'email',
+    });
+
+    await expect(authService.signOut()).resolves.toBeUndefined();
+
+    expect(hoisted.mockPreferences.remove).toHaveBeenCalledWith({ key: 'auth_token' });
+    // Sem isto o app fica com isAuthenticated true e sem token: 401 mudo, sem volta ao /login.
+    expect(useUserStore().currentUser).toBeNull();
   });
 });
