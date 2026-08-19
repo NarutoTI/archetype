@@ -80,18 +80,19 @@ class AuthService {
   }
 
   /**
-   * Apaga a sessão local.
+   * Apaga a sessão local. A ordem é invariante — não reordenar.
    *
-   * `clearUserScopedPreferences()` hoje é vazia, mas é o gancho que um projeto
-   * gerado preenche (o my-memories preencheu com dois `Preferences.remove`). Por
-   * isso ela é a única chamada protegida aqui: se estourasse solta, o
-   * `setCurrentUser(null)` seria pulado e o app ficaria com `isAuthenticated`
-   * true sem token — 401 mudo, porque o interceptor cai no early-return, e sem
-   * caminho de volta ao /login.
-   *
-   * A store é resolvida antes de qualquer await para que valha o contrato que o
-   * `signOut()` documenta: se `clearToken()` rejeita, foi em `useUserStore()`,
-   * no reset das stores ou no próprio `remove` — sempre antes de o token sair.
+   * 1. `useUserStore()` antes de qualquer `await`.
+   * 2. `resetUserScopedStores()` (RAM; cache em disco permanece).
+   * 3. `Preferences.remove('auth_token')` — se rejeitar, o token ainda está no
+   *    storage; o `signOut()` propaga isso. Não embrulhar o método inteiro em
+   *    `try/catch` (iria ao `/login` com JWT morto e o boot restauraria o user).
+   * 4. `clearUserScopedPreferences()` em `try/catch`, **com `currentUser` ainda
+   *    setado**. Hoje a função é vazia; é o gancho que o projeto gerado preenche.
+   *    Nulificar o user antes quebra em silêncio se o gancho ler `currentUser`
+   *    para escolher chaves.
+   * 5. `setCurrentUser(null)` — nunca pulado. Sem isto, `isAuthenticated` fica
+   *    true sem token e o 401 do interceptor cai no early-return (tela autenticada muda).
    */
   private async clearToken() {
     const userStore = useUserStore();
@@ -384,11 +385,11 @@ class AuthService {
   /**
    * Encerra a sessão local.
    *
-   * As limpezas best-effort (push, listener de deep link) engolem os próprios
-   * erros; só `clearToken()` pode rejeitar. Isso é proposital: rejeitar aqui
-   * significa que o token continua no storage — ver a ordem em `clearToken()` —
-   * e o interceptor de 401 usa esse sinal para tentar de novo no próximo 401 em
-   * vez de mandar o usuário para o /login achando que a sessão foi limpa.
+   * Ordem: push → listener de deep link → `clearToken()`. As duas primeiras
+   * engolem os próprios erros. Só `clearToken()` pode rejeitar — ver a ordem
+   * documentada lá. Rejeitar aqui significa que a limpeza essencial não
+   * terminou; o interceptor de 401 tenta de novo em vez de ir ao `/login`
+   * achando que a sessão foi limpa.
    */
   async signOut(): Promise<void> {
     try {

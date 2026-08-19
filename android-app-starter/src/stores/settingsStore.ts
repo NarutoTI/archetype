@@ -144,7 +144,7 @@ export const useSettingsStore = defineStore('settings', () => {
   };
 
   const clearUserScopedPreferences = async () => {
-    // Mantém preferências do aparelho, como tema, idioma e biometria.
+    // Gancho de projeto gerado (tema/idioma/biometria do aparelho ficam). Logout chama isto com currentUser setado — não reordenar no clearToken.
   };
 
   const reset = async () => {

@@ -24,6 +24,7 @@ const api = axios.create({
 });
 
 // Só um 401 dispara alerta/logout; o resto (boot paralelo ou DELETE no signOut) só rejeita.
+// Ordem do logout: JSDoc de `auth.service` (`signOut` / `clearToken`) e DECISOES §10.
 let handlingUnauthorized = false;
 
 api.interceptors.request.use(async (config) => {

@@ -85,7 +85,10 @@ recência (`cap` de devices). Sucesso de entrega só zera `failCount`.
 - `POST /api/push/devices`
 - `GET /api/push/devices/:deviceId`
 - `PUT /api/push/devices/:deviceId/delivery-mode`
-- `DELETE /api/push/devices/:deviceId`
+- `DELETE /api/push/devices/:deviceId` — logout, **antes** de apagar o JWT, com
+  `skipAuthHandling` (senão 401 no DELETE reabre o alerta de sessão). O
+  `clearToken()` depois: JWT → gancho de settings **com user ainda setado** →
+  `setCurrentUser(null)`. Não reordenar; ver [DECISOES-ARQUITETURAIS.md](./DECISOES-ARQUITETURAIS.md) §10.
 - `PUT /api/push/timezone`
 - `POST /api/push/test` — `{ deviceId }`
 

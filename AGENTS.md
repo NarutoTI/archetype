@@ -28,6 +28,7 @@
 - Para caches por partição, usar `useEntityBucketCache`.
 - A store expõe aliases de domínio (`loadedYears`, `yearCache`, etc.); views não devem consumir o composable diretamente.
 - Em logout/troca de usuário, descarregar memória com `reset({ removePersisted: false })` para preservar o cache em disco.
+- Não reordenar `clearToken()`: token → gancho de settings **com `currentUser` ainda setado** → `setCurrentUser(null)`. Ver `docs/DECISOES-ARQUITETURAIS.md` §10.
 - Ao remover definitivamente dados locais, usar reset/clear com remoção persistida explícita.
 
 ## Padrão de store

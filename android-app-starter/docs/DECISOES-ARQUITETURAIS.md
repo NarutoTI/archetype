@@ -351,6 +351,25 @@ Esse retry é rede de segurança, não caminho normal: no `signOut()` só o
 `clearToken()` rejeita, porque as limpezas best-effort (push, listener de deep link)
 engolem os próprios erros — o mesmo princípio da seção 8.
 
+### Ordem do `clearToken()` — não reordenar
+
+Invariante em [auth.service.ts](../src/services/auth.service.ts) (`clearToken`):
+
+1. Resolver `useUserStore()` **antes** de qualquer `await`.
+2. `resetUserScopedStores()` (RAM; disco permanece).
+3. `Preferences.remove('auth_token')`. Se isto rejeitar, o token ainda está no
+   storage — o interceptor tenta de novo. **Não** embrulhar o método inteiro em
+   `try/catch` (iria ao `/login` com JWT morto; o boot restauraria o user).
+4. `clearUserScopedPreferences()` em `try/catch`, **com `currentUser` ainda
+   setado**. A função hoje é vazia de propósito: é o gancho que o projeto gerado
+   preenche. Nulificar o user antes quebra em silêncio se o gancho ler
+   `currentUser` para escolher chaves.
+5. `setCurrentUser(null)` — nunca pulado. Sem isto, `isAuthenticated` fica true
+   sem token e o 401 cai no early-return (tela autenticada muda).
+
+`signOut()` chama push e o listener de deep link **antes**, best-effort, e só
+depois o `clearToken()`.
+
 ---
 
 ## 11. iOS (estado e esforço)
