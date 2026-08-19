@@ -260,7 +260,8 @@ class PushNotificationService {
     if (reminderDeliveryService.supportsServerPush) {
       const deviceId = await reminderDeliveryService.getDeviceId();
       try {
-        await api.delete(`/push/devices/${deviceId}`);
+        // skipAuthHandling: se o JWT já caiu, este 401 não pode reabrir o alerta de sessão.
+        await api.delete(`/push/devices/${deviceId}`, { skipAuthHandling: true });
       } catch (error) {
         logger.warn('Could not delete push device before logout:', error);
       }

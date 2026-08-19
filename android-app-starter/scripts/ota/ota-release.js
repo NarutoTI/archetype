@@ -23,11 +23,17 @@ import { assertProductionChannel } from './assert-production-channel.js';
  *
  * Uso:
  *   node scripts/ota/ota-release.js [--ota <n>] [--min-native <ver>]
- *                                   [--mandatory] [--no-build] [--upload]
+ *                                   [--mandatory] [--sign] [--no-build] [--upload]
+ *
+ * --sign cifra o bundle ponta a ponta (key-v2): roda `@capgo/cli bundle encrypt`
+ * com a chave privada local .capgo_key_v2, então o descriptor leva o checksum
+ * ASSINADO + ivSessionKey e o zip publicado é o cifrado (o checksum em texto puro
+ * é só o argumento de entrada do encrypt). A casca nativa precisa já embarcar a
+ * publicKey correspondente (um release de loja) — ver docs/native/OTA.md.
  *
  * Config (prioridade: flag CLI > env do shell > scripts/ota/ota.properties > default):
  *   OTA_BASE_URL, OTA_R2_BUCKET, OTA_ZIP_PREFIX, OTA_COUNTER, OTA_MIN_NATIVE,
- *   OTA_MANDATORY, OTA_UPLOAD, OTA_NO_BUILD
+ *   OTA_MANDATORY, OTA_SIGN, OTA_UPLOAD, OTA_NO_BUILD
  */
 
 const __filename = fileURLToPath(import.meta.url);
@@ -107,14 +113,13 @@ const args = parseArgs(process.argv.slice(2), {
   sign: truthy(resolveConfig('OTA_SIGN', props, 'false')),
 });
 
-// Assinatura key-v2 NÃO implementada (scaffold bloqueado). O contrato correto
-// exige um passo `@capgo/cli bundle encrypt` (ivSessionKey). Falha fechado.
-// Ver docs/native/OTA.md § Ligar a assinatura (key-v2).
-if (args.sign) {
+// --sign precisa da chave privada presente logo de cara — falha cedo com
+// orientação em vez de buildar um bundle inteiro à toa.
+if (args.sign && !fs.existsSync(path.join(frontendDir, '.capgo_key_v2'))) {
   fail(
-    'Assinatura key-v2 ainda não implementada (scaffold bloqueado): requer o passo ' +
-    '`@capgo/cli bundle encrypt` (ivSessionKey), não só `bundle zip --key-v2`. ' +
-    'Rode sem --sign. Ver docs/native/OTA.md § Ligar a assinatura (key-v2).'
+    '--sign pedido mas .capgo_key_v2 (chave privada key-v2) não existe. ' +
+    'Gere uma vez com `npx --no-install @capgo/cli key create` (ao preparar a próxima AAB) ' +
+    'e faça backup seguro da privada. Ver docs/native/OTA.md § Ligar a assinatura (key-v2).'
   );
 }
 
@@ -189,6 +194,7 @@ console.log(`   base (loja):    ${base}`);
 console.log(`   bundleVersion:  ${bundleVersion}`);
 console.log(`   minNative:      ${minNativeVersion}`);
 console.log(`   mandatory:      ${args.mandatory}`);
+console.log(`   signed (key-v2):${args.sign}`);
 console.log(`   upload:         ${args.upload}`);
 console.log(`   baseUrl:        ${OTA_BASE_URL}`);
 console.log(`   bucket:         ${OTA_R2_BUCKET}`);
@@ -230,6 +236,46 @@ if (!checksum) {
   fail('Não foi possível extrair o checksum do output do @capgo/cli --json. Abortando (não publicar sem checksum).');
 }
 
+// 2b) Assina (key-v2). Cifra o zip em texto puro com a .capgo_key_v2 local para
+// a casca nativa (que carrega a publicKey correspondente) poder verificar/decriptar.
+// O `checksum` acima é só a ENTRADA do encrypt; o descriptor passa a levar o
+// checksum ASSINADO + ivSessionKey retornados pelo encrypt, e o arquivo publicado
+// vira o zip CIFRADO (mantido com o mesmo nome limpo).
+let sessionKey = null;
+if (args.sign) {
+  console.log('🔐 Assinando (key-v2) via @capgo/cli bundle encrypt...');
+  let signedChecksum = null;
+  let encFilename = `${zipName}_encrypted.zip`;
+  try {
+    const out = execSync(
+      `npx --no-install @capgo/cli bundle encrypt ${zipName} ${checksum} --json`,
+      { cwd: frontendDir, encoding: 'utf8' }
+    );
+    const match = out.match(/\{[\s\S]*\}/);
+    if (match) {
+      const parsed = JSON.parse(match[0]);
+      signedChecksum = parsed.checksum || null;   // checksum assinado (substitui o texto puro)
+      sessionKey = parsed.ivSessionKey || null;   // iv:sessionKey cifrada -> vai no descriptor
+      if (parsed.filename) encFilename = parsed.filename;
+    }
+  } catch (e) {
+    fail(`Erro ao assinar (bundle encrypt): ${e.message}`);
+  }
+  if (!signedChecksum || !sessionKey) {
+    fail('bundle encrypt não retornou checksum/ivSessionKey. Abortando (não publicar assinatura incompleta).');
+  }
+  // Troca o zip em texto puro pelo cifrado, mantendo o mesmo nome limpo (nome/
+  // extensão é cosmético; o que importa para o plugin é o conteúdo). Remove o plano
+  // primeiro: no Windows, renameSync não sobrescreve um destino existente (EPERM).
+  const encPath = path.join(frontendDir, path.basename(encFilename));
+  if (!fs.existsSync(encPath)) fail(`Arquivo cifrado esperado não encontrado: ${encPath}`);
+  const cleanPath = path.join(frontendDir, zipName);
+  fs.rmSync(cleanPath, { force: true });
+  fs.renameSync(encPath, cleanPath);
+  checksum = signedChecksum; // o descriptor passa a usar o checksum assinado
+  console.log('✓ Bundle cifrado + assinado (key-v2)');
+}
+
 // 3) Stage do zip localmente em ota-dist/bundles/
 const zipSrc = path.join(frontendDir, zipName);
 if (!fs.existsSync(zipSrc)) fail(`Zip esperado não encontrado: ${zipSrc}`);
@@ -244,6 +290,7 @@ const descriptor = {
   bundleVersion,
   url: `${OTA_BASE_URL}/${zipName}`,
   checksum,
+  ...(sessionKey ? { sessionKey } : {}),
   minNativeVersion,
   mandatory: args.mandatory,
   changelog: { pt: '', en: '' },
@@ -280,11 +327,13 @@ if (args.upload) {
 const changelogTs = Object.keys(descriptor.changelog)
   .map((l) => `${l}: ''`)
   .join(', ');
+const sessionKeyLine = sessionKey ? `    sessionKey: '${sessionKey}',\n` : '';
 const tsEntry =
   `  '${base}': {\n` +
   `    bundleVersion: '${bundleVersion}',\n` +
   `    url: '${descriptor.url}',\n` +
   `    checksum: '${checksum}',\n` +
+  sessionKeyLine +
   `    minNativeVersion: '${minNativeVersion}',\n` +
   `    mandatory: ${args.mandatory},\n` +
   `    changelog: { ${changelogTs} },\n` +

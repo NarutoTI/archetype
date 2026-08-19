@@ -233,11 +233,41 @@ nenhum update ruim entra). É a mesma dependência do check de loja.
 
 ## Ligar a assinatura (key-v2)
 
-**Estado:** não implementado. `--sign` / `OTA_SIGN` **falha de propósito** — o
-script só faz `bundle zip`, e assinatura exige o passo `@capgo/cli bundle encrypt`
-(retorna `ivSessionKey`). Serve pra defender contra origem/R2 comprometido
-(checksum é integridade, não autenticidade). O lado do app (`download({sessionKey})`
-+ `OtaDescriptor.sessionKey`) já está pronto.
+Cifra/assina o zip OTA ponta a ponta. Serve pra defender contra origem/R2/`/version`
+comprometido: o checksum simples é só integridade; a assinatura é **autenticidade**
+(só quem tem a chave privada produz um bundle que a casca aceita). `--sign` está
+**implementado**; nasce **desligado** (sem `.capgo_key_v2`, `--sign` falha cedo).
+
+**Estado:** o starter roda OTA em texto puro por padrão. Ligue key-v2 só quando for
+preparar a próxima AAB — gerar a chave antes só cria risco de perdê-la.
+
+**Passos (uma vez, na release nativa que vai passar a assinar):**
+
+1. **Gerar a chave** na raiz do frontend:
+   `npx --no-install @capgo/cli key create`
+   Cria `.capgo_key_v2` (privada — **NUNCA** commitar, já no `.gitignore`; faça
+   **backup seguro**, perdê-la impede assinar futuras OTAs) e `.capgo_key_v2.pub`,
+   e injeta a `publicKey` no `capacitor.config.ts`.
+2. **Release de loja** (AAB) com essa `publicKey` embarcada. A publicKey mora no
+   nativo — **um OTA não consegue injetá-la** numa casca já instalada, por isso
+   precisa de UMA nova versão de loja. Depois dela, as próximas voltam a ser só OTA.
+3. **Publicar assinado:** `node scripts/ota/ota-release.js --sign --upload`. O script
+   zipa, roda `@capgo/cli bundle encrypt` (retorna o **checksum ASSINADO** + o
+   `ivSessionKey`), sobe o **zip cifrado** e imprime a entrada TS já com `sessionKey`.
+   ⚠️ O `checksum` do descriptor é o retornado pelo **encrypt** (assinado), não o do
+   `bundle zip` (texto puro, que é só o argumento de entrada) — o script já cuida disso.
+4. **Fechar o portão:** ligue `VITE_OTA_REQUIRE_SIGNED=true` na **mesma** release
+   nativa. Aí a casca rejeita qualquer descriptor **sem** `sessionKey`. Sem esse
+   portão, a publicKey sozinha não obriga cifra — alguém que edite o `/version`
+   poderia servir um bundle plano. **Portão (exige sessionKey) + cripto (decripta-
+   ou-falha no plugin) juntos = autenticidade.**
+
+**Transição limpa:** a linha nativa antiga continua com OTA plano (roda a AAB antiga);
+a nova linha (ex. `1.0.1`) recebe só descriptors assinados. O mapa por `nativeVersion`
+isola as duas — a casca nova só lê `ota["1.0.1"]`, então pode exigir assinatura sem
+afetar quem está na linha antiga. Promoção segue igual: copie a MESMA entrada de
+`otaStaging` para `ota`. Teste no `otaStaging` antes (baixa, reinicia, versão OTA;
+e confirme que um descriptor sem `sessionKey` é rejeitado).
 
 ## Pendências para ligar em produção
 

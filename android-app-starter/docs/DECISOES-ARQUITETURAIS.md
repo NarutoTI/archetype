@@ -334,6 +334,23 @@ relido se ele voltar. O que é de fato **apagado** no logout
 (`clearUserScopedPreferences`). O índice de notificações é user-scoped, então não
 vaza entre contas mesmo sem limpeza explícita.
 
+### Sessão inválida (401) e o loop do logout
+
+O interceptor de 401 ([api.service.ts](../src/services/api.service.ts)) abre **um**
+alerta e chama `signOut()`. Duas proteções evitam que ele se realimente:
+
+- **`skipAuthHandling`** no `DELETE /push/devices/:id` do logout. Sem isso, um JWT
+  já recusado faz o próprio DELETE devolver 401, o interceptor reabre o alerta e o
+  OK dispara outro `signOut()` — popup em loop.
+- **Guard de reentrada** (`handlingUnauthorized`): 401s paralelos do boot
+  compartilham o mesmo alerta em vez de empilhar popups. A flag volta a `false` num
+  `finally`, senão uma falha no alerta ou no `signOut()` deixaria os 401 seguintes
+  mudos para sempre.
+
+Esse retry é rede de segurança, não caminho normal: no `signOut()` só o
+`clearToken()` rejeita, porque as limpezas best-effort (push, listener de deep link)
+engolem os próprios erros — o mesmo princípio da seção 8.
+
 ---
 
 ## 11. iOS (estado e esforço)

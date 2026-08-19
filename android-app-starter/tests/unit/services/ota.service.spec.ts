@@ -172,4 +172,29 @@ describe('sanitizeOtaDescriptor', () => {
   it('rejeita cola na linha nativa errada (chave != base do bundle)', () => {
     expect(sanitizeOtaDescriptor(valid, '1.0.1')).toBeNull();
   });
+  it('aceita descriptor sem assinatura por padrão (gate desligado)', () => {
+    // Sem VITE_OTA_REQUIRE_SIGNED assado -> linhas planas seguem funcionando.
+    expect(sanitizeOtaDescriptor(valid, '1.0.0')).toEqual(valid);
+  });
+});
+
+describe('sanitizeOtaDescriptor — gate key-v2 (assinado)', () => {
+  const unsigned = {
+    bundleVersion: '1.0.0+ota.2',
+    url: 'https://x/z.zip',
+    checksum: 'signed-sha',
+    minNativeVersion: '1.0.0',
+  };
+  const signed = { ...unsigned, sessionKey: 'iv:encsessionkey' };
+
+  it('com VITE_OTA_REQUIRE_SIGNED=true rejeita sem sessionKey e aceita com', async () => {
+    // A flag é lida no load do módulo -> reimporta um módulo fresco com ela assada.
+    vi.resetModules();
+    vi.stubEnv('VITE_OTA_REQUIRE_SIGNED', 'true');
+    const { sanitizeOtaDescriptor: sanitize } = await import('@/services/ota.service');
+    expect(sanitize(unsigned, '1.0.0')).toBeNull();
+    expect(sanitize(signed, '1.0.0')).toEqual(signed);
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
 });

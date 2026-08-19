@@ -184,9 +184,26 @@ class AuthService {
     }
   }
 
+  /**
+   * Remove o listener de deep link registrado no fluxo OAuth.
+   *
+   * Nunca rejeita, de propósito. Todos os chamadores são caminhos de limpeza: no
+   * catch do `Browser.open` uma exceção aqui mascararia o erro original que está
+   * sendo relançado; no `signOut()` abortaria o logout antes de apagar o token,
+   * deixando um JWT morto no storage.
+   *
+   * O estado local é zerado mesmo se `remove()` falhar, para não reter um handle
+   * quebrado que faria a próxima limpeza tentar de novo no mesmo listener.
+   */
   private async cleanupDeepLinkListener() {
     if (!this.deepLinkListener || !this.deepLinkListenerSetup) return;
-    await this.deepLinkListener.remove();
+
+    try {
+      await this.deepLinkListener.remove();
+    } catch (error) {
+      logger.warn('Deep link listener removal failed during cleanup:', error);
+    }
+
     this.deepLinkListener = null;
     this.deepLinkListenerSetup = false;
   }
@@ -342,6 +359,15 @@ class AuthService {
     }
   }
 
+  /**
+   * Encerra a sessão local.
+   *
+   * As limpezas best-effort (push, listener de deep link) engolem os próprios
+   * erros; só `clearToken()` pode rejeitar. Isso é proposital: rejeitar aqui
+   * significa que o token continua no storage (limpeza não terminou), e o
+   * interceptor de 401 usa esse sinal para tentar de novo no próximo 401 em vez
+   * de mandar o usuário para o /login achando que a sessão foi limpa.
+   */
   async signOut(): Promise<void> {
     try {
       const { pushNotificationService } = await import('@/services/pushNotification.service');

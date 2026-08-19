@@ -14,6 +14,13 @@ const hoisted = vi.hoisted(() => ({
     remove: vi.fn(),
   },
   mockTaskStoreReset: vi.fn(async () => {}),
+  mockCapacitor: {
+    isNativePlatform: vi.fn(),
+    getPlatform: vi.fn(),
+  },
+  mockApp: {
+    addListener: vi.fn(),
+  },
 }));
 
 vi.mock('axios', () => ({
@@ -28,10 +35,11 @@ vi.mock('@capacitor/browser', () => ({
 }));
 
 vi.mock('@capacitor/core', () => ({
-  Capacitor: {
-    isNativePlatform: vi.fn(() => false),
-    getPlatform: vi.fn(() => 'web'),
-  },
+  Capacitor: hoisted.mockCapacitor,
+}));
+
+vi.mock('@capacitor/app', () => ({
+  App: hoisted.mockApp,
 }));
 
 vi.mock('@capacitor/preferences', () => ({
@@ -86,6 +94,9 @@ describe('authService', () => {
     hoisted.mockPreferences.set.mockResolvedValue(undefined);
     hoisted.mockPreferences.remove.mockResolvedValue(undefined);
     hoisted.mockTaskStoreReset.mockResolvedValue(undefined);
+    hoisted.mockCapacitor.isNativePlatform.mockReturnValue(false);
+    hoisted.mockCapacitor.getPlatform.mockReturnValue('web');
+    hoisted.mockApp.addListener.mockResolvedValue({ remove: vi.fn(async () => {}) });
   });
 
   it('initializeAuth() restores the current user from a saved token', async () => {
@@ -148,5 +159,33 @@ describe('authService', () => {
 
     expect(hoisted.mockPreferences.remove).toHaveBeenCalledWith({ key: 'auth_token' });
     expect(useUserStore().currentUser).toBeNull();
+  });
+
+  it('signOut() still clears the token when removing the deep-link listener fails', async () => {
+    hoisted.mockCapacitor.isNativePlatform.mockReturnValue(true);
+    const remove = vi.fn().mockRejectedValue(new Error('listener already detached'));
+    hoisted.mockApp.addListener.mockResolvedValue({ remove });
+
+    const { authService } = await import('@/services/auth.service');
+    const { useUserStore } = await import('@/stores/userStore');
+
+    useUserStore().setCurrentUser({
+      id: 'user-1',
+      email: 'user@example.com',
+      name: 'User',
+      provider: 'email',
+    });
+
+    await expect(authService.signInWithGoogle()).rejects.toThrow('REDIRECT_PENDING');
+
+    await expect(authService.signOut()).resolves.toBeUndefined();
+
+    expect(remove).toHaveBeenCalledOnce();
+    expect(hoisted.mockPreferences.remove).toHaveBeenCalledWith({ key: 'auth_token' });
+    expect(useUserStore().currentUser).toBeNull();
+
+    // O handle quebrado não pode ficar retido: o segundo logout não tenta remover de novo.
+    await authService.signOut();
+    expect(remove).toHaveBeenCalledOnce();
   });
 });

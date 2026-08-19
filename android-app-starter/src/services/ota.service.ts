@@ -31,6 +31,16 @@ const env = import.meta.env as unknown as Record<string, string | undefined>;
  */
 const OTA_ENABLED = env.VITE_OTA_ENABLED === 'true';
 
+/**
+ * Endurecimento bake-time do key-v2. Quando uma casca leva publicKey e assume a
+ * linha nativa como assinada, ligue isto para REJEITAR descriptor SEM sessionKey.
+ * A publicKey sozinha não obriga cifra — quem editar o `/version` poderia servir
+ * um bundle plano; este é o portão da frente para que só o caminho decripta-ou-
+ * falha do plugin seja aceito. Desligado por padrão: linhas planas e cascas
+ * pré-key-v2 seguem funcionando.
+ */
+const OTA_REQUIRE_SIGNED = env.VITE_OTA_REQUIRE_SIGNED === 'true';
+
 /** O plugin reporta este id de bundle quando nenhum OTA foi aplicado ainda. */
 const BUILTIN_BUNDLE_ID = 'builtin';
 
@@ -122,6 +132,13 @@ export function sanitizeOtaDescriptor(
   const base = descriptor.bundleVersion.split('+')[0].trim();
   if (base !== nativeVersion) {
     logger.error(`OTA descriptor rejeitado: chave "${nativeVersion}" != base do bundle "${base}"`, raw);
+    return null;
+  }
+  // Portão key-v2 (assinado): casca que exige cifra rejeita descriptor sem
+  // sessionKey, deixando o decripta-ou-falha do plugin como único caminho aceito.
+  // No-op a menos que VITE_OTA_REQUIRE_SIGNED tenha sido assado.
+  if (OTA_REQUIRE_SIGNED && !nonEmpty(descriptor.sessionKey)) {
+    logger.error('OTA descriptor rejeitado: bundle assinado exigido mas sessionKey ausente', raw);
     return null;
   }
   return descriptor;
