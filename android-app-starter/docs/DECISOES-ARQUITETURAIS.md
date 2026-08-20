@@ -105,6 +105,8 @@ e estado de view**. Decisões embutidas nele:
 Arquivos âncora: [composables/useEntityBucketCache.ts](../src/composables/useEntityBucketCache.ts),
 [stores/taskStore.ts](../src/stores/taskStore.ts).
 
+Por que o My Memories **apaga** o disco no logout e este starter **não**: [CACHE-STARTER-VS-MY-MEMORIES.md](./CACHE-STARTER-VS-MY-MEMORIES.md).
+
 ---
 
 ## 3. Share intent (compartilhar conteúdo para o app)
@@ -376,6 +378,9 @@ Invariante em [auth.service.ts](../src/services/auth.service.ts) (`clearToken`):
 `signOut()` chama push e o listener de deep link **antes**, best-effort, e só
 depois o `clearToken()`.
 
+Diferença de cache/disco no logout contra o My Memories (com diagramas
+numerados): [CACHE-STARTER-VS-MY-MEMORIES.md](./CACHE-STARTER-VS-MY-MEMORIES.md).
+
 ---
 
 ## 11. iOS (estado e esforço)
@@ -422,6 +427,7 @@ usuário novo).
 | Ponto de sincronização de auth | [services/boot.ts](../src/services/boot.ts) |
 | Guards de rota aguardando boot | [router/index.ts](../src/router/index.ts) |
 | Cache genérico por bucket | [composables/useEntityBucketCache.ts](../src/composables/useEntityBucketCache.ts) |
+| Cache starter × My Memories (logout/disco) | [CACHE-STARTER-VS-MY-MEMORIES.md](./CACHE-STARTER-VS-MY-MEMORIES.md) |
 | Exemplo de store de domínio | [stores/taskStore.ts](../src/stores/taskStore.ts) |
 | Share — camada baixa | [services/share-intake.service.ts](../src/services/share-intake.service.ts) |
 | Share — navegação | [services/shareEntry.ts](../src/services/shareEntry.ts) |

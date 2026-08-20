@@ -33,3 +33,34 @@ export function assertProductionChannel(frontendDir, fail) {
     );
   }
 }
+
+/**
+ * Trava a coerência assinatura↔gate no momento do release. O gate
+ * `VITE_OTA_REQUIRE_SIGNED` é assado na casca da linha nativa atual (mesmo
+ * `.env.production` que gera o AAB dessa linha), então `--sign` tem que casar com
+ * ele — senão você publica ou (a) um ZIP assinado numa casca que ainda aceita OTA
+ * plano (falsa sensação de segurança), ou (b) um ZIP plano numa casca que o
+ * rejeita (a própria casca recusa o descriptor sem sessionKey).
+ *
+ * @param {string} frontendDir raiz do app (envDir do Vite)
+ * @param {boolean} sign se o release está rodando com --sign
+ * @param {(message: string) => never} fail callback de abort (loga e encerra)
+ */
+export function assertSignConsistency(frontendDir, sign, fail) {
+  const env = loadEnv('production', frontendDir);
+  const requireSigned = env.VITE_OTA_REQUIRE_SIGNED === 'true';
+  if (requireSigned && !sign) {
+    fail(
+      'VITE_OTA_REQUIRE_SIGNED=true (a casca desta linha exige OTA assinada) mas você ' +
+        'não passou --sign: a casca rejeitaria este descriptor por falta de sessionKey. ' +
+        'Rode com --sign.',
+    );
+  }
+  if (sign && !requireSigned) {
+    fail(
+      '--sign passado mas VITE_OTA_REQUIRE_SIGNED != true: a casca ainda aceitaria OTA ' +
+        'plano, então a assinatura não protege de fato. Ligue VITE_OTA_REQUIRE_SIGNED=true ' +
+        'na build da casca (mesma release nativa) — ou rode sem --sign.',
+    );
+  }
+}

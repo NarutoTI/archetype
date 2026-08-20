@@ -26,6 +26,7 @@
 ## Cache local
 
 - Para caches por partição, usar `useEntityBucketCache`.
+- Logout: RAM fora, disco fica (`reset({ removePersisted: false })`). Por que o My Memories apaga o disco: `android-app-starter/docs/CACHE-STARTER-VS-MY-MEMORIES.md`.
 - A store expõe aliases de domínio (`loadedYears`, `yearCache`, etc.); views não devem consumir o composable diretamente.
 - Em logout/troca de usuário, descarregar memória com `reset({ removePersisted: false })` para preservar o cache em disco.
 - Não reordenar `clearToken()`: token → gancho de settings **com `currentUser` ainda setado** → `setCurrentUser(null)`. Ver `docs/DECISOES-ARQUITETURAIS.md` §10.

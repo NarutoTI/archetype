@@ -50,6 +50,14 @@ const config: CapacitorConfig = {
       autoUpdate: 'off',
       appReadyTimeout: 10000,
       autoDeletePrevious: true,
+      // Ao instalar um app nativo MAIS NOVO (update de loja), descarta qualquer OTA
+      // aplicado e sobe o builtin novo. Default true; explícito porque a migração
+      // key-v2 depende disso — a casca nova assinada tem que partir do próprio
+      // builtin, não do bundle OTA plano antigo.
+      resetWhenUpdate: true,
+      // Assinatura key-v2 (opcional): gere a chave com `@capgo/cli key create` e a
+      // publicKey será injetada aqui. Ver docs/native/OTA.md § Ligar a assinatura.
+      // publicKey: '-----BEGIN RSA PUBLIC KEY----- ...',
     }
   },
   android: {

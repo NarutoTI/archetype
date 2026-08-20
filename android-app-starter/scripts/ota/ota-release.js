@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
-import { assertProductionChannel } from './assert-production-channel.js';
+import { assertProductionChannel, assertSignConsistency } from './assert-production-channel.js';
 
 /**
  * Pipeline de release OTA (manual, self-hosted). Ver docs/native/OTA.md.
@@ -126,6 +126,9 @@ if (args.sign && !fs.existsSync(path.join(frontendDir, '.capgo_key_v2'))) {
 // Um zip OTA é promovível para produção — nunca pode assar o canal staging.
 // (Roda mesmo com --no-build para um www/ staging obsoleto também tropeçar.)
 assertProductionChannel(frontendDir, fail);
+// --sign tem que casar com o gate bake-time (VITE_OTA_REQUIRE_SIGNED) desta linha
+// nativa, para assinado/plano nunca divergirem do que a casca instalada exige.
+assertSignConsistency(frontendDir, args.sign, fail);
 
 // ---------------------------------------------------------------------------
 // Versão base nativa (do versionName no android build.gradle; fallback package.json)
@@ -218,9 +221,12 @@ if (!fs.existsSync(path.join(frontendDir, 'www', 'index.html'))) {
 // 2) Zip via @capgo/cli (checksum autoritativo, formato correto pro plugin)
 console.log('🗜️  Zip via @capgo/cli...');
 let checksum = null;
+// --key-v2 no zip quando for assinar: alinha o checksum ao contrato oficial da
+// cifra v2 (não cifra sozinho; o passo 2b é que cifra). Sem --sign, zip normal.
+const zipKeyV2 = args.sign ? ' --key-v2' : '';
 try {
   const out = execSync(
-    `npx --no-install @capgo/cli bundle zip --path www --bundle ${bundleVersion} --name ${zipName} --json`,
+    `npx --no-install @capgo/cli bundle zip --path www --bundle ${bundleVersion} --name ${zipName}${zipKeyV2} --json`,
     { cwd: frontendDir, encoding: 'utf8' }
   );
   // --json pode vir cercado de outras linhas de log; extrai o último bloco {...}.
@@ -283,6 +289,7 @@ const distDir = path.join(frontendDir, 'ota-dist');
 const bundlesDir = path.join(distDir, 'bundles');
 fs.mkdirSync(bundlesDir, { recursive: true });
 const zipDest = path.join(bundlesDir, zipName);
+fs.rmSync(zipDest, { force: true }); // Windows: renameSync não sobrescreve destino existente (EPERM)
 fs.renameSync(zipSrc, zipDest);
 
 // Monta o descriptor para colar no versionService do backend.

@@ -90,6 +90,7 @@ carona. Sem `version.json` no R2 = sem Cache Rule de JSON.
 |---|---|---|
 | `VITE_OTA_ENABLED` | off (ausente) | Só `'true'` permite `checkForOtaUpdate` |
 | `VITE_OTA_CHANNEL` | `production` | Canal **inicial** (`production` \| `staging`) quando não há preferência no aparelho |
+| `VITE_OTA_REQUIRE_SIGNED` | off (ausente) | Só `'true'` — rejeita descriptor OTA **sem** `sessionKey` (gate key-v2). Ligar bake-time na mesma AAB que leva a `publicKey` |
 
 `VITE_OTA_CHANNEL=staging` fica **só no `.env.simulator`** (usado pelo
 `build:simulator`), nunca em produção. `ota:release` **aborta** se o build de
@@ -159,6 +160,7 @@ decidido por **onde** você cola (`androidOtaStaging` vs `androidOta`).
 | `--ota <n>` / `OTA_COUNTER` | auto (`last+1`) | Força o contador `+ota.n`. **Aborta se `≤` o último reservado** |
 | `--min-native <ver>` / `OTA_MIN_NATIVE` | = `versionName` | Gate no descriptor |
 | `--mandatory` / `OTA_MANDATORY` | `false` | `mandatory:true` no descriptor (aplica sem diálogo) |
+| `--sign` / `OTA_SIGN` | `false` | Cifra/assina o zip (key-v2): `--key-v2` + `bundle encrypt` → `checksum` ASSINADO + `sessionKey`; sobe o zip cifrado. Exige `.capgo_key_v2` e coerência com `VITE_OTA_REQUIRE_SIGNED` |
 | `--no-build` / `OTA_NO_BUILD` | `false` | Usa `www/` existente |
 | `--upload` / `OTA_UPLOAD` | `false` | Sobe o zip no R2 e **reserva** o contador |
 | `OTA_BASE_URL`, `OTA_R2_BUCKET`, `OTA_ZIP_PREFIX` | ver `ota.properties.example` | URL pública / bucket / prefixo do zip |
@@ -241,26 +243,30 @@ comprometido: o checksum simples é só integridade; a assinatura é **autentici
 **Estado:** o starter roda OTA em texto puro por padrão. Ligue key-v2 só quando for
 preparar a próxima AAB — gerar a chave antes só cria risco de perdê-la.
 
-**Passos (uma vez, na release nativa que vai passar a assinar):**
+**Passos (uma vez, na release nativa que vai passar a assinar). A ordem importa: a
+`publicKey` E o gate são bake-time, então os DOIS têm que entrar ANTES de gerar a AAB.**
 
 1. **Gerar a chave** na raiz do frontend:
    `npx --no-install @capgo/cli key create`
    Cria `.capgo_key_v2` (privada — **NUNCA** commitar, já no `.gitignore`; faça
    **backup seguro**, perdê-la impede assinar futuras OTAs) e `.capgo_key_v2.pub`,
    e injeta a `publicKey` no `capacitor.config.ts`.
-2. **Release de loja** (AAB) com essa `publicKey` embarcada. A publicKey mora no
-   nativo — **um OTA não consegue injetá-la** numa casca já instalada, por isso
-   precisa de UMA nova versão de loja. Depois dela, as próximas voltam a ser só OTA.
-3. **Publicar assinado:** `node scripts/ota/ota-release.js --sign --upload`. O script
-   zipa, roda `@capgo/cli bundle encrypt` (retorna o **checksum ASSINADO** + o
-   `ivSessionKey`), sobe o **zip cifrado** e imprime a entrada TS já com `sessionKey`.
-   ⚠️ O `checksum` do descriptor é o retornado pelo **encrypt** (assinado), não o do
-   `bundle zip` (texto puro, que é só o argumento de entrada) — o script já cuida disso.
-4. **Fechar o portão:** ligue `VITE_OTA_REQUIRE_SIGNED=true` na **mesma** release
-   nativa. Aí a casca rejeita qualquer descriptor **sem** `sessionKey`. Sem esse
-   portão, a publicKey sozinha não obriga cifra — alguém que edite o `/version`
-   poderia servir um bundle plano. **Portão (exige sessionKey) + cripto (decripta-
-   ou-falha no plugin) juntos = autenticidade.**
+2. **Ligar o gate:** `VITE_OTA_REQUIRE_SIGNED=true` no `.env.production`. É bake-time,
+   então tem que estar setado ANTES do build da AAB. Aí a casca rejeita qualquer
+   descriptor **sem** `sessionKey`. Sem esse gate, a publicKey sozinha não obriga
+   cifra — alguém que edite o `/version` serviria um bundle plano. **Gate (exige
+   sessionKey) + cripto (decripta-ou-falha no plugin) juntos = autenticidade.**
+3. **Gerar e publicar a AAB:** build de produção → `npx cap sync android` → AAB → loja.
+   Só agora a casca leva `publicKey` **e** o gate juntos. A publicKey mora no nativo —
+   **um OTA não consegue injetá-la** numa casca já instalada, por isso precisa de UMA
+   nova versão de loja. Depois dela, as próximas voltam a ser só OTA.
+4. **Publicar assinado** (após a AAB estar instalada): `node scripts/ota/ota-release.js
+   --sign --upload`. O script zipa (com `--key-v2`), roda `@capgo/cli bundle encrypt`
+   (retorna o **checksum ASSINADO** + o `ivSessionKey`), sobe o **zip cifrado** e imprime
+   a entrada TS já com `sessionKey`. ⚠️ O `checksum` do descriptor é o do **encrypt**
+   (assinado), não o do `bundle zip` (texto puro, só o argumento de entrada) — o script
+   já cuida disso. O release **exige** que `--sign` e o gate estejam coerentes (o script
+   aborta se você assinar sem o gate ou publicar plano numa linha com o gate ligado).
 
 **Transição limpa:** a linha nativa antiga continua com OTA plano (roda a AAB antiga);
 a nova linha (ex. `1.0.1`) recebe só descriptors assinados. O mapa por `nativeVersion`
