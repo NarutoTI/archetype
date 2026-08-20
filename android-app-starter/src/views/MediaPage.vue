@@ -6,7 +6,8 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content class="ion-padding">
+    <!-- `scroll-events` + `scrolls-under-bar`: ver TasksPage e docs/APP-CHROME-LAYOUT.md. -->
+    <ion-content class="ion-padding scrolls-under-bar" :scroll-events="true">
       <section class="media-section">
         <h2>{{ $t('media.images') }}</h2>
         <ImageGallery

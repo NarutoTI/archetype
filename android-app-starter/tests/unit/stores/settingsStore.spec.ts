@@ -83,4 +83,46 @@ describe('settingsStore', () => {
     expect(languageReads).toBe(1);
     expect(themeReads).toBe(1);
   });
+
+  /**
+   * Formato da barra inferior. É preferência **do aparelho** — acompanha a tela e não a
+   * conta —, por isso sobrevive ao reset do logout.
+   */
+  describe('formato da barra inferior', () => {
+    it('nasce flutuante e persiste a escolha contrária', async () => {
+      const store = useSettingsStore();
+      expect(store.bottomBarFloating).toBe(true);
+
+      await store.setBottomBarFloating(false);
+
+      expect(store.bottomBarFloating).toBe(false);
+      expect(preferencesMock.set).toHaveBeenCalledWith({
+        key: 'bottom-bar-floating',
+        value: 'false',
+      });
+    });
+
+    /**
+     * Precisa estar no boot, e não na carga completa: é ela que decide o layout do primeiro
+     * quadro. Chegando depois do mount, quem escolheu a barra encostada vê a pílula
+     * flutuante aparecer e o conteúdo pular quando a preferência chega.
+     */
+    it('carrega a escolha salva já no boot, antes do primeiro quadro', async () => {
+      preferencesMock.seed('bottom-bar-floating', 'false');
+
+      const store = useSettingsStore();
+      await store.loadBootSettings();
+
+      expect(store.bottomBarFloating).toBe(false);
+    });
+
+    it('sobrevive ao reset do logout, que é de dados da conta', async () => {
+      const store = useSettingsStore();
+      await store.setBottomBarFloating(false);
+
+      await store.reset();
+
+      expect(store.bottomBarFloating).toBe(false);
+    });
+  });
 });

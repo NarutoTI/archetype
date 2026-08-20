@@ -201,7 +201,9 @@
     "testAlertSuccess": "Alerta de sucesso",
     "testAlertWarning": "Alerta de aviso",
     "testAlertInfo": "Alerta informativo",
-    "testAlertMessage": "Este é um alerta de exemplo para teste."
+    "testAlertMessage": "Este é um alerta de exemplo para teste.",
+    "bottomBarFloating": "Barra inferior flutuante",
+    "bottomBarFloatingHint": "Solta sobre o conteúdo, em vez de encostada na borda"
   },
   "version": {
     "checkForUpdates": "Verificar atualizações",

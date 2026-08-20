@@ -220,8 +220,9 @@ Versões da cadeia de build Android (AGP, Gradle, Kotlin, JDK), flags de compati
 e comportamento do unlock biométrico:
 [`docs/ANDROID-BUILD-TOOLCHAIN.md`](docs/ANDROID-BUILD-TOOLCHAIN.md).
 
-Moldura do app — barra inferior de 48px, rail em paisagem e superfície neutra, com as duas
-armadilhas do `ion-tab-bar` que só aparecem no aparelho:
+Moldura do app — barra inferior flutuante (padrão, com preferência para encostar), 48px só
+de ícones, rail em paisagem e superfície neutra, com as armadilhas do `ion-tab-bar` que só
+aparecem no aparelho:
 [`docs/APP-CHROME-LAYOUT.md`](docs/APP-CHROME-LAYOUT.md).
 
 Este projeto é uma base viva: renomeie, conecte seu backend e cresça o domínio real

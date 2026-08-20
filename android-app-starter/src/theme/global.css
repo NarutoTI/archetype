@@ -1,3 +1,17 @@
+/* Reserva embaixo para a barra flutuante da moldura — ver docs/APP-CHROME-LAYOUT.md.
+
+   `--bar-inset` é publicada pelo `<ion-tabs>` do HomePage e **herda** para tudo que está
+   dentro das abas, então a página reserva o espaço sem saber qual formato está ativo. Fora
+   das abas (um modal, uma tela de login) a variável não existe e o `var(…, 0px)` zera a
+   conta sozinho — nenhuma tela precisa de condicional.
+
+   Vai no `ion-content` que rola, e só nele: quem preenche a altura sem rolar não tem o que
+   reservar, e ganharia uma faixa morta embaixo. Substitui o `--padding-bottom` de
+   `ion-padding` de propósito — a reserva da barra é maior e cumpre o mesmo papel. */
+.scrolls-under-bar {
+  --padding-bottom: var(--bar-inset, 0px);
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;

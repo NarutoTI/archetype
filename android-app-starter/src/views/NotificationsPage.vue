@@ -6,7 +6,8 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content class="ion-padding">
+    <!-- `scroll-events` + `scrolls-under-bar`: ver TasksPage e docs/APP-CHROME-LAYOUT.md. -->
+    <ion-content class="ion-padding scrolls-under-bar" :scroll-events="true">
       <ion-list inset>
         <ion-item button @click="scheduleTest">
           <ion-icon :icon="alarmOutline" slot="start" color="primary" />

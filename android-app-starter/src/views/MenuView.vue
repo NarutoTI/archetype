@@ -9,7 +9,8 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content :fullscreen="false">
+    <!-- `scroll-events` + `scrolls-under-bar`: ver TasksPage e docs/APP-CHROME-LAYOUT.md. -->
+    <ion-content :fullscreen="false" :scroll-events="true" class="scrolls-under-bar">
       <!-- Perfil -->
       <ion-item lines="full" class="user-profile-item">
         <ion-avatar slot="start">
@@ -41,6 +42,22 @@
             <h3>{{ $t('settings.theme') }}</h3>
             <p>{{ currentThemeName }}</p>
           </ion-label>
+        </ion-item>
+
+        <!-- Formato da barra inferior. Preferência do aparelho: acompanha a tela, não a
+             conta, e por isso sobrevive ao logout. Ver docs/APP-CHROME-LAYOUT.md. -->
+        <ion-item>
+          <ion-icon :icon="tabletPortraitOutline" slot="start" color="primary" />
+          <ion-label>
+            <h3>{{ $t('settings.bottomBarFloating') }}</h3>
+            <p>{{ $t('settings.bottomBarFloatingHint') }}</p>
+          </ion-label>
+          <ion-toggle
+            slot="end"
+            data-test="bottom-bar-floating-toggle"
+            :checked="settingsStore.bottomBarFloating"
+            @ionChange="settingsStore.setBottomBarFloating($event.detail.checked)"
+          />
         </ion-item>
 
         <ion-item v-if="biometricAvailable">
@@ -316,6 +333,7 @@ import {
   logOutOutline,
   mapOutline,
   moonOutline,
+  tabletPortraitOutline,
   notificationsOutline,
   personCircleOutline,
   serverOutline,

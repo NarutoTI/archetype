@@ -11,7 +11,9 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content class="ion-padding">
+    <!-- `scroll-events` + `scrolls-under-bar`: a moldura some ao rolar e o conteúdo termina
+         acima da barra flutuante. Ver docs/APP-CHROME-LAYOUT.md. -->
+    <ion-content class="ion-padding scrolls-under-bar" :scroll-events="true">
       <ion-refresher slot="fixed" @ionRefresh="refresh($event)">
         <ion-refresher-content />
       </ion-refresher>

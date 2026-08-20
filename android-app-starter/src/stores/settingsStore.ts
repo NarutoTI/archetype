@@ -12,6 +12,9 @@ import {
 
 export type ThemeOption = 'system' | 'light' | 'dark';
 
+/** Formato da barra inferior. Preferência do aparelho — ver `bottomBarFloating`. */
+export const BOTTOM_BAR_FLOATING_PREFERENCE_KEY = 'bottom-bar-floating';
+
 const SUPPORTED_LOCALES = ['pt', 'en'] as const;
 type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
@@ -27,6 +30,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const language = ref<SupportedLocale>('pt');
   const theme = ref<ThemeOption>('system');
   const biometryEnabled = ref(false);
+  /** Barra inferior flutuante (pílula solta sobre o conteúdo). Padrão do app. */
+  const bottomBarFloating = ref(true);
   const preferences = ref<AppPreferences>(normalizePreferences());
 
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
@@ -69,6 +74,14 @@ export const useSettingsStore = defineStore('settings', () => {
     });
   };
 
+  const setBottomBarFloating = async (floating: boolean) => {
+    bottomBarFloating.value = floating;
+    await CapacitorPreferences.set({
+      key: BOTTOM_BAR_FLOATING_PREFERENCE_KEY,
+      value: floating ? 'true' : 'false',
+    });
+  };
+
   const setPreferences = (payload: Partial<AppPreferences>) => {
     preferences.value = normalizePreferences({
       ...preferences.value,
@@ -105,12 +118,25 @@ export const useSettingsStore = defineStore('settings', () => {
     await syncStatusBar();
   };
 
+  /**
+   * Fica no boot, e não na carga completa, porque decide o layout do primeiro quadro: lida
+   * depois do mount, quem escolheu a barra encostada vê a pílula flutuante aparecer e o
+   * conteúdo pular quando a preferência chega.
+   */
+  const loadBottomBarPreference = async () => {
+    const saved = await CapacitorPreferences.get({ key: BOTTOM_BAR_FLOATING_PREFERENCE_KEY });
+    if (saved.value) {
+      bottomBarFloating.value = saved.value === 'true';
+    }
+  };
+
   const loadBootSettings = async () => {
     if (bootSettingsLoaded) return;
     if (bootSettingsPromise) return bootSettingsPromise;
 
     bootSettingsPromise = (async () => {
       await loadLanguageAndThemeSettings();
+      await loadBottomBarPreference();
       bootSettingsLoaded = true;
     })();
 
@@ -147,6 +173,8 @@ export const useSettingsStore = defineStore('settings', () => {
     // Gancho de projeto gerado (tema/idioma/biometria do aparelho ficam). Logout chama isto com currentUser setado — não reordenar no clearToken.
   };
 
+  // `bottomBarFloating` fica de fora de propósito: é escolha do aparelho, acompanha a tela e
+  // não a conta, então sobrevive ao logout.
   const reset = async () => {
     language.value = 'pt';
     theme.value = 'system';
@@ -168,10 +196,12 @@ export const useSettingsStore = defineStore('settings', () => {
     language,
     theme,
     biometryEnabled,
+    bottomBarFloating,
     preferences,
     setLanguage,
     setTheme,
     setBiometryEnabled,
+    setBottomBarFloating,
     setPreferences,
     loadBootSettings,
     loadSettings,

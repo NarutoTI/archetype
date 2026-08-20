@@ -201,7 +201,9 @@
     "testAlertSuccess": "Success alert",
     "testAlertWarning": "Warning alert",
     "testAlertInfo": "Info alert",
-    "testAlertMessage": "This is a sample alert for testing."
+    "testAlertMessage": "This is a sample alert for testing.",
+    "bottomBarFloating": "Floating bottom bar",
+    "bottomBarFloatingHint": "Detached over the content instead of pinned to the edge"
   },
   "version": {
     "checkForUpdates": "Check for updates",
