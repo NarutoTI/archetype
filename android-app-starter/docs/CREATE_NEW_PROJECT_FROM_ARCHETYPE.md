@@ -83,8 +83,8 @@ Arquivos principais:
 
 Android nativo:
 
-- `android/app/build.gradle`: `namespace`, `applicationId`, `versionCode`,
-  `versionName`.
+- `android/app/build.gradle`: `namespace`, `applicationId`; `versionCode` /
+  `versionName` iniciais (depois, `build:android` — ver § Release de loja).
 - `android/app/src/main/res/values/strings.xml`: `app_name`,
   `title_activity_main`, `package_name`, `custom_url_scheme`.
 - `android/app/src/main/AndroidManifest.xml`: deep link em
@@ -250,6 +250,31 @@ Abra no Android Studio apenas depois de confirmar que:
 - Revisar política de privacidade.
 - Revisar permissões Android.
 - Revisar limites de mídia/arquivo em `Preferences`.
+
+## Release de loja (`build:android`)
+
+O starter traz `scripts/build-and-sync.js` (`npm run build:android`): bump de
+`package.json` + `android/app/build.gradle` (`versionName` e `versionCode` +1),
+guards OTA da AAB, build de produção e `cap sync`. Não gera o AAB.
+
+No PowerShell: `node scripts/build-and-sync.js --minor` (não `npm run … -- --flag`).
+
+`cap:build` continua sendo web + sync **sem** bump, para o emulador.
+
+**Backend — ao gerar o app, escolha um contrato e documente:**
+
+- **Padrão deste starter:** `GET /version` lê `ANDROID_APP_VERSION` no env. O
+  script **não** edita o backend. Depois de cada bump do frontend, atualize esse
+  env no deploy (e `.env.example`) para o prompt de loja bater com o `versionName`.
+- **Se o app passar a hardcodar** a versão no `versionService.ts` (literal
+  `version: "1.0.0"`, estilo My Memories): estenda `build-and-sync.js` para
+  substituir esse literal junto com o Gradle e **abortar** se `package.json`,
+  `versionName` e backend divergirem. Não invente um caminho `../foo-node`
+  genérico — use o diretório real do backend daquele repo.
+
+OTA: a AAB recusa `VITE_OTA_CHANNEL=staging`. Com OTA dormente **não** exige
+`VITE_OTA_ENABLED=true`. Se `VITE_OTA_REQUIRE_SIGNED=true`, exige `publicKey` PEM
+no `capacitor.config.ts` (`assertSignedPublicKey`).
 
 ## Entrega Esperada da IA
 

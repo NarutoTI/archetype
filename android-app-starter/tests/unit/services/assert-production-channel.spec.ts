@@ -4,20 +4,28 @@ import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   assertPromotableWebBuild,
+  assertSignedPublicKey,
   assertSignConsistency,
+  assertStoreReleaseGuards,
   OTA_BUILD_METADATA_FILE,
 } from '../../../scripts/ota/assert-production-channel.js';
 
 describe('assertSignConsistency', () => {
   const fixtureDirs: string[] = [];
   let originalRequireSigned: string | undefined;
+  let originalOtaEnabled: string | undefined;
+  let originalOtaChannel: string | undefined;
 
   beforeAll(() => {
     originalRequireSigned = process.env.VITE_OTA_REQUIRE_SIGNED;
+    originalOtaEnabled = process.env.VITE_OTA_ENABLED;
+    originalOtaChannel = process.env.VITE_OTA_CHANNEL;
   });
 
   beforeEach(() => {
     delete process.env.VITE_OTA_REQUIRE_SIGNED;
+    delete process.env.VITE_OTA_ENABLED;
+    delete process.env.VITE_OTA_CHANNEL;
   });
 
   afterEach(() => {
@@ -27,19 +35,32 @@ describe('assertSignConsistency', () => {
   });
 
   afterAll(() => {
-    if (originalRequireSigned === undefined) {
-      delete process.env.VITE_OTA_REQUIRE_SIGNED;
-    } else {
-      process.env.VITE_OTA_REQUIRE_SIGNED = originalRequireSigned;
-    }
+    restoreEnv('VITE_OTA_REQUIRE_SIGNED', originalRequireSigned);
+    restoreEnv('VITE_OTA_ENABLED', originalOtaEnabled);
+    restoreEnv('VITE_OTA_CHANNEL', originalOtaChannel);
   });
 
-  function createProductionEnv(requireSigned: boolean): string {
+  function restoreEnv(key: string, value: string | undefined): void {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+
+  function createProductionEnv(
+    requireSigned: boolean,
+    options: { otaEnabled?: boolean; channel?: string } = {},
+  ): string {
     const fixtureDir = mkdtempSync(join(tmpdir(), 'archetype-ota-sign-'));
     fixtureDirs.push(fixtureDir);
+    const otaEnabled = options.otaEnabled === true;
+    const channel = options.channel ?? 'production';
     writeFileSync(
       join(fixtureDir, '.env.production'),
-      `VITE_OTA_REQUIRE_SIGNED=${String(requireSigned)}\n`,
+      `VITE_OTA_ENABLED=${otaEnabled ? 'true' : 'false'}\n` +
+        `VITE_OTA_CHANNEL=${channel}\n` +
+        `VITE_OTA_REQUIRE_SIGNED=${String(requireSigned)}\n`,
       'utf8',
     );
     return fixtureDir;
@@ -133,6 +154,55 @@ describe('assertSignConsistency', () => {
 
     expect(() => assertPromotableWebBuild(frontendDir, false, fail)).toThrow(
       `${OTA_BUILD_METADATA_FILE} não encontrado`,
+    );
+  });
+
+  it('aceita gate assinado quando capacitor.config contém publicKey PEM', () => {
+    const frontendDir = createProductionEnv(true);
+    writeFileSync(
+      join(frontendDir, 'capacitor.config.ts'),
+      "const config = { plugins: { CapacitorUpdater: { publicKey: '-----BEGIN RSA PUBLIC KEY-----\\nabc\\n-----END RSA PUBLIC KEY-----\\n' } } };\n",
+      'utf8',
+    );
+
+    expect(() => assertSignedPublicKey(frontendDir, fail)).not.toThrow();
+  });
+
+  it('rejeita gate assinado sem publicKey no capacitor.config', () => {
+    const frontendDir = createProductionEnv(true);
+    writeFileSync(join(frontendDir, 'capacitor.config.ts'), 'export default {};\n', 'utf8');
+
+    expect(() => assertSignedPublicKey(frontendDir, fail)).toThrow(
+      'publicKey não contém uma chave pública PEM válida',
+    );
+  });
+
+  it('não exige publicKey quando o gate está desligado', () => {
+    const frontendDir = createProductionEnv(false);
+
+    expect(() => assertSignedPublicKey(frontendDir, fail)).not.toThrow();
+  });
+
+  it('permite AAB com OTA dormente (sem exigir VITE_OTA_ENABLED)', () => {
+    const frontendDir = createProductionEnv(false);
+
+    expect(() => assertStoreReleaseGuards(frontendDir, fail)).not.toThrow();
+  });
+
+  it('recusa AAB se o canal de produção resolver staging', () => {
+    const frontendDir = createProductionEnv(false, { channel: 'staging' });
+
+    expect(() => assertStoreReleaseGuards(frontendDir, fail)).toThrow(
+      'VITE_OTA_CHANNEL=staging',
+    );
+  });
+
+  it('com OTA ligado, recusa AAB signed-only sem publicKey', () => {
+    const frontendDir = createProductionEnv(true, { otaEnabled: true });
+    writeFileSync(join(frontendDir, 'capacitor.config.ts'), 'export default {};\n', 'utf8');
+
+    expect(() => assertStoreReleaseGuards(frontendDir, fail)).toThrow(
+      'publicKey não contém uma chave pública PEM válida',
     );
   });
 });

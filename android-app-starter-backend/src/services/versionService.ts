@@ -19,6 +19,11 @@ import type { AppVersionInfo, OtaDescriptor } from '../types/version.js';
  * a MESMA entrada de `androidOtaStaging` para `androidOta`, depois faça deploy.
  *
  * No starter os mapas nascem VAZIOS = OTA desligado por padrão.
+ *
+ * A versão de loja (`android.version`) vem de `ANDROID_APP_VERSION`. O
+ * `build:android` do frontend não edita este arquivo — depois do bump, alinhe
+ * esse env no deploy. Se o app gerado hardcodar a versão aqui, estenda o
+ * script (ver android-app-starter/docs/CREATE_NEW_PROJECT_FROM_ARCHETYPE.md).
  */
 
 // Android — alvos OTA de produção, por versão nativa. Vazio = OTA desligado.

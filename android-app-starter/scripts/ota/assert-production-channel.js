@@ -5,11 +5,10 @@ import { loadEnv } from 'vite';
 export const OTA_BUILD_METADATA_FILE = 'ota-build-metadata.json';
 
 /**
- * Guard para caminhos de build que produzem artefatos PROMOVÍVEIS (AAB de loja,
- * zip OTA): o bundle nunca pode assar `staging` como canal inicial e precisa
- * manter OTA ligado. Um bundle promovido carregando `staging` jogaria devices
- * de produção (sem preferência local) para o `otaStaging`; um ZIP com OTA
- * desligado impediria a própria casca atualizada de buscar os próximos OTAs.
+ * Guard para zip OTA promovível (`ota:release`): o bundle não pode assar
+ * `staging` e precisa manter OTA ligado. A AAB de loja com OTA ainda desligado
+ * usa `assertStoreReleaseGuards` (não exige `VITE_OTA_ENABLED`). Quando a AAB
+ * já leva OTA ligado, esse helper reusa este guard.
  *
  * Resolve VITE_OTA_CHANNEL exatamente como o Vite faria para o build de produção
  * — todas as camadas .env em ordem (.env, .env.local, .env.production,
@@ -67,6 +66,63 @@ export function assertSignConsistency(frontendDir, sign, fail) {
         'na build da casca (mesma release nativa) — ou rode sem --sign.',
     );
   }
+}
+
+/**
+ * Garante que uma AAB signed-only leva uma chave pública PEM no config nativo.
+ * Sem ela, a casca recusaria OTA plana e também não conseguiria decriptar a
+ * assinada, deixando a linha sem caminho de atualização remota.
+ * No-op enquanto o gate estiver desligado (starter nasce dormente).
+ *
+ * @param {string} frontendDir raiz do app
+ * @param {(message: string) => never} fail callback de abort
+ */
+export function assertSignedPublicKey(frontendDir, fail) {
+  const env = loadEnv('production', frontendDir);
+  if (env.VITE_OTA_REQUIRE_SIGNED !== 'true') return;
+
+  const configPath = path.join(frontendDir, 'capacitor.config.ts');
+  if (!fs.existsSync(configPath)) {
+    return fail(`capacitor.config.ts não encontrado em ${configPath}`);
+  }
+
+  const source = fs.readFileSync(configPath, 'utf8');
+  const match = source.match(/(?:^|[,{])\s*publicKey\s*:\s*(['"`])([\s\S]*?)\1\s*,?/m);
+  const value = match?.[2]?.replace(/\\n/g, '\n').trim() ?? '';
+  const hasPublicKey =
+    /^-----BEGIN (?:RSA )?PUBLIC KEY-----[\s\S]+-----END (?:RSA )?PUBLIC KEY-----$/.test(value);
+
+  if (!hasPublicKey) {
+    return fail(
+      'VITE_OTA_REQUIRE_SIGNED=true, mas plugins.CapacitorUpdater.publicKey não contém ' +
+        'uma chave pública PEM válida no capacitor.config.ts. Gere/salve a key-v2 antes da AAB.',
+    );
+  }
+}
+
+/**
+ * Guards da AAB de loja (`build:android`). Diferente do `ota:release`, o starter
+ * nasce com OTA dormente — exigir `VITE_OTA_ENABLED=true` aqui impediria publicar
+ * na Play antes de ligar Live Updates. Sempre recusa canal staging. Se OTA já
+ * estiver ligado, reusa os mesmos requisitos de um zip promovível. publicKey só
+ * quando o gate signed-only estiver ligado.
+ *
+ * @param {string} frontendDir raiz do app
+ * @param {(message: string) => never} fail callback de abort
+ */
+export function assertStoreReleaseGuards(frontendDir, fail) {
+  const env = loadEnv('production', frontendDir);
+  if (env.VITE_OTA_CHANNEL === 'staging') {
+    fail(
+      'VITE_OTA_CHANNEL=staging resolvido para o build de produção — vazaria staging ' +
+        'num bundle promovível. staging só no .env.simulator (build:simulator). ' +
+      'Ponha production (ou remova) em .env.production / .env.production.local / variável de ambiente.',
+    );
+  }
+  if (env.VITE_OTA_ENABLED === 'true') {
+    assertProductionChannel(frontendDir, fail);
+  }
+  assertSignedPublicKey(frontendDir, fail);
 }
 
 /**

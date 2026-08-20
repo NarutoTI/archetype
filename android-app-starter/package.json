@@ -10,6 +10,7 @@
     "build": "vue-tsc && vite build --mode production",
     "build:dev": "vue-tsc && vite build --mode development",
     "build:simulator": "vite build --mode simulator && npx cap sync android",
+    "build:android": "node scripts/build-and-sync.js",
     "preview": "vite",
     "ota:release": "node scripts/ota/ota-release.js",
     "ota:reset-device": "node scripts/ota/ota-reset-device.js",

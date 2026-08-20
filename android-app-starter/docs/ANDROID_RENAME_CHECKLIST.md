@@ -5,7 +5,9 @@ Ao criar um app real a partir do starter, troque:
 - `package.json`: `name`, `version` e `description`.
 - `ionic.config.json`: `name`.
 - `capacitor.config.ts`: `appId` e `appName`.
-- `android/app/build.gradle`: `namespace`, `applicationId`, `versionCode`, `versionName`.
+- `android/app/build.gradle`: `namespace`, `applicationId`; `versionCode` /
+  `versionName` iniciais. Depois da primeira loja, suba versão com
+  `node scripts/build-and-sync.js` (não edite só um dos dois).
 - `android/app/src/main/res/values/strings.xml`: `app_name`, `title_activity_main`, `package_name`, `custom_url_scheme`.
 - `android/app/src/main/AndroidManifest.xml`: deep link em `<data android:scheme="..." android:host="auth" />`.
 - Pacote Java/Kotlin do `MainActivity`: mover a pasta e alterar a linha `package`.

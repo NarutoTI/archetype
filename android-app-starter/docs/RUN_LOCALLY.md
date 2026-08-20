@@ -117,6 +117,9 @@ npm run cap:build
 npx cap open android
 ```
 
+`cap:build` não sobe versão. Para release de loja use
+`node scripts/build-and-sync.js` (`docs/native/OTA.md`).
+
 O projeto nativo `android/` é versionado. O que é gerado/local fica ignorado:
 
 - `android/.gradle`;

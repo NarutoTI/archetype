@@ -59,4 +59,5 @@
 
 - Atualização do bundle web sem passar pela loja, **backend-driven** (alvo vem do `GET /version`). Guia operacional e fonte da verdade: `android-app-starter/docs/native/OTA.md`.
 - Nasce **dormente**: `VITE_OTA_ENABLED` ausente/false e mapas `ota`/`otaStaging` do backend vazios. Não ligar por padrão em projetos gerados.
+- Release de loja: `node scripts/build-and-sync.js` (`build:android`) — bump só no frontend. AAB recusa canal staging; `assertSignedPublicKey` só se o gate signed-only estiver ligado. `ota:release` continua exigindo OTA ligado.
 - Antes de alterar `ota.service`, `ota-channel.service`, `version.service`, o `versionService` do backend ou `scripts/ota/*`, ler o guia. Nunca assar `VITE_OTA_CHANNEL=staging` num build de produção (o `ota:release` aborta se detectar).

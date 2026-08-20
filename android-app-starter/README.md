@@ -52,12 +52,20 @@ do backend (ver README do backend).
 
 Guia detalhado: [`docs/RUN_LOCALLY.md`](docs/RUN_LOCALLY.md).
 
-Para Android (emulador):
+Para Android (emulador, **sem** bump de versão):
 
 ```bash
-npm run cap:build    # build web + sync nativo
+npm run cap:build    # build web + sync nativo (não sobe versionName/versionCode)
 npx cap open android # abre no Android Studio
 ```
+
+Release de loja (sobe patch por padrão; a AAB é no Studio):
+
+```powershell
+node scripts/build-and-sync.js --minor
+```
+
+Detalhes: [`docs/native/OTA.md`](docs/native/OTA.md) § Release nativo.
 
 No emulador, use `VITE_API_URL=http://10.0.2.2:3001` (`10.0.2.2` é o alias do
 emulador para o `localhost` da sua máquina). No navegador, use

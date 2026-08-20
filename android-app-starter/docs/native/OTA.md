@@ -39,6 +39,33 @@ local/builtin) e **publicar um OTA** (zip promovível).
 Esse fluxo **não gera OTA nenhum** — é a casca local. Pra testar a *entrega* de um
 OTA de verdade, veja "Publicar um OTA".
 
+### Release nativo de loja (`build:android`)
+
+Sobe `versionName` / `versionCode` no **frontend** (`package.json` + Gradle), gera
+o `www` de produção e faz `cap sync`. Não gera AAB (isso continua no Android Studio).
+
+```powershell
+node scripts/build-and-sync.js            # patch: 1.0.0 → 1.0.1
+node scripts/build-and-sync.js --minor    # 1.0.0 → 1.1.0
+node scripts/build-and-sync.js --major    # 1.0.0 → 2.0.0
+node scripts/build-and-sync.js --version 1.1.0
+node scripts/build-and-sync.js --keep     # já alinhou as versões; só build + cap sync
+```
+
+No PowerShell chame o Node direto (`npm run build:android -- --minor` pode engolir
+a flag). `cap:build` é só web + sync, **sem** bump.
+
+OTA dormente: a AAB **não** exige `VITE_OTA_ENABLED=true` (senão ninguém publicaria
+na Play antes de ligar Live Updates). Recusa canal `staging`. Se o gate
+`VITE_OTA_REQUIRE_SIGNED` estiver ligado, exige `publicKey` PEM no
+`capacitor.config.ts`. Com OTA já ligado, aplicam-se os mesmos guards de um zip
+promovível.
+
+O script **não** edita o backend: neste starter a versão da loja em `GET /version`
+vem de `ANDROID_APP_VERSION`. Depois do bump, alinhe esse env no deploy. Se o app
+gerado hardcodar a versão no `versionService.ts`, estenda o script — ver
+`docs/CREATE_NEW_PROJECT_FROM_ARCHETYPE.md`.
+
 ### Publicar um OTA (`ota:release`)
 
 O comando principal chama o Node diretamente. Como o starter não traz uma chave
@@ -175,11 +202,12 @@ decidido por **onde** você cola (`androidOtaStaging` vs `androidOta`).
 | `OTA_BASE_URL`, `OTA_R2_BUCKET`, `OTA_ZIP_PREFIX` | ver `ota.properties.example` | URL pública / bucket / prefixo do zip |
 
 Todo build Vite grava `www/ota-build-metadata.json` com o modo e as flags OTA
-realmente assadas. Antes de zipar, o release exige `production`, canal
-`production`, OTA ligado e gate coerente com `--sign`. Assim, `--no-build`
-**aborta** se o `www/` veio de simulator/dev, é antigo sem metadado ou foi gerado
-com configuração diferente — o `.env.production` atual sozinho não mascara o
-artefato errado.
+realmente assadas. Esse JSON entra no `www` e portanto na AAB e no ZIP (o app
+**não** lê em runtime; só o `ota:release --no-build` usa). Antes de zipar, o
+release exige `production`, canal `production`, OTA ligado e gate coerente com
+`--sign`. Assim, `--no-build` **aborta** se o `www/` veio de simulator/dev, é
+antigo sem metadado ou foi gerado com configuração diferente — o
+`.env.production` atual sozinho não mascara o artefato errado.
 
 ### Contador (`ota-state.json`, versionado) — **GLOBAL por base**
 - Um número por `base` → nomes de zip nunca colidem entre staging/produção.
@@ -298,8 +326,8 @@ duas versões nativas; esses pontos ainda precisam da faixa de teste interno da 
 
 ### Fechar a release nativa e promover
 
-1. Depois do ensaio, faça **novamente** o build de produção e
-   `npx cap sync android` antes de gerar a AAB. O `build:simulator` deixa o `www`
+1. Depois do ensaio, rode `node scripts/build-and-sync.js --keep` (ou o bump
+   adequado) **antes** de gerar a AAB. O `build:simulator` deixa o `www`
    sincronizado com API/canal de teste e esse builtin não pode ir para a loja.
 2. Gere a AAB com `publicKey`, `VITE_OTA_ENABLED=true`, canal `production` e
    `VITE_OTA_REQUIRE_SIGNED=true`; publique primeiro na faixa interna da Play.
@@ -332,7 +360,9 @@ não conseguirá decriptá-lo.
 - `../../../android-app-starter-backend/src/services/versionService.ts` — `ota` / `otaStaging` por linha nativa
 - `scripts/ota/ota-release.js` — build → zip → upload → imprime a entrada TS
 - `scripts/ota/ota-reset-device.js` — abre o app pro reset oficial do Capgo
-- `scripts/ota/assert-production-channel.js` — guards do env e metadado do `www`
+- `scripts/ota/assert-production-channel.js` — guards do env, publicKey, AAB e metadado do `www`
+- `scripts/build-and-sync.js` — bump de loja no frontend + build production + `cap sync`
+- `scripts/android-version.js` — regras `--patch` / `--minor` / `--major` / `--keep`
 - `vite.config.ts` — emite `www/ota-build-metadata.json` em todo build
 - `capacitor.config.ts` → `plugins.CapacitorUpdater`
 - `src/main.ts` — `notifyAppReady` pós-mount; Phase 3 chama o coordenador
