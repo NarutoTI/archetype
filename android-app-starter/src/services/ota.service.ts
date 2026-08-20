@@ -50,7 +50,10 @@ export interface OtaDescriptor {
   bundleVersion: string;
   /** URL absoluta do zip do bundle (R2). */
   url: string;
-  /** Checksum do `@capgo/cli bundle zip --json`. Verificado pelo plugin. Obrigatório. */
+  /**
+   * Checksum verificado pelo plugin. Em OTA plana, vem de `bundle zip --json`;
+   * com key-v2, é o checksum assinado devolvido por `bundle encrypt`. Obrigatório.
+   */
   checksum: string;
   /** Session key (ivSessionKey) para bundles cifrados com key-v2. */
   sessionKey?: string;

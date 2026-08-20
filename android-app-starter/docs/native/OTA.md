@@ -15,7 +15,7 @@ uma release de loja contendo o plugin.
 | Plugin `@capgo/capacitor-updater` + config `autoUpdate: "off"` | Pronto |
 | `ota.service.ts` (aplica um descriptor) + `version.service.ts` (coordenador) | Pronto |
 | Backend `versionService` devolve `ota` / `otaStaging` por linha nativa | Pronto (mapas vazios = OTA off) |
-| `npm run ota:release` imprime a entrada TS pra colar no backend | Pronto |
+| `node scripts/ota/ota-release.js --upload` imprime a entrada TS pra colar no backend | Pronto; starter nasce sem assinatura |
 | OTA ativo em runtime | **Dormente** até `VITE_OTA_ENABLED=true` na build + descriptor no backend |
 | Custom domain R2 (cache dos zips) | A configurar (r2.dev não cacheia) |
 
@@ -41,17 +41,26 @@ OTA de verdade, veja "Publicar um OTA".
 
 ### Publicar um OTA (`ota:release`)
 
-No PowerShell/npm, flags do script precisam do `--` no meio (senão o npm engole a
-flag e vira dry-run local, **sem** upload):
+O comando principal chama o Node diretamente. Como o starter não traz uma chave
+privada real, ele nasce publicando sem assinatura:
 
 ```powershell
-npm run ota:release -- --upload
-# ou chamar o Node direto:
 node scripts/ota/ota-release.js --upload
 ```
 
 Config de URL/bucket/prefixo em `scripts/ota/ota.properties` (copie do
-`ota.properties.example`; gitignored).
+`ota.properties.example`; gitignored). O exemplo define `OTA_SIGN=false`.
+
+Depois de gerar a key-v2, embarcar a `publicKey` e ligar
+`VITE_OTA_REQUIRE_SIGNED=true`, o comando principal do app passa a ser:
+
+```powershell
+node scripts/ota/ota-release.js --sign --upload
+```
+
+Se preferir o atalho npm, use `npm run ota:release -- --upload` ou
+`npm run ota:release -- --sign --upload`. O segundo `--` é obrigatório para o npm
+repassar as flags ao script.
 
 ## Como funciona
 
@@ -160,10 +169,17 @@ decidido por **onde** você cola (`androidOtaStaging` vs `androidOta`).
 | `--ota <n>` / `OTA_COUNTER` | auto (`last+1`) | Força o contador `+ota.n`. **Aborta se `≤` o último reservado** |
 | `--min-native <ver>` / `OTA_MIN_NATIVE` | = `versionName` | Gate no descriptor |
 | `--mandatory` / `OTA_MANDATORY` | `false` | `mandatory:true` no descriptor (aplica sem diálogo) |
-| `--sign` / `OTA_SIGN` | `false` | Cifra/assina o zip (key-v2): `--key-v2` + `bundle encrypt` → `checksum` ASSINADO + `sessionKey`; sobe o zip cifrado. Exige `.capgo_key_v2` e coerência com `VITE_OTA_REQUIRE_SIGNED` |
-| `--no-build` / `OTA_NO_BUILD` | `false` | Usa `www/` existente |
+| `--sign` / `OTA_SIGN` | `false` no starter (`ota.properties.example`) | Cifra/assina o zip (key-v2): `--key-v2` + `bundle encrypt` → `checksum` ASSINADO + `sessionKey`; sobe o zip cifrado. Depois da ativação da key-v2, defina `OTA_SIGN=true` no `ota.properties` do app e mantenha coerência com `VITE_OTA_REQUIRE_SIGNED` |
+| `--no-build` / `OTA_NO_BUILD` | `false` | Usa `www/` existente somente se `ota-build-metadata.json` comprovar build `production` e flags OTA coerentes |
 | `--upload` / `OTA_UPLOAD` | `false` | Sobe o zip no R2 e **reserva** o contador |
 | `OTA_BASE_URL`, `OTA_R2_BUCKET`, `OTA_ZIP_PREFIX` | ver `ota.properties.example` | URL pública / bucket / prefixo do zip |
+
+Todo build Vite grava `www/ota-build-metadata.json` com o modo e as flags OTA
+realmente assadas. Antes de zipar, o release exige `production`, canal
+`production`, OTA ligado e gate coerente com `--sign`. Assim, `--no-build`
+**aborta** se o `www/` veio de simulator/dev, é antigo sem metadado ou foi gerado
+com configuração diferente — o `.env.production` atual sozinho não mascara o
+artefato errado.
 
 ### Contador (`ota-state.json`, versionado) — **GLOBAL por base**
 - Um número por `base` → nomes de zip nunca colidem entre staging/produção.
@@ -175,6 +191,9 @@ decidido por **onde** você cola (`androidOtaStaging` vs `androidOta`).
 ```powershell
 # 1) Build + zip + upload do zip; imprime a entrada TS
 node scripts/ota/ota-release.js --upload
+
+# Depois de ativar key-v2 no app, publique assinado:
+node scripts/ota/ota-release.js --sign --upload
 
 # 2) Cole a entrada em androidOtaStaging["<base>"], preencha changelog, deploy do backend
 # 3) Numa build com VITE_OTA_ENABLED=true, ative o canal de teste (12 toques)
@@ -240,40 +259,62 @@ comprometido: o checksum simples é só integridade; a assinatura é **autentici
 (só quem tem a chave privada produz um bundle que a casca aceita). `--sign` está
 **implementado**; nasce **desligado** (sem `.capgo_key_v2`, `--sign` falha cedo).
 
-**Estado:** o starter roda OTA em texto puro por padrão. Ligue key-v2 só quando for
-preparar a próxima AAB — gerar a chave antes só cria risco de perdê-la.
+**Estado:** o starter continua **dormente**: não traz chave real, o gate fica desligado,
+`VITE_OTA_ENABLED` nasce ausente/false e os mapas do backend ficam vazios. Se um app
+ativar OTA sem fazer esta migração, o pipeline começa em texto puro. Gere uma chave
+própria somente **no app criado a partir do starter**; nunca coloque uma chave privada
+real neste archetype compartilhado.
 
-**Passos (uma vez, na release nativa que vai passar a assinar). A ordem importa: a
-`publicKey` E o gate são bake-time, então os DOIS têm que entrar ANTES de gerar a AAB.**
+### Validar no emulador antes da AAB
 
-1. **Gerar a chave** na raiz do frontend:
+A `publicKey` e o gate são bake-time. Portanto, a casca do emulador também precisa
+ser reconstruída com ambos antes de conseguir validar uma OTA assinada. Faça o teste
+já na versão nativa que será a próxima release (por exemplo, `1.0.1`):
+
+1. **Gerar a chave** na raiz do frontend do app:
    `npx --no-install @capgo/cli key create`
-   Cria `.capgo_key_v2` (privada — **NUNCA** commitar, já no `.gitignore`; faça
-   **backup seguro**, perdê-la impede assinar futuras OTAs) e `.capgo_key_v2.pub`,
-   e injeta a `publicKey` no `capacitor.config.ts`.
-2. **Ligar o gate:** `VITE_OTA_REQUIRE_SIGNED=true` no `.env.production`. É bake-time,
-   então tem que estar setado ANTES do build da AAB. Aí a casca rejeita qualquer
-   descriptor **sem** `sessionKey`. Sem esse gate, a publicKey sozinha não obriga
-   cifra — alguém que edite o `/version` serviria um bundle plano. **Gate (exige
-   sessionKey) + cripto (decripta-ou-falha no plugin) juntos = autenticidade.**
-3. **Gerar e publicar a AAB:** build de produção → `npx cap sync android` → AAB → loja.
-   Só agora a casca leva `publicKey` **e** o gate juntos. A publicKey mora no nativo —
-   **um OTA não consegue injetá-la** numa casca já instalada, por isso precisa de UMA
-   nova versão de loja. Depois dela, as próximas voltam a ser só OTA.
-4. **Publicar assinado** (após a AAB estar instalada): `node scripts/ota/ota-release.js
-   --sign --upload`. O script zipa (com `--key-v2`), roda `@capgo/cli bundle encrypt`
-   (retorna o **checksum ASSINADO** + o `ivSessionKey`), sobe o **zip cifrado** e imprime
-   a entrada TS já com `sessionKey`. ⚠️ O `checksum` do descriptor é o do **encrypt**
-   (assinado), não o do `bundle zip` (texto puro, só o argumento de entrada) — o script
-   já cuida disso. O release **exige** que `--sign` e o gate estejam coerentes (o script
-   aborta se você assinar sem o gate ou publicar plano numa linha com o gate ligado).
+   Cria `.capgo_key_v2` (privada — **NUNCA** commitar; faça **backup seguro**, pois
+   perdê-la impede assinar futuras OTAs) e `.capgo_key_v2.pub`, e injeta a
+   `publicKey` no `capacitor.config.ts`.
+2. **Ligar o gate nos dois builds usados pelo ensaio:** adicione
+   `VITE_OTA_REQUIRE_SIGNED=true` ao `.env.simulator` (casca do emulador) **e** ao
+   `.env.production` (o zip gerado por `ota:release` usa o build de produção). Sem
+   isso, o guard aborta `--sign` ou a casca ainda aceita descriptor plano.
+3. **Reconstruir e instalar a casca do emulador:** `npm run build:simulator` e depois
+   Android Studio (Run ▶) ou `npx cap run android`. Confirme que
+   `android/app/src/main/assets/capacitor.config.json` contém a `publicKey`; `cap sync`
+   sozinho não altera o APK já instalado. Se houver OTA antiga ativa, volte ao builtin
+   com `npm run ota:reset-device` antes do ensaio.
+4. **Gerar a OTA assinada de teste:** `node scripts/ota/ota-release.js --sign --upload`.
+   Cole a entrada impressa, incluindo `sessionKey`, em
+   `androidOtaStaging["<versão-nativa>"]` e faça deploy do backend.
+5. **Validar ponta a ponta:** no canal TESTE, confirme download, aplicação, cold start,
+   versão OTA ativa e ausência de rollback. Como teste negativo, ofereça um descriptor
+   sem `sessionKey` e confirme que a casca o rejeita sem baixar o zip.
 
-**Transição limpa:** a linha nativa antiga continua com OTA plano (roda a AAB antiga);
-a nova linha (ex. `1.0.1`) recebe só descriptors assinados. O mapa por `nativeVersion`
-isola as duas — a casca nova só lê `ota["1.0.1"]`, então pode exigir assinatura sem
-afetar quem está na linha antiga. Promoção segue igual: copie a MESMA entrada de
-`otaStaging` para `ota`. Teste no `otaStaging` antes (baixa, reinicia, versão OTA;
-e confirme que um descriptor sem `sessionKey` é rejeitado).
+Esse ensaio valida geração, cifra, checksum assinado, download e decriptação antes de
+submeter uma AAB. Ele não valida a atualização pela Play nem o `resetWhenUpdate` entre
+duas versões nativas; esses pontos ainda precisam da faixa de teste interno da loja.
+
+### Fechar a release nativa e promover
+
+1. Depois do ensaio, faça **novamente** o build de produção e
+   `npx cap sync android` antes de gerar a AAB. O `build:simulator` deixa o `www`
+   sincronizado com API/canal de teste e esse builtin não pode ir para a loja.
+2. Gere a AAB com `publicKey`, `VITE_OTA_ENABLED=true`, canal `production` e
+   `VITE_OTA_REQUIRE_SIGNED=true`; publique primeiro na faixa interna da Play.
+3. Instale essa AAB e repita uma OTA assinada no `otaStaging` da **mesma linha nativa**.
+   Só depois copie a MESMA entrada para `ota` e faça deploy do backend.
+
+O script usa `--key-v2` no zip e depois `bundle encrypt`; o descriptor recebe o
+**checksum assinado** e o `ivSessionKey` como `sessionKey`. O guard exige coerência:
+aborta ao assinar sem gate ou ao tentar publicar plano com o gate ligado.
+
+**Transição limpa:** a linha nativa antiga continua com OTA plano (roda a AAB antiga),
+e a nova linha recebe somente descriptors assinados. O mapa por `nativeVersion` isola
+as duas. **Nunca promova** para uma linha antiga um zip assinado apenas porque ele
+funcionou numa casca reconstruída no emulador: a AAB antiga não leva a `publicKey` e
+não conseguirá decriptá-lo.
 
 ## Pendências para ligar em produção
 
@@ -291,7 +332,8 @@ e confirme que um descriptor sem `sessionKey` é rejeitado).
 - `../../../android-app-starter-backend/src/services/versionService.ts` — `ota` / `otaStaging` por linha nativa
 - `scripts/ota/ota-release.js` — build → zip → upload → imprime a entrada TS
 - `scripts/ota/ota-reset-device.js` — abre o app pro reset oficial do Capgo
-- `scripts/ota/assert-production-channel.js` — guard anti-staging nos builds promovíveis
+- `scripts/ota/assert-production-channel.js` — guards do env e metadado do `www`
+- `vite.config.ts` — emite `www/ota-build-metadata.json` em todo build
 - `capacitor.config.ts` → `plugins.CapacitorUpdater`
 - `src/main.ts` — `notifyAppReady` pós-mount; Phase 3 chama o coordenador
 - `src/views/MenuView.vue` — "Verificar atualizações" + rodapé com a versão (12 toques / chip TESTE)

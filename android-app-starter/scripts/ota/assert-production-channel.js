@@ -1,4 +1,8 @@
+import fs from 'fs';
+import path from 'path';
 import { loadEnv } from 'vite';
+
+export const OTA_BUILD_METADATA_FILE = 'ota-build-metadata.json';
 
 /**
  * Guard para caminhos de build que produzem artefatos PROMOVÍVEIS (AAB de loja,
@@ -61,6 +65,57 @@ export function assertSignConsistency(frontendDir, sign, fail) {
       '--sign passado mas VITE_OTA_REQUIRE_SIGNED != true: a casca ainda aceitaria OTA ' +
         'plano, então a assinatura não protege de fato. Ligue VITE_OTA_REQUIRE_SIGNED=true ' +
         'na build da casca (mesma release nativa) — ou rode sem --sign.',
+    );
+  }
+}
+
+/**
+ * Valida o metadado emitido pelo Vite dentro do próprio `www`. Diferente dos
+ * guards de `.env`, este prova quais flags foram realmente assadas no artefato
+ * que `--no-build` está prestes a zipar.
+ *
+ * @param {string} frontendDir raiz do app
+ * @param {boolean} sign se a publicação atual é assinada
+ * @param {(message: string) => never} fail callback de abort
+ */
+export function assertPromotableWebBuild(frontendDir, sign, fail) {
+  const metadataPath = path.join(frontendDir, 'www', OTA_BUILD_METADATA_FILE);
+  if (!fs.existsSync(metadataPath)) {
+    return fail(
+      `${OTA_BUILD_METADATA_FILE} não encontrado no www. Gere novamente sem --no-build ` +
+        'para comprovar a origem do bundle.',
+    );
+  }
+
+  let metadata;
+  try {
+    metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+  } catch (error) {
+    return fail(`${OTA_BUILD_METADATA_FILE} inválido: ${error.message}`);
+  }
+
+  if (metadata?.schemaVersion !== 1) {
+    return fail(`${OTA_BUILD_METADATA_FILE} tem schemaVersion incompatível.`);
+  }
+  if (metadata.mode !== 'production') {
+    return fail(
+      `www foi gerado em mode=${JSON.stringify(metadata.mode)}, não production. ` +
+        'Não use --no-build depois de build:simulator/build:dev.',
+    );
+  }
+  if (metadata.otaChannel !== 'production') {
+    return fail(
+      `www foi gerado com VITE_OTA_CHANNEL=${JSON.stringify(metadata.otaChannel)}. ` +
+        'Um bundle promovível precisa assar production.',
+    );
+  }
+  if (metadata.otaEnabled !== true) {
+    return fail('www foi gerado sem VITE_OTA_ENABLED=true e pararia de buscar próximos OTAs.');
+  }
+  if (metadata.otaRequireSigned !== sign) {
+    return fail(
+      `www foi gerado com VITE_OTA_REQUIRE_SIGNED=${metadata.otaRequireSigned}, mas ` +
+        `a publicação está signed=${sign}. Gere novamente com assinatura e gate coerentes.`,
     );
   }
 }

@@ -1,4 +1,4 @@
-# Config do `npm run ota:release`. Copie para `ota.properties` (gitignored) e ajuste.
+# Config do script `ota:release` (Node). Copie para `ota.properties` (gitignored) e ajuste.
 # NÃO comite segredos nem URLs reais de produção neste .example.
 
 # Prefixo público dos zips (custom domain do R2). Sem barra no fim.
@@ -9,3 +9,7 @@ OTA_R2_BUCKET=app-ota
 
 # Prefixo do nome do zip: <prefix>-<base>-ota.<n>.zip (ex.: app-1.0.0-ota.1.zip).
 OTA_ZIP_PREFIX=app
+
+# O starter nasce sem chave. Troque para true somente depois de gerar a key-v2,
+# embarcar a publicKey e ligar VITE_OTA_REQUIRE_SIGNED=true na nova linha nativa.
+OTA_SIGN=false

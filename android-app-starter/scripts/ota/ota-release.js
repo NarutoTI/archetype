@@ -2,7 +2,11 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
-import { assertProductionChannel, assertSignConsistency } from './assert-production-channel.js';
+import {
+  assertProductionChannel,
+  assertPromotableWebBuild,
+  assertSignConsistency,
+} from './assert-production-channel.js';
 
 /**
  * Pipeline de release OTA (manual, self-hosted). Ver docs/native/OTA.md.
@@ -217,6 +221,9 @@ if (args.build) {
 if (!fs.existsSync(path.join(frontendDir, 'www', 'index.html'))) {
   fail('www/index.html não encontrado — rode o build antes (ou remova --no-build)');
 }
+// Confere o artefato, não só o .env atual: fecha o furo de reutilizar um www
+// gerado por simulator/dev ou com gate diferente através de --no-build.
+assertPromotableWebBuild(frontendDir, args.sign, fail);
 
 // 2) Zip via @capgo/cli (checksum autoritativo, formato correto pro plugin)
 console.log('🗜️  Zip via @capgo/cli...');
