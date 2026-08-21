@@ -165,6 +165,61 @@ describe('HomePage — moldura some ao rolar', () => {
     wrapper.unmount();
   });
 
+  /**
+   * Uma tira de rodapé que devolve o espaço quando a barra some não rola, mas divide a coluna
+   * flex com quem rola: encolhê-la faz o scroller crescer, o navegador corrige o `scrollTop`
+   * para caber no novo máximo, e essa correção era lida como "o usuário subiu" — a barra
+   * voltava e a inércia recomeçava tudo, com a tela tremendo no fim da rolagem.
+   */
+  const setMetrics = (el: HTMLElement, clientHeight: number, scrollHeight: number) => {
+    Object.defineProperty(el, 'clientHeight', { value: clientHeight, configurable: true });
+    Object.defineProperty(el, 'scrollHeight', { value: scrollHeight, configurable: true });
+  };
+
+  /**
+   * O sinal é o **máximo rolável** ter diminuído, porque é essa a condição que força o
+   * navegador a corrigir o `scrollTop`. Uma tira de rodapé que devolve espaço encurta esse
+   * máximo de duas formas: fazendo o scroller crescer (ela era irmã dele) ou encurtando o
+   * conteúdo (ela rola junto). Olhar só a altura visível deixa a segunda passar.
+   */
+  it.each([
+    ['o scroller cresce (a tira era irmã dele)', 568, 1500],
+    ['o conteúdo encurta (a tira rola junto)', 500, 1432],
+  ])('ignora a correção do navegador quando %s', async (_caso, clientHeight, scrollHeight) => {
+    const wrapper = mountHome();
+    const el = scroller();
+
+    setMetrics(el, 500, 1500);
+    await scrollTo(el, 0);
+    await scrollTo(el, 400);
+    expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
+
+    setMetrics(el, clientHeight, scrollHeight);
+    await scrollTo(el, 332);
+    expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
+
+    // Já com as medidas estáveis, subir de verdade continua devolvendo a barra.
+    await scrollTo(el, 200);
+    expect(wrapper.find('.tabs').classes()).not.toContain('tabs--chrome-hidden');
+
+    wrapper.unmount();
+  });
+
+  /** Crescer nunca força correção: lista que carrega mais itens continua escondendo a barra. */
+  it('não confunde carregar mais itens com correção do navegador', async () => {
+    const wrapper = mountHome();
+    const el = scroller();
+
+    setMetrics(el, 500, 1500);
+    await scrollTo(el, 0);
+
+    setMetrics(el, 500, 3000);
+    await scrollTo(el, 400);
+    expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
+
+    wrapper.unmount();
+  });
+
   it('não esconde nada com a barra encostada', async () => {
     const { useSettingsStore } = await import('@/stores/settingsStore');
     useSettingsStore().bottomBarFloating = false;
@@ -336,11 +391,18 @@ describe('HomePage — moldura da barra inferior', () => {
     expect(bar).toMatch(/height:\s*auto/);
   });
 
-  it('flutuando, a tela vai até a borda — o outlet não recua', () => {
-    // Recuar o outlet deixa sobrando uma faixa que lê como rodapé: exatamente o que um
-    // formato flutuante não deve parecer. Quem rola termina acima da pílula por
-    // `--bar-inset`, não por um buraco no layout.
-    expect(homePageSource).not.toMatch(/\.tabs--floating ion-router-outlet/);
+  it('flutuando, o outlet recua o inset do sistema — e nada além dele', () => {
+    // Duas regressões opostas moram nesta linha. Recuar a barra inteira devolve a faixa que
+    // lê como rodapé, que é o que o formato flutuante não pode parecer. Não recuar nada põe o
+    // conteúdo debaixo da barra de navegação do Android: encostada, o `ion-tab-bar` segurava
+    // esse inset para a página toda; fora do fluxo, ninguém segura. O `ion-footer` não cobre
+    // (desliga o próprio inset quando existe um `ion-tab-bar slot="bottom"`) e o
+    // `ion-content` só ganha o dele dentro de modal.
+    const outlet =
+      homePageSource.match(/\.tabs--floating ion-router-outlet \{[^}]*\}/)?.[0] ?? '';
+    expect(outlet).toMatch(/inset-block-end:\s*var\(--ion-safe-area-bottom, 0px\);/);
+    expect(outlet).not.toMatch(/--bar-inset|--bar-height|--bar-cover/);
+
     expect(floatingBar).toMatch(/position:\s*absolute/);
     expect(floatingBar).toMatch(/border-radius:/);
   });

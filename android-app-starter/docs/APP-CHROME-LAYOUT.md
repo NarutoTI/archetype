@@ -73,11 +73,24 @@ aparecer e o conteúdo pular.
 }
 ```
 
-**O outlet não recua.** A tela vai até a borda de baixo; quem rola termina acima da pílula
-por `--bar-inset`, consumido pela classe `.scrolls-under-bar` em `theme/global.css`. Recuar o
-outlet deixa sobrando uma faixa que lê como rodapé — exatamente o que um formato flutuante
-não deve parecer. Uma tela que preencha a altura **sem rolar** fica com o canto de baixo
-debaixo da pílula: é o preço do formato.
+**O outlet recua o inset do sistema, e nada além dele.** A tela vai até a borda de baixo
+sob a pílula; quem rola termina acima dela por `--bar-inset`, consumido pela classe
+`.scrolls-under-bar` em `theme/global.css`. Recuar a **barra inteira** deixaria sobrando uma
+faixa que lê como rodapé — o que um formato flutuante não pode parecer. Uma tela que preencha
+a altura **sem rolar** fica com o canto de baixo debaixo da pílula: é o preço do formato.
+
+⚠️ **O inset precisa voltar na mão.** Encostada, o `ion-tab-bar` segurava esse espaço para a
+página inteira: ficava abaixo do conteúdo na coluna flex, com
+`padding-bottom: var(--ion-safe-area-bottom)` no próprio `:host`. Fora do fluxo, sumiu para
+todo mundo — e o conteúdo passa a correr por baixo da barra de navegação do Android. Nenhum
+componente cobre isso sozinho: o `ion-content` só ganha inset inferior **dentro de modal**, e
+o `ion-footer` **desliga** o dele de propósito quando existe um `ion-tab-bar slot="bottom"`
+(`['footer-toolbar-padding']: !keyboardVisible && (!tabBar || tabBar.slot !== 'bottom')`) — e
+a pílula ainda é um.
+
+⚠️ **Some no simulador.** O defeito escala com `--ion-safe-area-bottom`: com navegação por
+gestos são ~16–24px e quase não aparece; com os três botões são ~48px. Testar o formato
+flutuante exige aparelho ou simulador com barra de 3 botões.
 
 A variável mora no `<ion-tabs>` e **herda** para tudo que está dentro das abas, então a
 página reserva espaço sem saber qual formato está ativo. Fora das abas ela não existe e todo
@@ -88,6 +101,14 @@ página reserva espaço sem saber qual formato está ativo. Fora das abas ela n�
 > `.tabs--chrome-hidden`) e consuma ela ali. `--bar-inset` tem de ficar constante para quem
 > rola: encolher um scroller no meio da rolagem faz o navegador corrigir o `scrollTop`, e o
 > conteúdo pula.
+>
+> ⚠️ Essa segunda variável **só é segura por causa da guarda em `onAnyScroll`**. A tira não
+> rola, mas divide a coluna flex com quem rola (um `<ion-footer>` é irmão do `<ion-content>`):
+> encolhê-la faz o scroller **crescer**, o `scrollTop` passa a exceder o novo máximo, e a
+> correção do navegador chega como um `scroll` de delta negativo. Lida como "o usuário subiu",
+> ela devolvia a barra, que encolhia o scroller de volta, e a inércia reabria o ciclo — a tela
+> tremia no fim da rolagem. A guarda separa os dois casos pela **altura visível do scroller**:
+> só o navegador a muda no meio de uma rolagem.
 
 ### Três armadilhas que custaram caro
 
@@ -133,6 +154,38 @@ canStart: () => ... && this.scrollEl.scrollTop === 0   // e o gesto arma com 5px
 `scrollTop === 0` e esse portão nunca fecha: no meio da lista, um arrasto de 5px para baixo
 vira puxar-para-atualizar. A saída é fechar o portão na mão, pelo `disabled` do refresher,
 enquanto o scroller de dentro não estiver no topo.
+
+### O que aparece quando você adicionar uma tela que preenche a altura
+
+Este starter só tem listas dentro das abas, e por isso três problemas ainda não existem aqui.
+Os três acordam juntos, no dia em que entrar uma tela que **preenche a altura** ou que **rola
+por dentro** (um calendário, um mapa, uma timeline). Estão listados com o conserto pronto
+porque descobrir cada um no aparelho custa caro:
+
+**1. `height: 100%` ignora os irmãos.** Uma tela que pede 100% da caixa de rolagem não sabe
+que alguém pode entrar acima dela (um filtro, um aviso). A soma passa da tela e o rodapé da
+sua tela cai para fora — silenciosamente. Use `min-height: 100%` (cresce) ou peça a **sobra**:
+
+```css
+.content-stack { display: flex; flex-direction: column; height: 100%; }
+.content-stack > .content-fill { flex: 1; min-height: 0; }
+```
+
+Só para quem preenche a altura. Uma lista quer o contrário — crescer com o conteúdo e deixar
+a página rolar —, e `flex: 1` com base zero a prenderia na sobra.
+
+**2. O `ion-refresher` arma no lugar errado.** O portão dele é
+`this.scrollEl.scrollTop === 0`, e `scrollEl` é o `.inner-scroll` do `ion-content`. Se quem
+rola é um filho, o `ion-content` fica eternamente em zero e o portão nunca fecha: um arrasto
+de 5px no meio da lista vira puxar-para-atualizar. Feche o portão na mão, pelo `disabled` do
+refresher, enquanto o scroller de dentro não estiver no topo.
+
+**3. Uma tira fixa no rodapé que devolve espaço faz a tela tremer.** Se a página desenhar uma
+tira no próprio rodapé e ela encolher quando a barra some, o quanto ainda dá para rolar
+encurta, o navegador corrige o `scrollTop` e essa correção é lida como "o usuário subiu" — a
+barra volta, a tira cresce, e a inércia reabre o ciclo. O `onAnyScroll` do `HomePage` já traz
+a guarda, que reancora quando o **máximo rolável** (`scrollHeight - clientHeight`) diminui; a
+tira consome `--bar-cover` (a variável que acompanha o esconder), não `--bar-inset`.
 
 ## 3. Rail em paisagem
 
