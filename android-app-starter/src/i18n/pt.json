@@ -203,7 +203,7 @@
     "testAlertInfo": "Alerta informativo",
     "testAlertMessage": "Este é um alerta de exemplo para teste.",
     "bottomBarFloating": "Barra inferior flutuante",
-    "bottomBarFloatingHint": "Solta sobre o conteúdo, em vez de encostada na borda"
+    "bottomBarFloatingHint": "Flutua sobre o conteúdo e some após 2,5s; encostada fica sempre visível"
   },
   "version": {
     "checkForUpdates": "Verificar atualizações",

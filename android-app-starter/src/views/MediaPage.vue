@@ -1,13 +1,13 @@
 <template>
   <ion-page>
-    <ion-header>
+    <ion-header data-bottom-bar-reveal="ignore">
       <ion-toolbar>
         <ion-title>{{ $t('media.title') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
-    <!-- `scroll-events` + `scrolls-under-bar`: ver TasksPage e docs/APP-CHROME-LAYOUT.md. -->
-    <ion-content class="ion-padding scrolls-under-bar" :scroll-events="true">
+    <!-- A página termina acima da barra flutuante. Ver docs/APP-CHROME-LAYOUT.md. -->
+    <ion-content class="ion-padding scrolls-under-bar">
       <section class="media-section">
         <h2>{{ $t('media.images') }}</h2>
         <ImageGallery

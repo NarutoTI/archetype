@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <ion-header>
+    <ion-header data-bottom-bar-reveal="ignore">
       <ion-toolbar>
         <ion-title>{{ $t('tasks.title') }}</ion-title>
         <ion-buttons slot="end">
@@ -11,9 +11,8 @@
       </ion-toolbar>
     </ion-header>
 
-    <!-- `scroll-events` + `scrolls-under-bar`: a moldura some ao rolar e o conteúdo termina
-         acima da barra flutuante. Ver docs/APP-CHROME-LAYOUT.md. -->
-    <ion-content class="ion-padding scrolls-under-bar" :scroll-events="true">
+    <!-- A lista termina acima da barra flutuante. Ver docs/APP-CHROME-LAYOUT.md. -->
+    <ion-content class="ion-padding scrolls-under-bar">
       <ion-refresher slot="fixed" @ionRefresh="refresh($event)">
         <ion-refresher-content />
       </ion-refresher>

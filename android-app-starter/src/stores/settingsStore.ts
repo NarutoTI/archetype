@@ -30,7 +30,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const language = ref<SupportedLocale>('pt');
   const theme = ref<ThemeOption>('system');
   const biometryEnabled = ref(false);
-  /** Barra inferior flutuante (pílula solta sobre o conteúdo). Padrão do app. */
+  /** Flutuante: sobrepõe o conteúdo e some sozinha. Encostada: fica sempre visível. */
   const bottomBarFloating = ref(true);
   const preferences = ref<AppPreferences>(normalizePreferences());
 

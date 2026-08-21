@@ -3,14 +3,16 @@
     <!-- Superfície neutra (Material 3): o primary fica nos acentos, não na faixa do topo.
          Era o único cabeçalho colorido do app, e destoava de todas as outras páginas.
          Ver docs/APP-CHROME-LAYOUT.md. -->
-    <ion-header :translucent="false">
+    <ion-header :translucent="false" data-bottom-bar-reveal="ignore">
       <ion-toolbar>
         <ion-title>{{ $t('common.menu') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
-    <!-- `scroll-events` + `scrolls-under-bar`: ver TasksPage e docs/APP-CHROME-LAYOUT.md. -->
-    <ion-content :fullscreen="false" :scroll-events="true" class="scrolls-under-bar">
+    <ion-content
+      :fullscreen="false"
+      :class="{ 'scrolls-under-bar': !bundleLabel && !appVersion }"
+    >
       <!-- Perfil -->
       <ion-item lines="full" class="user-profile-item">
         <ion-avatar slot="start">
@@ -44,8 +46,8 @@
           </ion-label>
         </ion-item>
 
-        <!-- Formato da barra inferior. Preferência do aparelho: acompanha a tela, não a
-             conta, e por isso sobrevive ao logout. Ver docs/APP-CHROME-LAYOUT.md. -->
+        <!-- Flutuante: some após 2,5s. Encostada: fica sempre visível. A preferência é do
+             aparelho e sobrevive ao logout. Ver docs/APP-CHROME-LAYOUT.md. -->
         <ion-item>
           <ion-icon :icon="tabletPortraitOutline" slot="start" color="primary" />
           <ion-label>
@@ -276,8 +278,13 @@
       />
     </ion-content>
 
-    <!-- Rodapé com a versão. 12 toques na linha abrem a troca do canal OTA local. -->
-    <ion-footer v-if="bundleLabel || appVersion">
+    <!-- A linha reserva a pílula enquanto ela aparece. O atributo impede que os 12 toques do
+         canal OTA devolvam a barra; um ancestral cobre toolbar, item e chip. -->
+    <ion-footer
+      v-if="bundleLabel || appVersion"
+      class="menu-version-footer"
+      data-bottom-bar-reveal="ignore"
+    >
       <ion-toolbar>
         <ion-item lines="none" @click="registerOtaTap" @contextmenu.prevent>
           <ion-label>{{ $t('version.label', { version: bundleLabel || appVersion }) }}</ion-label>
@@ -626,6 +633,12 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.menu-version-footer ion-toolbar {
+  /* A faixa volta ao conteúdo quando a barra some. Fora das abas a variável vale zero. */
+  padding-bottom: var(--bar-cover, 0px);
+  transition: padding-bottom 180ms ease;
+}
+
 .user-profile-item {
   --padding-top: 20px;
   --padding-bottom: 20px;

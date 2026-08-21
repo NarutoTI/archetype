@@ -44,17 +44,28 @@ continua valendo.
 
 ## 2. Formato flutuante (padrão)
 
-A barra é uma **pílula centralizada que flutua sobre o conteúdo** e some ao rolar. É o
-padrão; Menu → `settings.bottomBarFloating` desliga e devolve a barra encostada na borda. A
-preferência é **do aparelho** (chave `bottom-bar-floating`), sobrevive ao logout, e é lida no
-`loadBootSettings` — chegando depois do mount, quem escolheu a barra encostada vê a pílula
-aparecer e o conteúdo pular.
+A barra é uma **pílula centralizada que flutua sobre o conteúdo**. Cada toque ou nova
+rolagem a mostra; 2,5s depois ela sai de cena para devolver espaço. É o padrão atual. Menu →
+`settings.bottomBarFloating` desliga a ocultação automática e devolve a barra encostada,
+sempre visível.
+A preferência é **do aparelho** (chave `bottom-bar-floating`), sobrevive ao logout e é lida
+no `loadBootSettings` para decidir o layout do primeiro quadro.
+
+**Contrato futuro, ainda não implementado:** na web o padrão será encostado. No app, detectar
+um leitor de tela ativo também forçará o formato encostado e sempre visível. Hoje a preferência
+ainda nasce flutuante em todas as plataformas; não descreva essas duas regras como prontas até
+o código e os testes entrarem.
 
 ```css
 /* complemento exato da media query do rail — ver § 3 */
 @media not all and (orientation: landscape) and (max-height: 600px) {
   .tabs--floating {
     --bar-inset: calc(var(--bar-height) + var(--bar-gap) * 2);
+    --bar-cover: var(--bar-inset);
+  }
+
+  .tabs--floating.tabs--chrome-hidden {
+    --bar-cover: 0px;
   }
 
   .tabs--floating ion-tab-bar {
@@ -92,52 +103,93 @@ a pílula ainda é um.
 gestos são ~16–24px e quase não aparece; com os três botões são ~48px. Testar o formato
 flutuante exige aparelho ou simulador com barra de 3 botões.
 
-A variável mora no `<ion-tabs>` e **herda** para tudo que está dentro das abas, então a
-página reserva espaço sem saber qual formato está ativo. Fora das abas ela não existe e todo
-`var(…, 0px)` zera sozinho.
+As variáveis moram no `<ion-tabs>` e **herdam** para tudo que está dentro das abas, então a
+página reserva espaço sem saber qual formato está ativo. Fora das abas elas não existem e
+todo `var(…, 0px)` zera sozinho.
 
-> Se alguma página desenhar uma **tira fixa** no próprio rodapé (um segmento, uma linha de
-> versão), publique uma segunda variável que acompanhe o esconder (`--bar-cover`, zerada em
-> `.tabs--chrome-hidden`) e consuma ela ali. `--bar-inset` tem de ficar constante para quem
-> rola: encolher um scroller no meio da rolagem faz o navegador corrigir o `scrollTop`, e o
-> conteúdo pula.
->
-> ⚠️ Essa segunda variável **só é segura por causa da guarda em `onAnyScroll`**. A tira não
-> rola, mas divide a coluna flex com quem rola (um `<ion-footer>` é irmão do `<ion-content>`):
-> encolhê-la faz o scroller **crescer**, o `scrollTop` passa a exceder o novo máximo, e a
-> correção do navegador chega como um `scroll` de delta negativo. Lida como "o usuário subiu",
-> ela devolvia a barra, que encolhia o scroller de volta, e a inércia reabria o ciclo — a tela
-> tremia no fim da rolagem. A guarda separa os dois casos pela **altura visível do scroller**:
-> só o navegador a muda no meio de uma rolagem.
+Existem duas reservas porque elas servem a caixas diferentes:
 
-### Três armadilhas que custaram caro
+- `--bar-inset` fica **constante** enquanto a barra flutua e é usado por quem rola. Assim a
+  lista não muda de altura no meio da rolagem.
+- `--bar-cover` acompanha a barra e é usado por tiras fixas. No starter, a linha da versão no
+  Menu reserva essa faixa enquanto a pílula aparece e a devolve quando ela some.
+
+O rodapé da versão é condicional. Enquanto seus dados ainda não existem — ou se a leitura
+falhar — o Menu aplica `.scrolls-under-bar` ao próprio `ion-content`. Quando o rodapé monta,
+essa classe sai e `--bar-cover` assume a reserva, sem somar as duas faixas.
+
+Essa segunda variável já provocou tremor no app que originou o starter: a tira mudava de
+tamanho, o navegador corrigia o `scrollTop`, e o listener da barra interpretava a correção
+como rolagem do usuário. Hoje o ciclo é impossível por construção: a barra não escuta
+`scroll` nem `ionScroll`, portanto a correção de layout não consegue mostrá-la novamente.
+
+### Armadilhas que custaram caro
 
 **`contain: layout paint style` não é enfeite.** O `:host` do `ion-tab-bar` traz
 `contain: strict`, e o `size` dali dimensiona o elemento **como se não tivesse conteúdo** —
 com isso `width: fit-content` resolve para **zero**. Some no desktop; só quebra no aparelho.
 
-**`scroll` não é `composed`.** Quem rola o próprio `ion-content` rola o `.inner-scroll`
-dentro do shadow DOM, e esse evento nunca sai de lá. Por isso o HomePage ouve também
-`ionScroll` (evento do Stencil, `composed`), que o `ion-content` só emite com
-`scroll-events` ligado. **Toda tela de aba liga o atributo** — a falha é silenciosa (a tela
-rola, a barra fica parada) e sai mais barato ligar em todas.
+**A barra não escuta `scroll`.** A versão anterior ouvia `scroll` nativo e `ionScroll`, o que
+obrigava todas as páginas a ligar `scroll-events`. Isso também deixava correções automáticas
+de layout chegarem ao estado da barra. Agora a rolagem entra pela sequência física do dedo:
+quando o navegador assume o arrasto, ele envia `pointercancel`. Os quatro `ion-content`
+continuam rolando normalmente sem `scroll-events`; apenas deixam de emitir um evento que não
+tem mais consumidor.
 
-**A barra volta no `pointerup`, não no `pointerdown`.** Voltando no começo do toque, a pílula
-sobe embaixo do dedo e desloca o que estiver embaixo dela: o dedo pousa num controle e
-levanta sobre a aba que subiu no lugar. No fim do gesto os alvos já estão registrados, o
-clique vai para onde o usuário mirou, e o deslocamento acontece depois. `pointercancel` entra
-junto porque um arrasto que vira rolagem nem sempre termina em `pointerup`.
+**A barra nunca aparece no `pointerdown`.** No começo do toque, a contagem apenas pausa. Se a
+pílula subisse sob o dedo naquele instante, poderia mover o conteúdo e trocar o controle que
+recebe o fim do toque. Um toque revela no `pointerup`; uma rolagem revela no `pointercancel`,
+normalmente perto do começo.
 
-### E some sozinha depois de 2,5s parada
+### Cada gesto dá 2,5s à barra
 
-Além da rolagem, a barra sai de cena após `IDLE_HIDE_MS` sem sinal de vida. Guardas que
-existem por motivo: limiar de 10px (tremor de dedo parado faria a barra piscar), piso de 56px
-de `scrollTop` (sumir no primeiro milímetro é irritante), devolver a barra em toda troca de
-rota, e nada disso valer com a barra encostada.
+O contrato do formato flutuante é simples:
 
-⚠️ **O que isso custa:** quem fica parado olhando a tela perde a navegação até tocar. É
-deliberado — a barra cobre conteúdo, então some quando ninguém a está usando —, mas é o
-primeiro candidato a ajustar se o seu app tiver telas de leitura longa.
+> Um toque concluído ou o reconhecimento de uma nova rolagem mostra a barra, salvo em região
+> marcada. Esse sinal inicia uma contagem de 2,5s; ao final, somente o timer esconde a barra.
+
+| Sinal | Efeito |
+|---|---|
+| `pointerdown` | pausa a contagem; não mostra a barra |
+| `pointerup` fora de região marcada | mostra e recomeça os 2,5s |
+| `pointercancel` fora de região marcada | mostra e recomeça os 2,5s |
+| `pointerup` ou `pointercancel` dentro de região marcada | não mostra; se já estava visível, recomeça os 2,5s |
+| troca de rota ou desligar o formato flutuante | mostra e recomeça a regra adequada ao formato |
+| fim dos 2,5s | esconde somente no formato flutuante |
+
+**Pan** é simplesmente arrastar o dedo para deslocar o conteúdo. Quando o Chrome assume esse
+arrasto, normalmente envia `pointercancel` perto do começo e não envia `pointerup` depois.
+Por isso a barra pode sumir 2,5s mais tarde enquanto a mesma rolagem ainda continua. Isso é
+intencional: aumenta a área de leitura; um novo gesto a devolve.
+
+O ouvinte fica no documento, em captura, mas não chama `preventDefault` nem
+`stopPropagation`. Assim o mesmo toque que mostra a barra também abre o item tocado. Mostrar
+a barra sem querer é aceitável; não existe ação destrutiva e ela volta a sair sozinha.
+
+#### Regiões que não devolvem a barra
+
+`data-bottom-bar-reveal="ignore"` vai em um ancestral e vale para tudo dentro dele porque
+`composedPath()` sobe até a raiz, inclusive através dos componentes do Ionic. No starter:
+
+- os quatro cabeçalhos externos das abas;
+- o rodapé da versão no Menu, incluindo o gesto de 12 toques do canal OTA.
+
+Não marque o conteúdo: ele é a saída universal de toda tela. Também não repita o atributo nos
+filhos; marcar o `<ion-footer>` já cobre toolbar, item, rótulo e chip.
+
+#### Limites aceitos
+
+- Continuação do mesmo pan, inércia, roda do mouse e teclado não geram um novo sinal para a
+  barra. No app, um novo toque a devolve.
+- Em paisagem, o CSS mantém o rail visível mesmo que o timer deixe `chromeHidden` verdadeiro.
+  Ao voltar ao retrato, a pílula pode já estar escondida até o próximo gesto.
+- A barra visualmente escondida usa `transform`, `opacity` e `pointer-events: none`, mas ainda
+  pode ser anunciada por TalkBack ou receber foco. O modo flutuante aceita esse limite hoje.
+
+**Pendente de implementação:** na web, a barra nascerá encostada; no app, leitor de tela
+ativo forçará o formato encostado e sempre visível. Não use `inert` isoladamente: além de
+precisar de uma forma acessível de revelar a navegação, `chromeHidden` também pode ficar
+verdadeiro enquanto o rail de paisagem continua visível.
 
 ### O pull-to-refresh mora na mesma topologia
 
@@ -155,12 +207,12 @@ canStart: () => ... && this.scrollEl.scrollTop === 0   // e o gesto arma com 5px
 vira puxar-para-atualizar. A saída é fechar o portão na mão, pelo `disabled` do refresher,
 enquanto o scroller de dentro não estiver no topo.
 
-### O que aparece quando você adicionar uma tela que preenche a altura
+### O que observar ao adicionar uma tela que preenche a altura
 
-Este starter só tem listas dentro das abas, e por isso três problemas ainda não existem aqui.
-Os três acordam juntos, no dia em que entrar uma tela que **preenche a altura** ou que **rola
-por dentro** (um calendário, um mapa, uma timeline). Estão listados com o conserto pronto
-porque descobrir cada um no aparelho custa caro:
+As abas atuais usam o `ion-content` como rolador principal. Uma tela que **preenche a altura**
+ou **rola por dentro** (calendário, mapa, timeline) acrescenta os dois primeiros problemas
+abaixo. O terceiro já aparece no rodapé da versão e serve como exemplo para qualquer nova
+tira fixa.
 
 **1. `height: 100%` ignora os irmãos.** Uma tela que pede 100% da caixa de rolagem não sabe
 que alguém pode entrar acima dela (um filtro, um aviso). A soma passa da tela e o rodapé da
@@ -180,19 +232,15 @@ rola é um filho, o `ion-content` fica eternamente em zero e o portão nunca fec
 de 5px no meio da lista vira puxar-para-atualizar. Feche o portão na mão, pelo `disabled` do
 refresher, enquanto o scroller de dentro não estiver no topo.
 
-**3. Não faça a reserva acompanhar o esconder da barra.** É tentador: a tira de rodapé
-devolveria a faixa quando a barra sai de cena, em vez de deixar espaço morto. O app que
-originou este starter tentou, com uma segunda variável (`--bar-cover`, zerada em
-`.tabs--chrome-hidden`), e **voltou atrás depois de três rodadas de tremor**: encolher a tira
-redimensiona o vizinho, o navegador corrige a rolagem para caber, e essa correção é lida como
-gesto do usuário — que devolve a barra, e o ciclo recomeça a cada quadro. Duas guardas
-diferentes no `onAnyScroll` fecharam caminhos diferentes e o laço achou um terceiro, sem
-passar por evento de scroll nenhum.
+**3. Separe a reserva de quem rola da reserva de uma tira fixa.** Um scroller usa
+`--bar-inset` constante; mudar sua altura sob o dedo provoca salto. Uma tira fixa pode usar
+`--bar-cover`, que acompanha a pílula e devolve a faixa quando ela some. Foi o que o rodapé da
+versão passou a fazer.
 
-A regra que sobrou: **esconder a barra não pode alterar layout de ninguém.** A reserva
-(`--bar-inset`) é constante; o esconder é só `transform` e `opacity`, que não mexem em
-layout. O preço é a faixa ficar vazia enquanto a barra está fora de cena — que é exatamente
-onde ela estaciona.
+Mudar o tamanho da tira pode fazer o navegador corrigir a rolagem do irmão, mas isso sozinho
+não forma um ciclo. O tremor só volta se algum caminho alimentar essa correção de `scroll`
+de volta no estado da barra. Por isso a HomePage não deve voltar a ouvir `scroll` ou
+`ionScroll` para mostrar/esconder a navegação.
 
 ## 3. Rail em paisagem
 
@@ -261,9 +309,9 @@ mão" da [EDGE-TO-EDGE-SAFE-AREA.md](EDGE-TO-EDGE-SAFE-AREA.md).
 > importa se o app tiver um idioma RTL.
 
 Os três estados possíveis da barra (embaixo / rail / flutuante) são o **mesmo seletor** com
-corpos diferentes. Flutuante seria `position: absolute` + `border-radius` +
-`backdrop-filter`; ao sair do fluxo flex o `.tabs-inner` cresce sozinho, e o que passa a
-exigir decisão é o que fica coberto, não o CSS.
+corpos diferentes. Flutuante usa `position: absolute`, `border-radius` e sombra; ao sair do
+fluxo flex o `.tabs-inner` cresce sozinho, e o que passa a exigir decisão é o que fica
+coberto, não o CSS.
 
 ## 4. Superfície neutra (Material 3)
 
@@ -279,9 +327,17 @@ exportar (`warning`) mantém a cor porque ali ela informa; um cabeçalho de pág
 
 `tests/unit/views/HomePage.spec.ts` e `tests/unit/stores/settingsStore.spec.ts`.
 
-O comportamento (esconder ao rolar, inatividade, `pointerup`, preferência) é testado montando
-o componente. O resto é CSS que só existe no aparelho — girado, ou com a preferência ligada —
-e o jsdom não aplica CSS nenhum: esses invariantes são lidos do fonte do componente (`?raw`),
-o que é feio e é o único jeito de a próxima pessoa não reintroduzir sem aviso os bugs que
-custaram caro (eixo do flex, inset da direita, `contain: strict`, e a media query que separa
-a pílula do rail).
+O comportamento é testado montando o componente: `pointerup`, `pointercancel`, pausa no
+`pointerdown`, prazo exato de 2,5s, ação do mesmo toque, regiões ignoradas, troca de rota e
+formato encostado. Dois testes travam decisões estruturais: a HomePage registra os três
+ouvintes de ponteiro e nenhum de rolagem, e as páginas não ligam `scroll-events` apenas para
+a barra.
+
+O restante é CSS que só existe no aparelho — girado ou com a preferência ligada — e o jsdom
+não aplica media queries. Esses invariantes são lidos do fonte do componente (`?raw`): eixo
+do flex, insets, `contain: strict`, separação entre pílula e rail e as duas reservas
+`--bar-inset`/`--bar-cover`.
+
+O jsdom também não cria o `click` que um navegador gera depois do `pointerup`; o teste do
+mesmo toque despacha a sequência explicitamente. Ele prova que a moldura não cancela a ação,
+mas o hit-testing visual final continua sendo teste de aparelho.

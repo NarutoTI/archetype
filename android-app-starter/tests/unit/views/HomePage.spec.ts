@@ -83,31 +83,32 @@ describe('HomePage — formato da barra segue a preferência', () => {
 });
 
 /**
- * Esconder ao rolar: um ouvinte só, na fase de captura, em vez de um por tela. Evento de
- * scroll não borbulha, mas passa pela captura — então o documento vê a rolagem de qualquer
- * elemento do light DOM sem que nenhuma página declare nada.
+ * Mexeu, aparece. Depois de 2,5s, some.
+ *
+ * Os ouvintes ficam na fase de captura para enxergar o app inteiro sem cancelar a ação do
+ * elemento tocado e sem obrigar cada página a declarar o comportamento.
  */
-describe('HomePage — moldura some ao rolar', () => {
-  const scroller = () => {
-    const el = document.createElement('div');
-    document.body.appendChild(el);
-    return el;
+describe('HomePage — toque ou rolagem mostra; 2,5s depois some', () => {
+  const escondida = (wrapper: ReturnType<typeof mountHome>) =>
+    wrapper.find('.tabs').classes().includes('tabs--chrome-hidden');
+
+  const noCorpo = <T extends Element>(element: T): T => {
+    document.body.appendChild(element);
+    return element;
   };
 
-  const scrollTo = async (el: HTMLElement, top: number) => {
-    Object.defineProperty(el, 'scrollTop', { value: top, configurable: true });
-    el.dispatchEvent(new Event('scroll', { bubbles: false }));
+  /** O jsdom não implementa PointerEvent; o código só usa o tipo e o caminho do evento. */
+  const gestoEm = async (element: Element, type: 'pointerup' | 'pointercancel') => {
+    const event = new Event(type, { bubbles: true, composed: true, cancelable: true });
+    element.dispatchEvent(event);
     await nextTick();
+    return event;
   };
 
-  /** O que o `ion-content` emite: `scrollTop` no detail, não no alvo. */
-  const ionScrollTo = async (el: HTMLElement, top: number) => {
-    el.dispatchEvent(new CustomEvent('ionScroll', {
-      detail: { scrollTop: top },
-      bubbles: true,
-      composed: true,
-    }));
-    await nextTick();
+  const regiaoIgnorada = () => {
+    const region = noCorpo(document.createElement('div'));
+    region.setAttribute('data-bottom-bar-reveal', 'ignore');
+    return region;
   };
 
   beforeEach(() => {
@@ -116,94 +117,17 @@ describe('HomePage — moldura some ao rolar', () => {
     document.body.innerHTML = '';
   });
 
-  it('esconde ao descer e devolve ao subir', async () => {
-    const wrapper = mountHome();
-    const el = scroller();
-
-    await scrollTo(el, 400);
-    expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
-
-    await scrollTo(el, 300);
-    expect(wrapper.find('.tabs').classes()).not.toContain('tabs--chrome-hidden');
-
-    wrapper.unmount();
-  });
-
-  it('fica visível no topo, por menor que seja a rolagem', async () => {
-    const wrapper = mountHome();
-    const el = scroller();
-
-    await scrollTo(el, 40);
-    expect(wrapper.find('.tabs').classes()).not.toContain('tabs--chrome-hidden');
-
-    wrapper.unmount();
-  });
-
-  it('ignora tremor de dedo parado', async () => {
-    const wrapper = mountHome();
-    const el = scroller();
-
-    await scrollTo(el, 400);
-    expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
-
-    // Menor que SCROLL_DELTA_PX: sem o limiar a barra piscaria com o dedo parado.
-    await scrollTo(el, 396);
-    expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
-
-    wrapper.unmount();
-  });
-
-  it('vê a rolagem que acontece dentro do shadow DOM, via ionScroll', async () => {
-    // O `scroll` nativo do `.inner-scroll` não é `composed` e nunca sai do shadow: sem o
-    // `ionScroll` (e sem `scroll-events` na página) a tela rolava com a barra parada.
-    const wrapper = mountHome();
-    const el = scroller();
-
-    await ionScrollTo(el, 400);
-    expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
-
-    wrapper.unmount();
-  });
-
-  /**
-   * Uma tira de rodapé que devolve o espaço quando a barra some não rola, mas divide a coluna
-   * flex com quem rola: encolhê-la faz o scroller crescer, o navegador corrige o `scrollTop`
-   * para caber no novo máximo, e essa correção era lida como "o usuário subiu" — a barra
-   * voltava e a inércia recomeçava tudo, com a tela tremendo no fim da rolagem.
-   */
-  it('não esconde nada com a barra encostada', async () => {
-    const { useSettingsStore } = await import('@/stores/settingsStore');
-    useSettingsStore().bottomBarFloating = false;
-
-    const wrapper = mountHome();
-    const el = scroller();
-
-    await scrollTo(el, 400);
-    expect(wrapper.find('.tabs').classes()).not.toContain('tabs--chrome-hidden');
-
-    wrapper.unmount();
-  });
-
-  it('sai de cena sozinha depois de um tempo parada, e volta ao fim do toque', async () => {
+  it('volta ao fim de um toque', async () => {
     vi.useFakeTimers();
     try {
       const wrapper = mountHome();
-      expect(wrapper.find('.tabs').classes()).not.toContain('tabs--chrome-hidden');
-
-      vi.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(2500);
       await nextTick();
-      expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
+      expect(escondida(wrapper)).toBe(true);
 
-      // O começo do toque NÃO devolve a barra: ela subiria embaixo do dedo no meio do gesto,
-      // deslocando o que estiver embaixo — o dedo pousa num controle e levanta sobre a aba
-      // que subiu no lugar dele. Só o fim do gesto devolve, com o alvo do clique decidido.
-      document.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-      await nextTick();
-      expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
-
-      document.dispatchEvent(new Event('pointerup', { bubbles: true }));
-      await nextTick();
-      expect(wrapper.find('.tabs').classes()).not.toContain('tabs--chrome-hidden');
+      const area = noCorpo(document.createElement('div'));
+      await gestoEm(area, 'pointerup');
+      expect(escondida(wrapper)).toBe(false);
 
       wrapper.unmount();
     } finally {
@@ -211,18 +135,306 @@ describe('HomePage — moldura some ao rolar', () => {
     }
   });
 
-  it('um arrasto que vira rolagem também devolve a barra', async () => {
+  it('o início da rolagem devolve a barra quando o navegador manda `pointercancel`', async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = mountHome();
+      vi.advanceTimersByTime(2500);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(true);
+
+      const area = noCorpo(document.createElement('div'));
+      area.dispatchEvent(new Event('pointerdown', { bubbles: true, composed: true }));
+      await gestoEm(area, 'pointercancel');
+      expect(escondida(wrapper)).toBe(false);
+
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('o `pointercancel` inicia os 2,5s sem esperar um `pointerup`', async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = mountHome();
+      vi.advanceTimersByTime(2500);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(true);
+
+      const area = noCorpo(document.createElement('div'));
+      area.dispatchEvent(new Event('pointerdown', { bubbles: true, composed: true }));
+      await gestoEm(area, 'pointercancel');
+      expect(escondida(wrapper)).toBe(false);
+
+      vi.advanceTimersByTime(2499);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(false);
+
+      vi.advanceTimersByTime(1);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(true);
+
+      area.dispatchEvent(new Event('pointerdown', { bubbles: true, composed: true }));
+      await gestoEm(area, 'pointercancel');
+      expect(escondida(wrapper)).toBe(false);
+
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('o toque que devolve a barra também conclui o `click` do item', async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = mountHome();
+      vi.advanceTimersByTime(2500);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(true);
+
+      const recebeuPointerUp = vi.fn();
+      const abriu = vi.fn();
+      const item = noCorpo(document.createElement('button'));
+      item.addEventListener('pointerup', recebeuPointerUp);
+      item.addEventListener('click', abriu);
+
+      const inicio = new Event('pointerdown', { bubbles: true, composed: true, cancelable: true });
+      const fim = new Event('pointerup', { bubbles: true, composed: true, cancelable: true });
+      item.dispatchEvent(inicio);
+      item.dispatchEvent(fim);
+      item.click();
+      await nextTick();
+
+      expect(inicio.defaultPrevented).toBe(false);
+      expect(fim.defaultPrevented).toBe(false);
+      expect(recebeuPointerUp).toHaveBeenCalledTimes(1);
+      expect(abriu).toHaveBeenCalledTimes(1);
+      expect(escondida(wrapper)).toBe(false);
+
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('eventos de rolagem isolados não devolvem a barra', async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = mountHome();
+      vi.advanceTimersByTime(2500);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(true);
+
+      const area = noCorpo(document.createElement('div'));
+      area.dispatchEvent(new Event('scroll'));
+      area.dispatchEvent(new CustomEvent('ionScroll', {
+        detail: { scrollTop: 100 },
+        bubbles: true,
+        composed: true,
+      }));
+      await nextTick();
+
+      expect(escondida(wrapper)).toBe(true);
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('registra os três ouvintes de ponteiro e nenhum de rolagem', () => {
+    const addEventListener = vi.spyOn(document, 'addEventListener');
+    const wrapper = mountHome();
+    const eventTypes = addEventListener.mock.calls.map(([type]) => type);
+
+    expect(eventTypes).toContain('pointerdown');
+    expect(eventTypes).toContain('pointerup');
+    expect(eventTypes).toContain('pointercancel');
+    expect(eventTypes).not.toContain('scroll');
+    expect(eventTypes).not.toContain('ionScroll');
+
+    wrapper.unmount();
+    addEventListener.mockRestore();
+  });
+
+  it('fica visível por 2,5s depois da montagem', async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = mountHome();
+
+      vi.advanceTimersByTime(2499);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(false);
+
+      vi.advanceTimersByTime(1);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(true);
+
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('o `pointerdown` segura a contagem até o `pointerup`', async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = mountHome();
+      const area = noCorpo(document.createElement('div'));
+
+      vi.advanceTimersByTime(2400);
+      area.dispatchEvent(new Event('pointerdown', { bubbles: true, composed: true }));
+      vi.advanceTimersByTime(5000);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(false);
+
+      await gestoEm(area, 'pointerup');
+      vi.advanceTimersByTime(2499);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(false);
+
+      vi.advanceTimersByTime(1);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(true);
+
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    ['toque', 'pointerup' as const],
+    ['rolagem', 'pointercancel' as const],
+  ])('região marcada não devolve a barra — nem por %s', async (_name, type) => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = mountHome();
+      vi.advanceTimersByTime(2500);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(true);
+
+      const region = regiaoIgnorada();
+      const recebeu = vi.fn();
+      region.addEventListener(type, recebeu);
+      region.dispatchEvent(new Event('pointerdown', { bubbles: true, composed: true }));
+      const event = await gestoEm(region, type);
+
+      expect(recebeu).toHaveBeenCalledTimes(1);
+      expect(event.defaultPrevented).toBe(false);
+      expect(escondida(wrapper)).toBe(true);
+
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('o toque numa região marcada conclui o `click` sem devolver a barra', async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = mountHome();
+      vi.advanceTimersByTime(2500);
+      await nextTick();
+
+      const agiu = vi.fn();
+      const item = document.createElement('button');
+      item.addEventListener('click', agiu);
+      regiaoIgnorada().appendChild(item);
+
+      const inicio = new Event('pointerdown', { bubbles: true, composed: true, cancelable: true });
+      const fim = new Event('pointerup', { bubbles: true, composed: true, cancelable: true });
+      item.dispatchEvent(inicio);
+      item.dispatchEvent(fim);
+      item.click();
+      await nextTick();
+
+      expect(inicio.defaultPrevented).toBe(false);
+      expect(fim.defaultPrevented).toBe(false);
+      expect(agiu).toHaveBeenCalledTimes(1);
+      expect(escondida(wrapper)).toBe(true);
+
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a marca vale para os descendentes, não só para o elemento marcado', async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = mountHome();
+      vi.advanceTimersByTime(2500);
+      await nextTick();
+
+      const child = document.createElement('button');
+      regiaoIgnorada().appendChild(child);
+      await gestoEm(child, 'pointerup');
+
+      expect(escondida(wrapper)).toBe(true);
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('região marcada dá 2,5s completos à barra que já está visível', async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = mountHome();
+      const region = regiaoIgnorada();
+
+      vi.advanceTimersByTime(2400);
+      region.dispatchEvent(new Event('pointerdown', { bubbles: true, composed: true }));
+      await gestoEm(region, 'pointerup');
+
+      vi.advanceTimersByTime(2499);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(false);
+
+      vi.advanceTimersByTime(1);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(true);
+
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('um elemento fora da região marcada continua devolvendo a barra', async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = mountHome();
+      vi.advanceTimersByTime(2500);
+      await nextTick();
+
+      regiaoIgnorada();
+      const content = noCorpo(document.createElement('button'));
+      await gestoEm(content, 'pointerup');
+
+      expect(escondida(wrapper)).toBe(false);
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('encostada, permanece visível e não arma a contagem', async () => {
+    const { useSettingsStore } = await import('@/stores/settingsStore');
+    useSettingsStore().bottomBarFloating = false;
+
     vi.useFakeTimers();
     try {
       const wrapper = mountHome();
       vi.advanceTimersByTime(5000);
       await nextTick();
-      expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
+      expect(escondida(wrapper)).toBe(false);
 
-      // O navegador assume o gesto e o `pointerup` nunca chega: só o `pointercancel`.
       document.dispatchEvent(new Event('pointercancel', { bubbles: true }));
+      vi.advanceTimersByTime(5000);
       await nextTick();
-      expect(wrapper.find('.tabs').classes()).not.toContain('tabs--chrome-hidden');
+      expect(escondida(wrapper)).toBe(false);
 
       wrapper.unmount();
     } finally {
@@ -230,17 +442,24 @@ describe('HomePage — moldura some ao rolar', () => {
     }
   });
 
-  it('encostada, não some por inatividade', async () => {
+  it('desligar o formato flutuante devolve a barra escondida e cancela a contagem', async () => {
     const { useSettingsStore } = await import('@/stores/settingsStore');
-    useSettingsStore().bottomBarFloating = false;
+    const settings = useSettingsStore();
 
     vi.useFakeTimers();
     try {
       const wrapper = mountHome();
+      vi.advanceTimersByTime(2500);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(true);
+
+      settings.bottomBarFloating = false;
+      await nextTick();
+      expect(escondida(wrapper)).toBe(false);
+
       vi.advanceTimersByTime(5000);
       await nextTick();
-
-      expect(wrapper.find('.tabs').classes()).not.toContain('tabs--chrome-hidden');
+      expect(escondida(wrapper)).toBe(false);
 
       wrapper.unmount();
     } finally {
@@ -248,34 +467,66 @@ describe('HomePage — moldura some ao rolar', () => {
     }
   });
 
-  it('tela nova nunca começa sem navegação', async () => {
-    const wrapper = mountHome();
-    const el = scroller();
+  it('uma rota nova mostra a barra e recomeça os 2,5s', async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = mountHome();
+      vi.advanceTimersByTime(2500);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(true);
 
-    await scrollTo(el, 400);
-    expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
+      hoisted.route.path = '/tabs/menu';
+      await nextTick();
+      expect(escondida(wrapper)).toBe(false);
 
-    hoisted.route.path = '/tabs/menu';
-    await wrapper.vm.$nextTick();
-    expect(wrapper.find('.tabs').classes()).not.toContain('tabs--chrome-hidden');
+      vi.advanceTimersByTime(2499);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(false);
 
-    wrapper.unmount();
+      vi.advanceTimersByTime(1);
+      await nextTick();
+      expect(escondida(wrapper)).toBe(true);
+
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  /**
-   * O teste do `ionScroll` acima dispara o evento na mão e por isso não diz nada sobre quem o
-   * emite — e o `ion-content` só emite com `scroll-events` ligado. Sem o atributo, a tela
-   * rola com a barra parada, em silêncio. Não dá para verificar montando as telas (o jsdom
-   * não roda o Ionic), então o atributo é conferido no fonte de cada aba.
-   */
   it.each([
     ['TasksPage', tasksPageSource],
     ['MediaPage', mediaPageSource],
     ['NotificationsPage', notificationsPageSource],
     ['MenuView', menuViewSource],
-  ])('%s liga scroll-events e reserva o espaço da pílula', (_name, source) => {
-    expect(source).toMatch(/<ion-content[^>]*:scroll-events="true"/);
+  ])('%s não liga scroll-events só para controlar a barra', (_name, source) => {
+    expect(source).not.toMatch(/scroll-events/);
+  });
+
+  it.each([
+    ['TasksPage', tasksPageSource],
+    ['MediaPage', mediaPageSource],
+    ['NotificationsPage', notificationsPageSource],
+  ])('%s reserva o espaço da pílula no conteúdo rolável', (_name, source) => {
     expect(source).toMatch(/<ion-content[^>]*scrolls-under-bar/);
+  });
+
+  it.each([
+    ['TasksPage', tasksPageSource],
+    ['MediaPage', mediaPageSource],
+    ['NotificationsPage', notificationsPageSource],
+    ['MenuView', menuViewSource],
+  ])('%s marca o cabeçalho externo como região ignorada', (_name, source) => {
+    expect(source).toMatch(/<ion-header[^>]*data-bottom-bar-reveal="ignore"/);
+  });
+
+  it('marca uma vez o rodapé da versão e não repete o atributo nos filhos', () => {
+    expect(menuViewSource).toMatch(
+      /<ion-footer[^>]*data-bottom-bar-reveal="ignore"/,
+    );
+    expect(menuViewSource.match(/data-bottom-bar-reveal="ignore"/g) ?? []).toHaveLength(2);
+    expect(menuViewSource).toMatch(
+      /<ion-content[^>]*:class="\{ 'scrolls-under-bar': !bundleLabel && !appVersion \}"/,
+    );
   });
 });
 
@@ -364,11 +615,20 @@ describe('HomePage — moldura da barra inferior', () => {
     // existe flutuando — encostada, todo `var(…, 0px)` do app zera sozinho.
     const floatingVars = homePageSource.match(/\.tabs--floating \{[^}]*\}/)?.[0] ?? '';
     expect(floatingVars).toMatch(/--bar-inset:/);
+    expect(floatingVars).toMatch(/--bar-cover:\s*var\(--bar-inset\)/);
     expect(homePageSource.match(/--bar-inset:/g) ?? []).toHaveLength(1);
+
+    const hiddenVars =
+      homePageSource.match(/\.tabs--floating\.tabs--chrome-hidden \{[^}]*\}/)?.[0] ?? '';
+    expect(hiddenVars).toMatch(/--bar-cover:\s*0px/);
+    expect(hiddenVars).not.toMatch(/--bar-inset/);
+    expect(menuViewSource).toMatch(
+      /\.menu-version-footer ion-toolbar \{[\s\S]*?padding-bottom:\s*var\(--bar-cover, 0px\)/,
+    );
   });
 
   it('centraliza a pílula por margem automática, não por transform', () => {
-    // O transform já é do esconder-ao-rolar; somar a centralização ali deixaria a saída da
+    // O transform já é do esconder; somar a centralização ali deixaria a saída da
     // pílula dependente da conta de centro.
     expect(floatingBar).toMatch(/inset-inline:\s*0/);
     expect(floatingBar).toMatch(/margin-inline:\s*auto/);
@@ -382,9 +642,9 @@ describe('HomePage — moldura da barra inferior', () => {
     expect(floatingBar).toMatch(/width:\s*fit-content/);
   });
 
-  it('esconde a barra ao rolar, e só no formato flutuante', () => {
-    // Encostada, a barra ocupa espaço no fluxo: escondê-la exigiria refazer o layout a cada
-    // scroll. O seletor exige as duas classes justamente para isso.
+  it('só deixa a barra sair de cena no formato flutuante', () => {
+    // Encostada, a barra ocupa espaço no fluxo e precisa ficar sempre visível. O seletor
+    // exige as duas classes justamente para isso.
     const hidden = homePageSource.match(
       /\.tabs--floating\.tabs--chrome-hidden ion-tab-bar \{[^}]*\}/
     )?.[0] ?? '';
@@ -397,7 +657,7 @@ describe('HomePage — moldura da barra inferior', () => {
     // Ordem no arquivo NÃO resolve isto: o bloco de paisagem seleciona `ion-tab-bar` cru
     // (0,0,1) e perde para `.tabs--floating ion-tab-bar` (0,1,1) — media query não soma
     // especificidade. Sem a separação, o rail herdava `fit-content`, `margin-inline: auto` e
-    // o `translateY` do esconder-ao-rolar: uma pílula deitada que sumia sozinha e levava a
+    // o `translateY` do esconder: uma pílula deitada que sumia sozinha e levava a
     // navegação junto.
     const style = homePageSource.slice(homePageSource.indexOf('<style scoped>'));
     const start = style.indexOf(FLOATING_QUERY);

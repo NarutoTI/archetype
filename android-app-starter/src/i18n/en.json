@@ -203,7 +203,7 @@
     "testAlertInfo": "Info alert",
     "testAlertMessage": "This is a sample alert for testing.",
     "bottomBarFloating": "Floating bottom bar",
-    "bottomBarFloatingHint": "Detached over the content instead of pinned to the edge"
+    "bottomBarFloatingHint": "Floats over content and hides after 2.5 seconds; docked stays visible"
   },
   "version": {
     "checkForUpdates": "Check for updates",

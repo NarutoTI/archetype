@@ -53,22 +53,20 @@ import { useSettingsStore } from '@/stores/settingsStore';
 const route = useRoute();
 const settingsStore = useSettingsStore();
 
-/** Movimento mínimo para reagir. Sem isto, o tremor do dedo parado faz a barra piscar. */
-const SCROLL_DELTA_PX = 10;
-
-/**
- * Abaixo disto a barra fica sempre visível: no topo da lista não há o que ganhar
- * escondendo, e some o caso irritante de a barra sumir no primeiro milímetro de rolagem.
- */
-const ALWAYS_VISIBLE_ABOVE_PX = 56;
-
 /** Tempo parado até a barra sair de cena sozinha. */
 const IDLE_HIDE_MS = 2500;
 
 /** Barra fora de cena (só no formato flutuante — ver o CSS). */
 const chromeHidden = ref(false);
-let lastScrollTop = 0;
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Marca uma região que não deve devolver a barra.
+ *
+ * O atributo vai no ancestral e vale para tudo dentro dele, inclusive componentes do Ionic.
+ * Assim cada tela escolhe regiões concretas, sem a HomePage precisar conhecê-la.
+ */
+const REVEAL_IGNORE_ATTR = 'data-bottom-bar-reveal';
 
 const clearIdleTimer = () => {
   if (idleTimer === null) return;
@@ -76,92 +74,81 @@ const clearIdleTimer = () => {
   idleTimer = null;
 };
 
-/**
- * Mostra a barra e reinicia a contagem de inatividade. Chamada por qualquer sinal de que o
- * usuário está ali: toque, arrasto, rolagem para cima, troca de tela.
- */
-const showChrome = () => {
-  chromeHidden.value = false;
+/** Recomeça a contagem. Só flutuando: encostada, a barra nunca sai de cena. */
+const armIdleTimer = () => {
   clearIdleTimer();
   if (!settingsStore.bottomBarFloating) return;
   idleTimer = setTimeout(() => { chromeHidden.value = true; }, IDLE_HIDE_MS);
 };
 
-const hideChrome = () => {
+/**
+ * Mostra a barra e recomeça a contagem.
+ *
+ * É o único caminho que a mostra, assim como o fim da contagem é o único que a esconde.
+ * Em resumo: mexeu, aparece; depois de 2,5s, some.
+ */
+const showChrome = () => {
+  chromeHidden.value = false;
+  armIdleTimer();
+};
+
+/** A região tocada pediu para não mexer na barra? */
+const ignoresReveal = (event: Event): boolean =>
+  event
+    .composedPath()
+    .some((node) => node instanceof Element && node.getAttribute(REVEAL_IGNORE_ATTR) === 'ignore');
+
+/**
+ * Mostra a barra no fim de um toque ou no início de uma rolagem.
+ *
+ * - `pointerup`: o dedo terminou o toque.
+ * - `pointercancel`: o navegador assumiu o arrasto para rolar. Os 2,5s começam aqui, então a
+ *   barra pode sumir durante uma rolagem longa; outro gesto a mostra novamente.
+ *
+ * A barra não usa `scroll`, pois o navegador também dispara esse evento ao ajustar o layout.
+ * O evento não é cancelado: o mesmo toque abre o item e mostra a barra.
+ */
+const onPointerEnd = (event: Event) => {
+  if (!settingsStore.bottomBarFloating) return;
+
+  if (ignoresReveal(event)) {
+    // Não revela, mas solta a contagem que o `pointerdown` segurou.
+    if (!chromeHidden.value) armIdleTimer();
+    return;
+  }
+
+  showChrome();
+};
+
+/**
+ * Pausa a contagem quando o dedo encosta na tela.
+ *
+ * Isso evita que a barra suma no meio de um toque, mova o conteúdo e faça o dedo terminar
+ * sobre outro controle. A contagem recomeça no `pointerup` ou no `pointercancel`. Se a barra
+ * já estiver escondida, não há contagem para pausar.
+ */
+const onPointerDown = () => {
+  if (chromeHidden.value) return;
   clearIdleTimer();
-  chromeHidden.value = true;
 };
 
-/**
- * `scrollTop` da rolagem, venha ela de onde vier.
- *
- * São **duas** origens porque o `scroll` nativo não é `composed`: ele não sai do shadow DOM.
- * Quem rola um elemento do light DOM é visto pela captura no documento; quem rola o próprio
- * `ion-content` rola o `.inner-scroll` de dentro do shadow, e só aparece pelo `ionScroll` —
- * evento do Stencil, esse sim `composed`, e que exige `scroll-events` ligado no
- * `ion-content`. Toda tela de aba liga o atributo: é mais barato que descobrir uma por uma
- * que a barra ficou parada, porque a falha é silenciosa (a tela rola, nada quebra).
- */
-const scrollTopOf = (event: Event): number | null => {
-  const detail = (event as CustomEvent<{ scrollTop?: number }>).detail;
-  if (detail && typeof detail.scrollTop === 'number') return detail.scrollTop;
-
-  const target = event.target as HTMLElement | null;
-  return target && typeof target.scrollTop === 'number' ? target.scrollTop : null;
-};
-
-const onAnyScroll = (event: Event) => {
-  if (!settingsStore.bottomBarFloating) return;
-
-  const top = scrollTopOf(event);
-  if (top === null) return;
-
-  const delta = top - lastScrollTop;
-  if (Math.abs(delta) < SCROLL_DELTA_PX) return;
-
-  lastScrollTop = top;
-  if (delta > 0 && top > ALWAYS_VISIBLE_ABOVE_PX) hideChrome();
-  else showChrome();
-};
-
-/**
- * Toque em qualquer lugar traz a barra de volta — inclusive o fim de um arrasto.
- *
- * É o **fim** do gesto (`pointerup`), e não o começo. Voltando no `pointerdown`, a pílula
- * sobe embaixo do dedo no meio do toque, e qualquer tira que a página desenhe no rodapé se
- * desloca junto: o dedo pousa num controle e levanta sobre a aba que subiu no lugar dele.
- * No fim do gesto o alvo do clique já está decidido.
- *
- * `pointercancel` entra junto porque um arrasto que vira rolagem nem sempre termina em
- * `pointerup`.
- */
-const onAnyPointerEnd = () => {
-  if (!settingsStore.bottomBarFloating) return;
-  showChrome();
-};
-
-const resetChrome = () => {
-  lastScrollTop = 0;
-  showChrome();
-};
+const resetChrome = () => showChrome();
 
 // Tela nova nunca começa sem navegação, e desligar a preferência devolve a barra na hora.
 watch(() => route.path, resetChrome);
 watch(() => settingsStore.bottomBarFloating, resetChrome);
 
 onMounted(() => {
-  document.addEventListener('scroll', onAnyScroll, true);
-  document.addEventListener('ionScroll', onAnyScroll, true);
-  document.addEventListener('pointerup', onAnyPointerEnd, true);
-  document.addEventListener('pointercancel', onAnyPointerEnd, true);
+  document.addEventListener('pointerdown', onPointerDown, true);
+  document.addEventListener('pointerup', onPointerEnd, true);
+  document.addEventListener('pointercancel', onPointerEnd, true);
   showChrome();
 });
 
 onBeforeUnmount(() => {
-  document.removeEventListener('scroll', onAnyScroll, true);
-  document.removeEventListener('ionScroll', onAnyScroll, true);
-  document.removeEventListener('pointerup', onAnyPointerEnd, true);
-  document.removeEventListener('pointercancel', onAnyPointerEnd, true);
+  document.removeEventListener('pointerdown', onPointerDown, true);
+  document.removeEventListener('pointerup', onPointerEnd, true);
+  document.removeEventListener('pointercancel', onPointerEnd, true);
   clearIdleTimer();
 });
 </script>
@@ -190,7 +177,7 @@ ion-tab-button {
    Precisa ser uma media query, e não a ordem no arquivo: o bloco de paisagem seleciona
    `ion-tab-bar` cru (0,0,1) e perderia para `.tabs--floating ion-tab-bar` (0,1,1) — media
    query não soma especificidade. Sem a separação, com o flutuante ligado (o padrão), o rail
-   herdaria `width: fit-content`, `margin-inline: auto` e o `translateY` do esconder-ao-rolar:
+   herdaria `width: fit-content`, `margin-inline: auto` e o `translateY` usado para esconder:
    viraria uma pílula deitada que some sozinha depois da inatividade, levando a navegação
    junto.
 
@@ -206,17 +193,21 @@ ion-tab-button {
      exatamente o que um formato flutuante não deve parecer.
 
      Quem rola termina acima da pílula por `--bar-inset`, consumido uma vez em
-     `theme/global.css` (a classe `.scrolls-under-bar`). Uma tela que preencha a altura sem
-     rolar fica com o canto de baixo debaixo da pílula: é o preço do formato.
-
-     Se alguma página desenhar uma tira fixa no próprio rodapé, publique aqui uma segunda
-     variável que acompanhe o esconder (`--bar-cover`, zerada em `.tabs--chrome-hidden`) e
-     consuma ela ali. `--bar-inset` tem de ficar **constante** para quem rola: encolher um
-     scroller no meio da rolagem faz o navegador corrigir o `scrollTop`, e o conteúdo pula. */
+     `theme/global.css` (a classe `.scrolls-under-bar`). A linha da versão no Menu usa
+     `--bar-cover`: reserva a mesma faixa enquanto a barra aparece e a devolve quando ela
+     some. `--bar-inset` continua constante para não redimensionar uma lista durante a
+     rolagem. */
   .tabs--floating {
     --bar-height: 48px;
     --bar-gap: 10px;
     --bar-inset: calc(var(--bar-height) + var(--bar-gap) * 2);
+    --bar-cover: var(--bar-inset);
+  }
+
+  /* A reserva da tira fixa acompanha a barra. Como a barra não reage ao evento `scroll`,
+     uma correção de layout do navegador não consegue mostrá-la nem reiniciar um tremor. */
+  .tabs--floating.tabs--chrome-hidden {
+    --bar-cover: 0px;
   }
 
   /* O inset do sistema volta para a página — e **só** ele.
@@ -239,7 +230,7 @@ ion-tab-button {
     inset-block-end: calc(var(--bar-gap) + var(--ion-safe-area-bottom, 0px));
     /* Centralizada: as duas insets em zero + `margin-inline: auto` sobre uma largura de
        conteúdo. Preferido a `left: 50%` + `translateX(-50%)` porque o transform já é do
-       esconder-ao-rolar — somar os dois deixaria a saída da pílula dependente da conta de
+       esconder — somar os dois deixaria a saída da pílula dependente da conta de
        centralização. */
     inset-inline: 0;
     width: fit-content;
@@ -258,10 +249,9 @@ ion-tab-button {
     transition: transform 180ms ease, opacity 180ms ease;
   }
 
-  /* Sai de cena ao rolar para baixo, volta ao rolar para cima — é o que faz o formato
-     flutuante se pagar: a pílula cobre o conteúdo, mas some justamente quando o conteúdo é o
-     que importa. Só aqui: encostada, a barra ocupa espaço no fluxo, e escondê-la exigiria
-     refazer o layout a cada scroll. */
+  /* A barra flutuante sai de cena após 2,5s e volta com um toque ou uma nova rolagem. Numa
+     rolagem longa, pode sumir antes de o dedo sair; isso é intencional e libera mais espaço.
+     A barra encostada permanece visível porque faz parte do layout. */
   .tabs--floating.tabs--chrome-hidden ion-tab-bar {
     transform: translateY(calc(100% + var(--bar-gap) + var(--ion-safe-area-bottom, 0px)));
     opacity: 0;

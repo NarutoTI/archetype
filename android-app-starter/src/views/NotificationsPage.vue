@@ -1,13 +1,13 @@
 <template>
   <ion-page>
-    <ion-header>
+    <ion-header data-bottom-bar-reveal="ignore">
       <ion-toolbar>
         <ion-title>{{ $t('notifications.title') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
-    <!-- `scroll-events` + `scrolls-under-bar`: ver TasksPage e docs/APP-CHROME-LAYOUT.md. -->
-    <ion-content class="ion-padding scrolls-under-bar" :scroll-events="true">
+    <!-- A lista termina acima da barra flutuante. Ver docs/APP-CHROME-LAYOUT.md. -->
+    <ion-content class="ion-padding scrolls-under-bar">
       <ion-list inset>
         <ion-item button @click="scheduleTest">
           <ion-icon :icon="alarmOutline" slot="start" color="primary" />
