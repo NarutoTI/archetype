@@ -68,8 +68,6 @@ const IDLE_HIDE_MS = 2500;
 /** Barra fora de cena (só no formato flutuante — ver o CSS). */
 const chromeHidden = ref(false);
 let lastScrollTop = 0;
-/** Quanto ainda dava para rolar na última leitura — ver `onAnyScroll`. */
-let lastMaxScroll = 0;
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
 const clearIdleTimer = () => {
@@ -117,32 +115,6 @@ const onAnyScroll = (event: Event) => {
 
   const top = scrollTopOf(event);
   if (top === null) return;
-
-  /**
-   * Rolagem que o **navegador** fez, não o dedo, não conta.
-   *
-   * Vale para qualquer tira que a página desenhe no rodapé e devolva o espaço quando a barra
-   * some. Encolher a tira encurta o quanto ainda dá para rolar, o `scrollTop` passa a exceder
-   * esse novo máximo, e o navegador o corrige — correção que chega aqui como um `scroll` de
-   * delta negativo. Lida como "o usuário subiu", ela devolvia a barra, que encolhia de volta,
-   * e a inércia reabria o ciclo: a tela tremia no fim da rolagem.
-   *
-   * O sinal certo é o **máximo rolável** (`scrollHeight - clientHeight`) ter **diminuído**,
-   * porque é exatamente essa a condição que força a correção. Ele cobre as duas formas de a
-   * tira mexer no layout: o scroller **crescer** (a tira era irmã dele na coluna) e o
-   * conteúdo **encurtar** (a tira faz parte do que rola).
-   *
-   * Diminuir é o único lado perigoso: crescer nunca força correção. Por isso lista que carrega
-   * mais itens ao rolar continua escondendo a barra normalmente.
-   */
-  const target = event.target as HTMLElement | null;
-  const maxScroll = Math.max(0, (target?.scrollHeight ?? 0) - (target?.clientHeight ?? 0));
-  if (maxScroll < lastMaxScroll) {
-    lastMaxScroll = maxScroll;
-    lastScrollTop = top;
-    return;
-  }
-  lastMaxScroll = maxScroll;
 
   const delta = top - lastScrollTop;
   if (Math.abs(delta) < SCROLL_DELTA_PX) return;

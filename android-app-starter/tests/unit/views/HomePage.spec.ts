@@ -171,55 +171,6 @@ describe('HomePage — moldura some ao rolar', () => {
    * para caber no novo máximo, e essa correção era lida como "o usuário subiu" — a barra
    * voltava e a inércia recomeçava tudo, com a tela tremendo no fim da rolagem.
    */
-  const setMetrics = (el: HTMLElement, clientHeight: number, scrollHeight: number) => {
-    Object.defineProperty(el, 'clientHeight', { value: clientHeight, configurable: true });
-    Object.defineProperty(el, 'scrollHeight', { value: scrollHeight, configurable: true });
-  };
-
-  /**
-   * O sinal é o **máximo rolável** ter diminuído, porque é essa a condição que força o
-   * navegador a corrigir o `scrollTop`. Uma tira de rodapé que devolve espaço encurta esse
-   * máximo de duas formas: fazendo o scroller crescer (ela era irmã dele) ou encurtando o
-   * conteúdo (ela rola junto). Olhar só a altura visível deixa a segunda passar.
-   */
-  it.each([
-    ['o scroller cresce (a tira era irmã dele)', 568, 1500],
-    ['o conteúdo encurta (a tira rola junto)', 500, 1432],
-  ])('ignora a correção do navegador quando %s', async (_caso, clientHeight, scrollHeight) => {
-    const wrapper = mountHome();
-    const el = scroller();
-
-    setMetrics(el, 500, 1500);
-    await scrollTo(el, 0);
-    await scrollTo(el, 400);
-    expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
-
-    setMetrics(el, clientHeight, scrollHeight);
-    await scrollTo(el, 332);
-    expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
-
-    // Já com as medidas estáveis, subir de verdade continua devolvendo a barra.
-    await scrollTo(el, 200);
-    expect(wrapper.find('.tabs').classes()).not.toContain('tabs--chrome-hidden');
-
-    wrapper.unmount();
-  });
-
-  /** Crescer nunca força correção: lista que carrega mais itens continua escondendo a barra. */
-  it('não confunde carregar mais itens com correção do navegador', async () => {
-    const wrapper = mountHome();
-    const el = scroller();
-
-    setMetrics(el, 500, 1500);
-    await scrollTo(el, 0);
-
-    setMetrics(el, 500, 3000);
-    await scrollTo(el, 400);
-    expect(wrapper.find('.tabs').classes()).toContain('tabs--chrome-hidden');
-
-    wrapper.unmount();
-  });
-
   it('não esconde nada com a barra encostada', async () => {
     const { useSettingsStore } = await import('@/stores/settingsStore');
     useSettingsStore().bottomBarFloating = false;

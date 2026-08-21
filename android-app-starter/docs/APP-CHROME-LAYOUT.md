@@ -180,12 +180,19 @@ rola é um filho, o `ion-content` fica eternamente em zero e o portão nunca fec
 de 5px no meio da lista vira puxar-para-atualizar. Feche o portão na mão, pelo `disabled` do
 refresher, enquanto o scroller de dentro não estiver no topo.
 
-**3. Uma tira fixa no rodapé que devolve espaço faz a tela tremer.** Se a página desenhar uma
-tira no próprio rodapé e ela encolher quando a barra some, o quanto ainda dá para rolar
-encurta, o navegador corrige o `scrollTop` e essa correção é lida como "o usuário subiu" — a
-barra volta, a tira cresce, e a inércia reabre o ciclo. O `onAnyScroll` do `HomePage` já traz
-a guarda, que reancora quando o **máximo rolável** (`scrollHeight - clientHeight`) diminui; a
-tira consome `--bar-cover` (a variável que acompanha o esconder), não `--bar-inset`.
+**3. Não faça a reserva acompanhar o esconder da barra.** É tentador: a tira de rodapé
+devolveria a faixa quando a barra sai de cena, em vez de deixar espaço morto. O app que
+originou este starter tentou, com uma segunda variável (`--bar-cover`, zerada em
+`.tabs--chrome-hidden`), e **voltou atrás depois de três rodadas de tremor**: encolher a tira
+redimensiona o vizinho, o navegador corrige a rolagem para caber, e essa correção é lida como
+gesto do usuário — que devolve a barra, e o ciclo recomeça a cada quadro. Duas guardas
+diferentes no `onAnyScroll` fecharam caminhos diferentes e o laço achou um terceiro, sem
+passar por evento de scroll nenhum.
+
+A regra que sobrou: **esconder a barra não pode alterar layout de ninguém.** A reserva
+(`--bar-inset`) é constante; o esconder é só `transform` e `opacity`, que não mexem em
+layout. O preço é a faixa ficar vazia enquanto a barra está fora de cena — que é exatamente
+onde ela estaciona.
 
 ## 3. Rail em paisagem
 
