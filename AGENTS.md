@@ -73,9 +73,13 @@ tocar, e é intermitente (~1 em 3).
 
 **A causa não é do app.** Os eventos de ponteiro chegam perfeitos — `pointerdown` e
 `pointerup` no alvo certo, dedo parado, nó vivo, sem `preventDefault` — e o `click`
-simplesmente não é sintetizado. Clicks de toque no Chrome nascem de *gesture tap events*
-internos, com bugs conhecidos de propagação de estado. A Ionic convive com o mesmo sintoma
-desde 2021 (issue #23793, aberta).
+simplesmente não é sintetizado.
+
+Cuidado com a atribuição: **provado** é que o click de compatibilidade não foi emitido com a
+sequência de ponteiro íntegra. **Não** provado é qual subsistema do browser decidiu não
+emitir — isso exigiria instrumentar o motor, não a página. A issue #23793 da Ionic está
+**fechada** e é específica de `ion-item-sliding`: serve de analogia de sintoma, nunca de prova
+de causa.
 
 **Não perca tempo com:** fila da thread, remoção de nó, hit-test, rolagem, `touch-action`,
 sobreposição de elementos animados. Todas foram medidas e derrubadas.
@@ -84,15 +88,25 @@ sobreposição de elementos animados. Todas foram medidas e derrubadas.
 um click sintético se o real não chegar. Implementação pronta e comentada, mais o dossiê da
 investigação e a instrumentação de medição:
 
-- `my-memories-frontend/src/directives/vTapRescue.ts` — a diretiva (delegação por container)
+**A diretiva já mora no starter**: `src/directives/vTapRescue.ts`, com teste em
+`tests/unit/directives/vTapRescue.spec.ts` (19 casos). Ela entrou porque passou a ter
+consumidor próprio — a barra flutuante desliza 180ms ao voltar à cena, e tocar um botão
+durante a entrada caía no mesmo sintoma. Ver `docs/APP-CHROME-LAYOUT.md` § 5, que registra
+também três armadilhas que não devem ser "consertadas" sem medição — entre elas a ausência
+deliberada de `pointerleave`, que se registrada desligaria o resgate em todo toque.
+
+Aplique nos containers que trocam conteúdo com animação, e **nunca aninhe** duas instâncias:
+sobre o mesmo toque elas despachariam dois clicks.
+
+Continua no my-memories, para copiar sob demanda:
+
 - `my-memories-frontend/src/composables/useSwipeNavigation.ts` — detecção de swipe; note o
   guard por **contador de geração**, não por `setTimeout` (a versão com relógio descartava
   toque legítimo e ainda corria com o timer)
-- `my-memories-frontend/docs/qa/INVESTIGACAO-TOQUE-PERDIDO.md` — o dossiê
+- `my-memories-frontend/docs/qa/INVESTIGACAO-TOQUE-PERDIDO.md` — o dossiê das 13 rodadas
+- `my-memories-frontend/docs/qa/TOQUE-PERDIDO-DELTA-POS-REVISAO.md` — as revisões externas e
+  o que segue em aberto (acessibilidade dos guards de swipe)
 - `my-memories-frontend/docs/qa/INSTRUMENTACAO-TOQUE.md` — como medir
-
-Copiados sob demanda, não duplicados aqui: sem consumidor no starter, virariam código morto
-com duas cópias divergindo.
 
 **Antes de escrever swipe do zero, considere o [Swiper](https://swiperjs.com/element)**, que é
 o que a Ionic recomenda desde que `ion-slides` saiu (deprecado na v6, removido na v7). Ele dá

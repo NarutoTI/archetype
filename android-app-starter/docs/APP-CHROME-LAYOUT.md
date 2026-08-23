@@ -323,6 +323,41 @@ Regra prática: **cor na barra só quando ela é o aviso.** Um modal de apagar (
 exportar (`warning`) mantém a cor porque ali ela informa; um cabeçalho de página em
 `primary` é decoração.
 
+## 5. Toque perdido na barra que volta à cena
+
+Flutuando, a barra volta com 180ms de `translateY`. Tocar um botão **durante** essa entrada
+ficava surdo: o toque chegava inteiro — dedo desce e sobe no mesmo lugar, nó vivo, nada
+cancelado — e o browser simplesmente não emitia o `click` de compatibilidade. Alvo em
+movimento é o caso em que ele desiste, e aí nenhum handler roda.
+
+**Fix:** `v-tap-rescue` no `ion-tab-bar` (`src/directives/vTapRescue.ts`). Num toque que
+qualifica como tap, se o click real não chegar em 80ms a diretiva despacha um sintético no
+elemento sob o dedo. Não substitui o click — completa o que faltou —, então nenhum botão
+muda de API.
+
+Três coisas que **não** são óbvias e não devem ser "consertadas" sem medição:
+
+- **O toque que revela a barra continua sem acionar nada.** Escondida, ela é
+  `pointer-events: none`: o `pointerdown` nem passa por ela, então a diretiva não o vê. O
+  comportamento *mexeu, aparece* fica intacto.
+- **Se o resgate cair antes de a barra chegar sob o dedo**, o hit-test não acha descendente e a
+  tentativa é reagendada até ela assentar. Como a barra se move na vertical e os botões se
+  distribuem na horizontal, não há risco de acertar o vizinho.
+- **A diretiva não escuta `pointerleave`**, e isso é deliberado: em aparelho sem hover a
+  especificação manda disparar `pointerout` e `pointerleave` logo **depois** do `pointerup`, e
+  um `reset` ali limparia o timer recém-agendado — desligaria o resgate em todo toque. Há
+  teste sentinela para isso.
+
+Nunca aninhar duas instâncias: sobre o mesmo toque elas despachariam **dois** clicks.
+
+`tests/unit/directives/vTapRescue.spec.ts` cobre 19 casos (resgate, click real antes da janela,
+duplicata tardia, espera da animação, desistência, arrasto com e sem `pointermove`, multitoque,
+pressão longa, `contextmenu`, timer congelado, `pointerleave`, mouse ignorado, caneta atendida).
+
+O dossiê da investigação que originou tudo isto (13 rodadas de medição em aparelho, com as
+hipóteses derrubadas por número) está no my-memories, em
+`docs/qa/INVESTIGACAO-TOQUE-PERDIDO.md` e `docs/qa/TOQUE-PERDIDO-DELTA-POS-REVISAO.md`.
+
 ## Como isto é testado
 
 `tests/unit/views/HomePage.spec.ts` e `tests/unit/stores/settingsStore.spec.ts`.

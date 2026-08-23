@@ -11,7 +11,9 @@
       <!-- Barra só de ícones: o rótulo escrito custava 8dp de altura em toda tela do app.
            O `aria-label` é obrigatório aqui — sem o `ion-label` o botão fica sem nome
            acessível e o leitor de tela anuncia só "botão". -->
-      <ion-tab-bar slot="bottom">
+      <!-- `v-tap-rescue`: flutuando, a barra desliza 180ms ao voltar à cena, e toque em alvo
+           em movimento é o caso em que o browser deixa de emitir o click. -->
+      <ion-tab-bar slot="bottom" v-tap-rescue>
         <ion-tab-button tab="tasks" href="/tabs/tasks" :aria-label="$t('tasks.title')">
           <ion-icon :icon="checkboxOutline" />
         </ion-tab-button>
@@ -49,6 +51,7 @@ import {
 import { checkboxOutline, imagesOutline, menuOutline, notificationsOutline } from 'ionicons/icons';
 import { useRoute } from 'vue-router';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { vTapRescue } from '@/directives/vTapRescue';
 
 const route = useRoute();
 const settingsStore = useSettingsStore();
