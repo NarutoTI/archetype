@@ -104,6 +104,14 @@ export const alertService = {
     );
   },
 
+  /**
+   * Confirmação com cor. É por aqui que passam `presentAlertConfirmDanger` e
+   * `presentAlertConfirmWarning`.
+   *
+   * O botão de confirmar é **não reentrante**: o Ionic mantém o alerta aberto enquanto o
+   * handler devolve uma promessa, e num aparelho lento o segundo toque dispara a mesma
+   * exclusão de novo — a segunda responde 404 depois de uma que já deu certo.
+   */
   async presentAlertConfirmWithColor(
     header: string,
     message: string,
@@ -112,6 +120,7 @@ export const alertService = {
     confirmHandler?: () => void | Promise<void>,
     color = 'danger',
   ) {
+    let confirming = false;
     return new Promise<boolean>((resolve) => {
       alertController.create({
         header,
@@ -129,7 +138,14 @@ export const alertService = {
             role: color === 'danger' ? 'destructive' : 'confirm',
             cssClass: `alert-button-${color}`,
             handler: async () => {
-              await confirmHandler?.();
+              // `false` impede o Ionic de fechar; sem isso o segundo toque executaria de novo.
+              if (confirming) return false;
+              confirming = true;
+              try {
+                await confirmHandler?.();
+              } finally {
+                confirming = false;
+              }
               resolve(true);
             },
           },

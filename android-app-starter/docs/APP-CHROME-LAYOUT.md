@@ -42,19 +42,30 @@ acessível e o leitor de tela anuncia só "botão". Fixado em teste.
 Se o seu app quiser os rótulos de volta, tire o `height: 48px` junto: o resto (cores, rail)
 continua valendo.
 
-## 2. Formato flutuante (padrão)
+## 2. Formato flutuante (padrão no app)
 
 A barra é uma **pílula centralizada que flutua sobre o conteúdo**. Cada toque ou nova
-rolagem a mostra; 2,5s depois ela sai de cena para devolver espaço. É o padrão atual. Menu →
+rolagem a mostra; 2,5s depois ela sai de cena para devolver espaço. Menu →
 `settings.bottomBarFloating` desliga a ocultação automática e devolve a barra encostada,
 sempre visível.
 A preferência é **do aparelho** (chave `bottom-bar-floating`), sobrevive ao logout e é lida
 no `loadBootSettings` para decidir o layout do primeiro quadro.
 
-**Contrato futuro, ainda não implementado:** na web o padrão será encostado. No app, detectar
-um leitor de tela ativo também forçará o formato encostado e sempre visível. Hoje a preferência
-ainda nasce flutuante em todas as plataformas; não descreva essas duas regras como prontas até
-o código e os testes entrarem.
+### O padrão depende da plataforma: flutuante no app, encostada na web
+
+`defaultBottomBarFloating()` (no `settingsStore`) devolve `Capacitor.isNativePlatform()`.
+A escolha explícita do usuário continua vencendo nas duas plataformas; o que muda é só o
+ponto de partida de quem nunca mexeu no interruptor.
+
+O motivo é o gesto. A pílula troca altura de tela por navegação que some sozinha, e a
+devolve no `pointerup`/`pointercancel` de um dedo. **No navegador esse ciclo não fecha:**
+altura sobra, ninguém arrasta a página com o dedo, e quem abre a página encontra uma tela
+sem navegação nenhuma 2,5s depois — o defeito real que motivou a regra. Vale também para
+o `npm run dev`, onde o app é desenvolvido.
+
+**Ainda pendente:** no app, um leitor de tela ativo também deveria forçar o formato
+encostado e sempre visível. Não descreva essa regra como pronta até o código e os testes
+entrarem.
 
 ```css
 /* complemento exato da media query do rail — ver § 3 */
@@ -186,10 +197,10 @@ filhos; marcar o `<ion-footer>` já cobre toolbar, item, rótulo e chip.
 - A barra visualmente escondida usa `transform`, `opacity` e `pointer-events: none`, mas ainda
   pode ser anunciada por TalkBack ou receber foco. O modo flutuante aceita esse limite hoje.
 
-**Pendente de implementação:** na web, a barra nascerá encostada; no app, leitor de tela
-ativo forçará o formato encostado e sempre visível. Não use `inert` isoladamente: além de
-precisar de uma forma acessível de revelar a navegação, `chromeHidden` também pode ficar
-verdadeiro enquanto o rail de paisagem continua visível.
+**Pendente de implementação:** no app, leitor de tela ativo deveria forçar o formato
+encostado e sempre visível. (A metade web deste contrato **já entrou** — ver § 2.) Não use
+`inert` isoladamente: além de precisar de uma forma acessível de revelar a navegação,
+`chromeHidden` também pode ficar verdadeiro enquanto o rail de paisagem continua visível.
 
 ### O pull-to-refresh mora na mesma topologia
 
@@ -367,6 +378,11 @@ O comportamento é testado montando o componente: `pointerup`, `pointercancel`, 
 formato encostado. Dois testes travam decisões estruturais: a HomePage registra os três
 ouvintes de ponteiro e nenhum de rolagem, e as páginas não ligam `scroll-events` apenas para
 a barra.
+
+Os dois specs dublam `@capacitor/core` com uma plataforma controlável (`platformMock`), e o
+padrão deles é **app** — sem isso o jsdom pareceria web e a suíte inteira passaria a testar
+a barra encostada por acidente. O caso da web é explícito nos dois: no store, o formato
+inicial; na HomePage, que a contagem nem chega a esconder a navegação.
 
 O restante é CSS que só existe no aparelho — girado ou com a preferência ligada — e o jsdom
 não aplica media queries. Esses invariantes são lidos do fonte do componente (`?raw`): eixo

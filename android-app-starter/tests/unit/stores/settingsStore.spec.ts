@@ -24,6 +24,19 @@ vi.mock('@capacitor/preferences', () => ({
   Preferences: preferencesMock,
 }));
 
+/**
+ * Plataforma controlável: o formato inicial da barra inferior depende dela (flutuante no
+ * app, encostada na web). O jsdom sozinho sempre pareceria web, e o caso do app nunca
+ * seria exercitado.
+ */
+const platformMock = vi.hoisted(() => ({ isNative: false }));
+
+vi.mock('@capacitor/core', () => ({
+  Capacitor: { isNativePlatform: () => platformMock.isNative },
+  SystemBars: { setStyle: vi.fn(async () => {}) },
+  SystemBarsStyle: { Dark: 'DARK', Light: 'LIGHT' },
+}));
+
 vi.mock('@/i18n', () => ({
   default: {
     global: {
@@ -40,6 +53,8 @@ describe('settingsStore', () => {
     setActivePinia(createPinia());
     preferencesMock.clearStore();
     vi.clearAllMocks();
+    // App é o caso padrão dos specs; quem testa a web liga o contrário explicitamente.
+    platformMock.isNative = true;
     document.documentElement.classList.remove('ion-palette-dark');
   });
 
@@ -89,7 +104,34 @@ describe('settingsStore', () => {
    * conta —, por isso sobrevive ao reset do logout.
    */
   describe('formato da barra inferior', () => {
-    it('nasce flutuante e persiste a escolha contrária', async () => {
+    it('nasce flutuante no app, onde a altura de tela é o recurso escasso', () => {
+      expect(useSettingsStore().bottomBarFloating).toBe(true);
+    });
+
+    /**
+     * No navegador a pílula só atrapalha: altura sobra, e o ponteiro não gera o gesto que a
+     * revela — quem abre a página encontra uma tela sem navegação nenhuma.
+     */
+    it('nasce encostada na web, onde o gesto que a revela não existe', () => {
+      platformMock.isNative = false;
+
+      expect(useSettingsStore().bottomBarFloating).toBe(false);
+    });
+
+    it.each([
+      ['app', true, 'false', false],
+      ['web', false, 'true', true],
+    ])('a escolha salva vence o padrão da plataforma (%s)', async (_nome, isNative, salvo, esperado) => {
+      platformMock.isNative = isNative;
+      preferencesMock.seed('bottom-bar-floating', salvo);
+
+      const store = useSettingsStore();
+      await store.loadBootSettings();
+
+      expect(store.bottomBarFloating).toBe(esperado);
+    });
+
+    it('persiste a escolha contrária ao padrão', async () => {
       const store = useSettingsStore();
       expect(store.bottomBarFloating).toBe(true);
 

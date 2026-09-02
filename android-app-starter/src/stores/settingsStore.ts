@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { Preferences as CapacitorPreferences } from '@capacitor/preferences';
-import { SystemBars, SystemBarsStyle } from '@capacitor/core';
+import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import i18n from '@/i18n';
 import { logger } from '@/utils/logger';
 import {
@@ -14,6 +14,25 @@ export type ThemeOption = 'system' | 'light' | 'dark';
 
 /** Formato da barra inferior. Preferência do aparelho — ver `bottomBarFloating`. */
 export const BOTTOM_BAR_FLOATING_PREFERENCE_KEY = 'bottom-bar-floating';
+
+/**
+ * Formato inicial da barra inferior, quando o aparelho ainda não tem preferência salva:
+ * **flutuante no app, encostada na web**.
+ *
+ * A pílula flutuante troca altura de tela por navegação que some sozinha após 2,5s. No
+ * celular esse negócio fecha — a tela é o recurso escasso, e um toque a devolve. No
+ * navegador ela só atrapalha: altura sobra, o ponteiro não gera o gesto que a revela, e
+ * quem abre o app de manhã encontra uma tela sem navegação nenhuma e conclui que a aba
+ * some.
+ *
+ * A escolha explícita do usuário (Menu → Barra flutuante) continua vencendo isto nas duas
+ * plataformas; o que muda aqui é só o ponto de partida.
+ *
+ * **Ainda pendente:** no app, um leitor de tela ativo também deveria forçar o formato
+ * encostado — a barra escondida usa `transform`/`opacity`, então continua sendo anunciada
+ * pelo TalkBack mesmo fora de cena. Ver docs/APP-CHROME-LAYOUT.md.
+ */
+export const defaultBottomBarFloating = (): boolean => Capacitor.isNativePlatform();
 
 const SUPPORTED_LOCALES = ['pt', 'en'] as const;
 type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
@@ -30,8 +49,11 @@ export const useSettingsStore = defineStore('settings', () => {
   const language = ref<SupportedLocale>('pt');
   const theme = ref<ThemeOption>('system');
   const biometryEnabled = ref(false);
-  /** Flutuante: sobrepõe o conteúdo e some sozinha. Encostada: fica sempre visível. */
-  const bottomBarFloating = ref(true);
+  /**
+   * Flutuante: sobrepõe o conteúdo e some sozinha. Encostada: fica sempre visível.
+   * Nasce conforme a plataforma — ver {@link defaultBottomBarFloating}.
+   */
+  const bottomBarFloating = ref(defaultBottomBarFloating());
   const preferences = ref<AppPreferences>(normalizePreferences());
 
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');

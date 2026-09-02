@@ -78,11 +78,14 @@
   white-space: pre-line;
 }
 
-/* Action sheet no mesmo idioma visual dos alertas acima. Usado pelo seletor de
-   "várias notificações na bandeja", onde cada linha é uma notificação a abrir
-   (ver notificationEntry.presentDeliveredChooser). */
-.action-sheet-warning { --sheet-accent: var(--ion-color-warning); }
-.action-sheet-primary { --sheet-accent: var(--ion-color-primary); }
+/* Action sheet no mesmo idioma visual dos alertas acima.
+
+   `action-sheet-primary` é o padrão de **todo** menu de ações: cartão arredondado, fundo
+   tingido, título no tom de destaque e o Cancelar no grupo que o Ionic já isola. Quem abre
+   um sheet passa essa classe; `alertService.presentCustomActionSheet` já aplica sozinho.
+   O seletor da bandeja usa `action-sheet-warning` (ver notificationEntry.presentDeliveredChooser). */
+.action-sheet-warning { --sheet-accent: var(--ion-color-warning); --sheet-accent-shade: var(--ion-color-warning-shade); --sheet-accent-tint: var(--ion-color-warning-tint); }
+.action-sheet-primary { --sheet-accent: var(--ion-color-primary); --sheet-accent-shade: var(--ion-color-primary-shade); --sheet-accent-tint: var(--ion-color-primary-tint); }
 
 :is(.action-sheet-warning, .action-sheet-primary) .action-sheet-group {
   border-radius: 16px;
@@ -90,12 +93,17 @@
   overflow: hidden;
   background: color-mix(in srgb, var(--sheet-accent) 8%, var(--ion-background-color, #fff));
   border: 1px solid color-mix(in srgb, var(--sheet-accent) 30%, transparent);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.14);
 }
 
 :is(.action-sheet-warning, .action-sheet-primary) .action-sheet-title {
-  color: var(--sheet-accent);
+  color: var(--sheet-accent-shade);
   font-weight: 600;
   padding-bottom: 4px;
+}
+
+.ion-palette-dark :is(.action-sheet-warning, .action-sheet-primary) .action-sheet-title {
+  color: var(--sheet-accent-tint);
 }
 
 :is(.action-sheet-warning, .action-sheet-primary) .action-sheet-sub-title {
@@ -111,6 +119,14 @@
 :is(.action-sheet-warning, .action-sheet-primary) .action-sheet-button .action-sheet-icon {
   color: var(--sheet-accent);
   font-size: 1.25rem;
+}
+
+/* O destrutivo fica vermelho: é o único sinal de que a ação não volta.
+   Vem depois da regra do ícone de propósito — as duas empatam em especificidade
+   e a última vence; sem isto o "Excluir" herda o azul. */
+:is(.action-sheet-warning, .action-sheet-primary) .action-sheet-button.action-sheet-destructive,
+:is(.action-sheet-warning, .action-sheet-primary) .action-sheet-button.action-sheet-destructive .action-sheet-icon {
+  color: var(--ion-color-danger);
 }
 
 :is(.action-sheet-warning, .action-sheet-primary) .action-sheet-button.action-sheet-cancel {

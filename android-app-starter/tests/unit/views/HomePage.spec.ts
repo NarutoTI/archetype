@@ -12,6 +12,20 @@ import menuViewSource from '@/views/MenuView.vue?raw';
 
 const hoisted = vi.hoisted(() => ({ route: { path: '/tabs/tasks' } }));
 
+/**
+ * Plataforma controlável, porque ela decide o formato inicial da barra: flutuante no app,
+ * encostada na web. Quase todo este arquivo exercita o formato flutuante, então o padrão
+ * aqui é o app; o bloco da web liga o contrário. Sem isto, o jsdom pareceria web e a
+ * suíte inteira testaria a barra encostada por acidente.
+ */
+const platformMock = vi.hoisted(() => ({ isNative: true }));
+
+vi.mock('@capacitor/core', () => ({
+  Capacitor: { isNativePlatform: () => platformMock.isNative },
+  SystemBars: { setStyle: vi.fn(async () => {}) },
+  SystemBarsStyle: { Dark: 'DARK', Light: 'LIGHT' },
+}));
+
 // A rota precisa ser reativa: o HomePage devolve a barra num `watch` sobre `route.path`, e um
 // objeto comum nunca dispararia esse watch — o teste passaria por engano.
 vi.mock('vue-router', async () => {
@@ -65,6 +79,7 @@ describe('HomePage — abas', () => {
 describe('HomePage — formato da barra segue a preferência', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    platformMock.isNative = true;
   });
 
   it('nasce flutuante e volta a encostar quando a preferência é desligada', async () => {
@@ -79,6 +94,29 @@ describe('HomePage — formato da barra segue a preferência', () => {
     expect(wrapper.find('.tabs').classes()).not.toContain('tabs--floating');
 
     wrapper.unmount();
+  });
+
+  /**
+   * O defeito que motivou a regra: no navegador o ponteiro não gera o gesto que revela a
+   * pílula, então ela sumia depois de 2,5s e a página ficava **sem navegação nenhuma** até
+   * um clique qualquer. Na web a barra nasce encostada, e a contagem nem chega a armar.
+   */
+  it('na web nasce encostada, e nenhuma contagem chega a esconder a navegação', async () => {
+    platformMock.isNative = false;
+
+    vi.useFakeTimers();
+    try {
+      const wrapper = mountHome();
+      expect(wrapper.find('.tabs').classes()).not.toContain('tabs--floating');
+
+      vi.advanceTimersByTime(5000);
+      await nextTick();
+      expect(wrapper.find('.tabs').classes()).not.toContain('tabs--chrome-hidden');
+
+      wrapper.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -114,6 +152,8 @@ describe('HomePage — toque ou rolagem mostra; 2,5s depois some', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     hoisted.route.path = '/tabs/tasks';
+    // Todo este bloco é sobre o formato flutuante, que só nasce sozinho no app.
+    platformMock.isNative = true;
     document.body.innerHTML = '';
   });
 

@@ -573,6 +573,7 @@ const onLocationSelected = async (location: AppLocation) => {
 const testAlerts = async () => {
   const actionSheet = await actionSheetController.create({
     header: t('settings.testAlerts'),
+    cssClass: 'action-sheet-primary',
     buttons: [
       {
         text: `🚨 ${t('settings.testAlertDanger')}`,

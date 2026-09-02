@@ -85,9 +85,9 @@ const initializeApp = async () => {
 
     void settingsStore.loadSettings();
 
-    // Cold-start share dispatch starts now, after mount, but we keep its Promise
-    // so Phase 3 can give share priority over the lower-priority delivered
-    // notification prompt (launcher-icon/badge case).
+    // O despacho de compartilhamento no cold start começa agora, depois do mount,
+    // mas sua Promise é mantida para a Fase 3 priorizar o compartilhamento sobre
+    // o aviso de notificação entregue pelo ícone ou badge do launcher.
     const coldStartShareDispatch = shareEntry.dispatchIfPending('cold-start')
       .catch((error) => {
         logger.error('Error dispatching cold-start share entry:', error);
@@ -95,11 +95,11 @@ const initializeApp = async () => {
       });
 
     setTimeout(() => {
-      // Lazy-load the delivered-notification entry flow only after first paint.
-      // Keeping it here protects startup: no static import, no module evaluation
-      // and no App.addListener bridge competing with the critical boot awaits.
-      // It is always installed (the resume listener must stay active for the
-      // session); only the cold-start dispatch waits on the share result.
+      // Carrega sob demanda o fluxo de notificação entregue só depois da primeira pintura.
+      // Mantê-lo aqui protege a abertura: nenhum import estático, avaliação de módulo ou
+      // ponte App.addListener disputa com os awaits críticos do boot. A instalação ocorre
+      // sempre para manter o listener de retomada ativo durante a sessão; apenas o despacho
+      // do cold start aguarda o resultado do compartilhamento.
       const notificationEntryReady = import('@/services/notificationEntry')
         .then(({ notificationEntry }) => {
           notificationEntry.install(router);
@@ -113,8 +113,8 @@ const initializeApp = async () => {
             coldStartShareDispatch,
           ]);
 
-          // Share has priority over launcher-badge prompts; dispatch delivered
-          // notifications only when cold-start share did not navigate.
+          // O compartilhamento tem prioridade sobre avisos do badge do launcher;
+          // só processa notificações entregues se o compartilhamento não navegou.
           if (!shareDispatched) {
             await notificationEntry.dispatchIfDelivered('cold-start');
           }
