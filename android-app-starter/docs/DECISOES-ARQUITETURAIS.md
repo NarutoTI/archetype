@@ -43,9 +43,10 @@ verificada (ou pulada), token lido do storage, `userStore` atualizado e
 `bootReadyPromise` ([router/index.ts](../src/router/index.ts)) — nenhuma rota
 resolve antes do estado de auth ser real.
 
-O "(ou pulada)" é literal: se o aparelho não tiver biometria disponível, o gate é
-pulado e o token continua valendo. O prompt também não tem botão cancelar — a saída
-é o PIN/senha do aparelho. Detalhes e limites em
+O "(ou pulada)" é literal só quando **não há nada com que destravar** (sem digital e
+sem tela de bloqueio). Com PIN/padrão no aparelho o boot pede essa credencial, mesmo
+sem digitais. Cancelar o prompt **não** apaga o token — encerra o app. Recusa da
+digital apaga. O `main.ts` não lê o boolean de retorno. Detalhes em
 [ANDROID-BUILD-TOOLCHAIN.md](./ANDROID-BUILD-TOOLCHAIN.md) § *Biometria*.
 
 **Regra:** não mova `resolveBootReadyPromise()` sem entender que tudo que

@@ -103,7 +103,15 @@ repassar as flags ao script.
     → compara com o bundle rodando + gate minNativeVersion
     → diálogo → download(url,checksum) → set()/next()
 notifyAppReady() roda logo após montar (fora da Phase 3): confirma que o bundle
-subiu ok; pular além do appReadyTimeout reverte pro bundle anterior/builtin.
+subiu ok. Sem essa chamada no prazo, o plugin reverte. No Android, com o bundle
+ainda não SUCCESS, o prazo efetivo é max(appReadyTimeout, 30s) — o `10000` do
+config não é o que vale nessa janela.
+
+Sair do prompt biométrico **antes** do mount (`exitApp` no unlock dispensado) pode
+disparar esse rollback numa 1ª abertura pós-OTA. Custo aceito: zip saudável
+revertido; o JS sempre chama `download()` de novo. Não confirmar o bundle antes do
+mount (some o revert automático por falta de notifyAppReady). `autoDeleteFailed`
+fica no default true — ver comentário em `capacitor.config.ts`.
 ```
 
 Zero request a mais que hoje: o `/version` **já** é chamado no boot; o OTA pega

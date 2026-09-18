@@ -101,14 +101,22 @@ o PIN.
 biometria em aparelho físico** — no emulador ainda seria preciso cadastrar digital simulada
 (Extended Controls → Fingerprint → Touch Sensor).
 
-Dois comportamentos conhecidos, congelados em `tests/unit/services/biometric.service.spec.ts`:
+Contrato do unlock no boot (`checkBiometricAuth`), congelado em
+`tests/unit/services/biometric.service.spec.ts`:
 
-1. **Unlock que não conclui apaga o `auth_token`** e força login completo. Sem botão cancelar
-   isso ficou raro, mas o gesto de voltar ainda chega lá.
-2. **Se a biometria deixar de estar disponível** (usuário remove as digitais, sensor falha), o
-   gate é **pulado** e o token continua valendo. O botão de senha do aparelho é uma saída
-   *dentro* do prompt, não uma entrada: quem não tem biometria cadastrada não vê prompt nenhum.
-   Mudar isso é decisão de produto de cada app gerado.
+1. **Dispensado / interrompido** (voltar, fechar o app, `USER_CANCEL` / `SYSTEM_CANCEL`): a
+   sessão **fica** e o app chama `App.exitApp()`. Não apagar o token — era o bug de tratar
+   cancelar como recusa da digital.
+2. **Recusado** (digital errada, lockout): apaga o `auth_token` e força login completo.
+3. **Sem digital e sem bloqueio de tela:** o gate é pulado e o token continua valendo. Não há
+   segundo fator a pedir.
+4. **Só-PIN** (biometria já ligada, digitais apagadas, tela de bloqueio no lugar): o boot **pede
+   o PIN do aparelho** (`canPromptForAuth` com `useFallback: true`). O interruptor do menu some
+   (`isAvailable()` de vitrine). **Não** alargar o `v-if` do `MenuView` nesta mudança.
+
+O `main.ts` **não lê** o boolean de `checkBiometricAuth`. A sessão segue do `auth_token` no
+disco. Não endurecer o `catch` desse método (ver JSDoc). Detalhe de OTA se o prompt fechar o
+app **antes** do `notifyAppReady`: [OTA.md](./native/OTA.md).
 
 ## Estado de validação
 

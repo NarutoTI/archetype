@@ -48,8 +48,13 @@ const config: CapacitorConfig = {
     // autoUpdate 'off' = nada acontece sozinho; o app dirige cada passo por JS.
     CapacitorUpdater: {
       autoUpdate: 'off',
+      // Rollback: se notifyAppReady() não chegar a tempo, o plugin reverte.
+      // `10000` é o valor configurado. Com o bundle ainda não SUCCESS (1ª abertura
+      // do zip novo), o Android usa max(este valor, 30000). Ver docs/native/OTA.md.
       appReadyTimeout: 10000,
       autoDeletePrevious: true,
+      // autoDeleteFailed fica no default true. Não pôr false: o JS sempre chama
+      // download() de novo; manter o bundle ERROR não economiza rede.
       // Ao instalar um app nativo MAIS NOVO (update de loja), descarta qualquer OTA
       // aplicado e sobe o builtin novo. Default true; explícito porque a migração
       // key-v2 depende disso — a casca nova assinada tem que partir do próprio

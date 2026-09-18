@@ -62,6 +62,13 @@
 - Release de loja: `node scripts/build-and-sync.js` (`build:android`) — bump só no frontend. AAB recusa canal staging; `assertSignedPublicKey` só se o gate signed-only estiver ligado. `ota:release` continua exigindo OTA ligado.
 - Antes de alterar `ota.service`, `ota-channel.service`, `version.service`, o `versionService` do backend ou `scripts/ota/*`, ler o guia. Nunca assar `VITE_OTA_CHANNEL=staging` num build de produção (o `ota:release` aborta se detectar).
 
+## Unlock biométrico (boot)
+
+- `checkBiometricAuth()` na Fase 1: **dispensado** preserva o token e chama `exitApp()`; **recusado** apaga o token. O `main.ts` não lê o boolean.
+- Disponibilidade do **prompt** (`canPromptForAuth`, `useFallback: true`) ≠ vitrine do menu (`isAvailable()`). Não alargar o `v-if` do `MenuView` só porque o boot pede PIN.
+- Não endurecer o `catch` do `checkBiometricAuth`. No `clearToken()` a rejeição hipotética do `Preferences.remove` do token deve **propagar**.
+- `notifyAppReady()` continua **depois** do `mount`. Não confirmar o OTA no ramo do `exitApp`. Detalhe: `docs/native/OTA.md` e `docs/ANDROID-BUILD-TOOLCHAIN.md` § Biometria.
+
 ## Navegação por gesto (armadilha conhecida)
 
 O starter não tem swipe hoje. **Se for adicionar**, leia isto antes — custou doze rodadas de

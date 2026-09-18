@@ -9,6 +9,7 @@ const hoisted = vi.hoisted(() => ({
     set: vi.fn(),
     remove: vi.fn(),
   },
+  mockExitApp: vi.fn(),
 }));
 
 vi.mock('@capgo/capacitor-native-biometric', () => ({
@@ -54,6 +55,12 @@ vi.mock('@capacitor/preferences', () => ({
   Preferences: hoisted.mockPreferences,
 }));
 
+vi.mock('@capacitor/app', () => ({
+  App: {
+    exitApp: hoisted.mockExitApp,
+  },
+}));
+
 vi.mock('@/i18n', () => ({
   default: {
     global: {
@@ -63,7 +70,7 @@ vi.mock('@/i18n', () => ({
 }));
 
 import { BiometryType } from '@capgo/capacitor-native-biometric';
-import { biometricService } from '@/services/biometric.service';
+import { biometricService, EXIT_GRACE_PERIOD_MS } from '@/services/biometric.service';
 
 /** Valores do Preferences por chave; qualquer chave ausente resolve como `null`. */
 const givenPreferences = (values: Record<string, string | null>) => {
@@ -100,33 +107,51 @@ describe('biometricService.authenticate', () => {
     await biometricService.authenticate('Reason', 'Title', 'Subtitle');
 
     const [options] = hoisted.mockVerifyIdentity.mock.calls[0];
-    // O BiometricPrompt não aceita botão negativo junto de DEVICE_CREDENTIAL.
     expect(options.allowedBiometryTypes).toContain(BiometryType.DEVICE_CREDENTIAL);
     expect(options.negativeButtonText).toBeUndefined();
-    // Repetiria o `subtitle` numa segunda linha do diálogo nativo.
     expect(options.description).toBeUndefined();
   });
 
-  it.each([16, '16', 17, 11, 15])('trata saída do usuário / interrupção no código %s', async (code) => {
+  it.each([16, '16'])('trata cancelamento do usuário no código %s', async (code) => {
     hoisted.mockVerifyIdentity.mockRejectedValue({ code });
 
     await expect(biometricService.authenticate()).resolves.toBe(false);
 
-    expect(logger.log).toHaveBeenCalledWith(
-      'Biometric authentication cancelled or interrupted',
-    );
+    expect(logger.log).toHaveBeenCalledWith('Biometric authentication cancelled by user');
     expect(logger.error).not.toHaveBeenCalled();
   });
 
-  it.each([10, 2, 4])('trata rejeição / lockout no código %s', async (code) => {
+  it('trata fallback do usuário como saída, não recusa', async () => {
+    hoisted.mockVerifyIdentity.mockRejectedValue({ code: 17 });
+
+    await expect(biometricService.authenticate()).resolves.toBe(false);
+
+    expect(logger.log).toHaveBeenCalledWith('Biometric authentication cancelled by user');
+  });
+
+  it.each([11, 15])('trata interrupção externa no código %s', async (code) => {
     hoisted.mockVerifyIdentity.mockRejectedValue({ code });
 
     await expect(biometricService.authenticate()).resolves.toBe(false);
 
-    expect(logger.warn).toHaveBeenCalledWith(
-      'Biometric authentication rejected or locked out',
-    );
+    expect(logger.log).toHaveBeenCalledWith('Biometric authentication interrupted');
     expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('trata rejeição da digital', async () => {
+    hoisted.mockVerifyIdentity.mockRejectedValue({ code: 10 });
+
+    await expect(biometricService.authenticate()).resolves.toBe(false);
+
+    expect(logger.warn).toHaveBeenCalledWith('Biometric authentication rejected');
+  });
+
+  it.each([2, 4])('trata lockout no código %s', async (code) => {
+    hoisted.mockVerifyIdentity.mockRejectedValue({ code });
+
+    await expect(biometricService.authenticate()).resolves.toBe(false);
+
+    expect(logger.warn).toHaveBeenCalledWith('Too many biometric authentication attempts');
   });
 
   it.each([1, 3, 14])('reporta estado do aparelho no código %s sem log de erro', async (code) => {
@@ -152,7 +177,7 @@ describe('biometricService.authenticate', () => {
     );
   });
 
-  it('não chama verifyIdentity quando a biometria está indisponível', async () => {
+  it('não chama verifyIdentity quando não há como destravar', async () => {
     hoisted.mockIsAvailable.mockResolvedValue({
       isAvailable: false,
       biometryType: BiometryType.NONE,
@@ -161,6 +186,12 @@ describe('biometricService.authenticate', () => {
     await expect(biometricService.authenticate()).resolves.toBe(false);
 
     expect(hoisted.mockVerifyIdentity).not.toHaveBeenCalled();
+  });
+
+  it('mede disponibilidade com fallback de credencial do aparelho', async () => {
+    await biometricService.authenticate();
+
+    expect(hoisted.mockIsAvailable).toHaveBeenCalledWith({ useFallback: true });
   });
 });
 
@@ -173,6 +204,7 @@ describe('biometricService.checkBiometricAuth', () => {
       biometryType: BiometryType.FINGERPRINT,
     });
     hoisted.mockVerifyIdentity.mockResolvedValue(undefined);
+    hoisted.mockExitApp.mockResolvedValue(undefined);
     givenPreferences({ auth_token: 'token', 'biometry-enabled': 'true' });
   });
 
@@ -201,9 +233,14 @@ describe('biometricService.checkBiometricAuth', () => {
     expect(hoisted.mockPreferences.remove).not.toHaveBeenCalled();
   });
 
-  // Congela um comportamento conhecido: sem biometria disponível o gate é pulado e o token
-  // segue valendo. Ver docs/ANDROID-BUILD-TOOLCHAIN.md § Biometria.
-  it('pula o prompt quando o aparelho não tem biometria disponível', async () => {
+  it('consulta disponibilidade nativa uma vez por inicialização', async () => {
+    await biometricService.checkBiometricAuth();
+
+    expect(hoisted.mockIsAvailable).toHaveBeenCalledTimes(1);
+    expect(hoisted.mockIsAvailable).toHaveBeenCalledWith({ useFallback: true });
+  });
+
+  it('pula o prompt quando não há digital nem bloqueio de tela', async () => {
     hoisted.mockIsAvailable.mockResolvedValue({
       isAvailable: false,
       biometryType: BiometryType.NONE,
@@ -215,14 +252,61 @@ describe('biometricService.checkBiometricAuth', () => {
     expect(hoisted.mockPreferences.remove).not.toHaveBeenCalled();
   });
 
-  // Congela o contrato: unlock que não conclui derruba a sessão e força login completo.
-  // Alcançável pelo gesto de voltar, mesmo sem botão cancelar.
-  it('apaga o token de sessão quando a autenticação não conclui', async () => {
+  it.each([10, 2, 4, 1, 3, 14, 0])(
+    'apaga o token quando o unlock é recusado com código %s',
+    async (code) => {
+      hoisted.mockVerifyIdentity.mockRejectedValue({ code });
+
+      await expect(biometricService.checkBiometricAuth()).resolves.toBe(false);
+
+      expect(hoisted.mockPreferences.remove).toHaveBeenCalledWith({ key: 'auth_token' });
+      expect(hoisted.mockExitApp).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([16, 17, 15, 11])(
+    'preserva a sessão e fecha o app quando o prompt é dispensado com código %s',
+    async (code) => {
+      vi.useFakeTimers();
+      try {
+        hoisted.mockVerifyIdentity.mockRejectedValue({ code });
+
+        const pending = biometricService.checkBiometricAuth();
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(hoisted.mockExitApp).toHaveBeenCalledTimes(1);
+        expect(hoisted.mockPreferences.remove).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(EXIT_GRACE_PERIOD_MS);
+        await pending;
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it('apaga o token quando o app não pode ser fechado após dispensar', async () => {
     hoisted.mockVerifyIdentity.mockRejectedValue({ code: 16 });
+    hoisted.mockExitApp.mockRejectedValue(new Error('not implemented'));
 
     await expect(biometricService.checkBiometricAuth()).resolves.toBe(false);
 
     expect(hoisted.mockPreferences.remove).toHaveBeenCalledWith({ key: 'auth_token' });
+  });
+
+  it('apaga o token quando o processo sobrevive à margem do exitApp', async () => {
+    vi.useFakeTimers();
+    try {
+      hoisted.mockVerifyIdentity.mockRejectedValue({ code: 16 });
+
+      const pending = biometricService.checkBiometricAuth();
+      await vi.advanceTimersByTimeAsync(EXIT_GRACE_PERIOD_MS);
+
+      await expect(pending).resolves.toBe(false);
+      expect(hoisted.mockPreferences.remove).toHaveBeenCalledWith({ key: 'auth_token' });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('não apaga o token quando a leitura do Preferences falha', async () => {
