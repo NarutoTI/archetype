@@ -33,8 +33,8 @@ class BiometricService {
   private canPromptCache: boolean | null = null;
 
   /**
-   * Pergunta de vitrine: este aparelho tem biometria cadastrada?
-   * O menu usa isto no `v-if` do interruptor. O boot usa `canPromptForAuth`.
+   * Este aparelho tem digital/face cadastrada? Não decide o interruptor do menu —
+   * isso é `canPromptForAuth`.
    */
   async isAvailable(): Promise<boolean> {
     if (!Capacitor.isNativePlatform()) return false;
@@ -60,11 +60,12 @@ class BiometricService {
    * aparelho) — perguntar sem fallback reprovava aparelhos que o prompt destravaria.
    * Quem apagava as digitais e mantinha o PIN abria o app sem autenticação.
    *
-   * Cache próprio, separado do `isAvailableCache`: o portão do `checkBiometricAuth`
-   * preenche e o de `authenticateWithOutcome` só lê — **uma consulta nativa de
-   * disponibilidade** por inicialização. O prompt (`verifyIdentity`) é outra ida.
+   * O menu e o boot usam **este** método. Cache próprio, separado do
+   * `isAvailableCache`: o portão do `checkBiometricAuth` preenche e o de
+   * `authenticateWithOutcome` só lê — **uma consulta nativa de disponibilidade**
+   * por inicialização. O prompt (`verifyIdentity`) é outra ida.
    */
-  private async canPromptForAuth(): Promise<boolean> {
+  async canPromptForAuth(): Promise<boolean> {
     try {
       if (!Capacitor.isNativePlatform()) return false;
       if (this.canPromptCache !== null) return this.canPromptCache;
@@ -190,8 +191,8 @@ class BiometricService {
    * próxima WebView pede outra vez.
    *
    * SÓ-PIN: biometria já ligada, digitais apagadas, tela de bloqueio no lugar — o
-   * boot pede o PIN do aparelho. O toggle do menu some (`isAvailable()` de vitrine).
-   * Não alargar o `v-if` do MenuView nesta mudança.
+   * boot pede o PIN do aparelho. O interruptor do menu usa o mesmo critério e
+   * continua visível para ligar/desligar.
    *
    * NÃO ENDURECER O `catch` DESTE MÉTODO. Não é política de todo `Preferences.remove`.
    * Devolver `false` com o token ainda lá — e o `main.ts` seguir — é deliberado.

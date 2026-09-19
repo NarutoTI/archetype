@@ -65,7 +65,7 @@
 ## Unlock biométrico (boot)
 
 - `checkBiometricAuth()` na Fase 1: **dispensado** preserva o token e chama `exitApp()`; **recusado** apaga o token. O `main.ts` não lê o boolean.
-- Disponibilidade do **prompt** (`canPromptForAuth`, `useFallback: true`) ≠ vitrine do menu (`isAvailable()`). Não alargar o `v-if` do `MenuView` só porque o boot pede PIN.
+- Disponibilidade do **prompt** (`canPromptForAuth`, `useFallback: true`) é o mesmo critério do interruptor no `MenuView`. `isAvailable()` só pergunta se há digital/face cadastrada.
 - Não endurecer o `catch` do `checkBiometricAuth`. No `clearToken()` a rejeição hipotética do `Preferences.remove` do token deve **propagar**.
 - `notifyAppReady()` continua **depois** do `mount`. Não confirmar o OTA no ramo do `exitApp`. Detalhe: `docs/native/OTA.md` e `docs/ANDROID-BUILD-TOOLCHAIN.md` § Biometria.
 

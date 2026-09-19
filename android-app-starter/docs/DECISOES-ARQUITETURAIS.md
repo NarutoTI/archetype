@@ -45,7 +45,7 @@ resolve antes do estado de auth ser real.
 
 O "(ou pulada)" é literal só quando **não há nada com que destravar** (sem digital e
 sem tela de bloqueio). Com PIN/padrão no aparelho o boot pede essa credencial, mesmo
-sem digitais. Cancelar o prompt **não** apaga o token — encerra o app. Recusa da
+sem digitais — e o interruptor do menu aparece (`canPromptForAuth`). Cancelar o prompt **não** apaga o token — encerra o app. Recusa da
 digital apaga. O `main.ts` não lê o boolean de retorno. Detalhes em
 [ANDROID-BUILD-TOOLCHAIN.md](./ANDROID-BUILD-TOOLCHAIN.md) § *Biometria*.
 

@@ -59,7 +59,7 @@ const { t } = useI18n();
 const settingsStore = useSettingsStore();
 
 const promptBiometricSetup = async () => {
-  if (!(await biometricService.isAvailable()) || settingsStore.biometryEnabled) return;
+  if (!(await biometricService.canPromptForAuth()) || settingsStore.biometryEnabled) return;
 
   await alertService.presentCustomAlert({
     header: t('biometric.enableTitle'),

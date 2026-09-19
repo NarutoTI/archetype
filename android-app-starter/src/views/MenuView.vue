@@ -615,7 +615,7 @@ const signOut = async () => {
 };
 
 onMounted(async () => {
-  biometricAvailable.value = await biometricService.isAvailable();
+  biometricAvailable.value = await biometricService.canPromptForAuth();
   await reminderDeliveryService.initialize();
 
   // Rodapé de versão: label do bundle OTA ativo + canal local (só nativo).

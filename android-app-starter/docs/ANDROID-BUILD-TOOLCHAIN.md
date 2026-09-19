@@ -111,8 +111,8 @@ Contrato do unlock no boot (`checkBiometricAuth`), congelado em
 3. **Sem digital e sem bloqueio de tela:** o gate é pulado e o token continua valendo. Não há
    segundo fator a pedir.
 4. **Só-PIN** (biometria já ligada, digitais apagadas, tela de bloqueio no lugar): o boot **pede
-   o PIN do aparelho** (`canPromptForAuth` com `useFallback: true`). O interruptor do menu some
-   (`isAvailable()` de vitrine). **Não** alargar o `v-if` do `MenuView` nesta mudança.
+   o PIN do aparelho**. O interruptor do menu usa `canPromptForAuth` e **aparece**, para ligar
+   ou desligar.
 
 O `main.ts` **não lê** o boolean de `checkBiometricAuth`. A sessão segue do `auth_token` no
 disco. Não endurecer o `catch` desse método (ver JSDoc). Detalhe de OTA se o prompt fechar o
