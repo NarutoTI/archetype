@@ -25,6 +25,7 @@ class AuthService {
   private deepLinkListenerSetup = false;
   private deepLinkListener: { remove: () => Promise<void> } | null = null;
   private deepLinkListenerSetupPromise: Promise<void> | null = null;
+  private socialLoginInitPromise: Promise<void> | null = null;
   private processedTokens = new Set<string>();
 
   private authAxios = axios.create({
@@ -122,6 +123,102 @@ class AuthService {
     this.loginGoogleSuccessCallbacks.forEach((callback) => callback());
   }
 
+  /**
+   * Inicializa o plugin do seletor nativo. Idempotente: a LoginPage chama no `onMounted`
+   * para aquecer e o `pickGoogleIdToken` chama de novo por garantia — a segunda chamada
+   * reaproveita a mesma promise.
+   *
+   * Fica fora do boot de propósito: só quem está na tela de login precisa do SDK.
+   *
+   * Sem `VITE_GOOGLE_WEB_CLIENT_ID` lança, e o `signInWithGoogle` cai no Custom Tab. É o
+   * estado de fábrica do starter: o seletor só liga depois do projeto no Google Cloud
+   * (docs/native/GOOGLE-LOGIN.md). Falhando, a promise é descartada para a próxima tentativa.
+   */
+  async initSocialLogin(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const webClientId = import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID;
+    if (!webClientId) {
+      throw new Error('VITE_GOOGLE_WEB_CLIENT_ID is not configured');
+    }
+
+    if (!this.socialLoginInitPromise) {
+      this.socialLoginInitPromise = (async () => {
+        const { SocialLogin } = await import('@capgo/capacitor-social-login');
+        // `online`: só o ID token. `offline` devolveria serverAuthCode, que o app não usa.
+        await SocialLogin.initialize({
+          google: { webClientId, mode: 'online' },
+        });
+      })().catch((error) => {
+        this.socialLoginInitPromise = null;
+        throw error;
+      });
+    }
+
+    return this.socialLoginInitPromise;
+  }
+
+  /**
+   * Fase do plugin no login nativo: abre o seletor de contas do Google (Credential
+   * Manager no Android) e devolve o ID token.
+   *
+   * Qualquer erro daqui é falha **do plugin** (sem Google Play Services, client Android
+   * sem o SHA-1, AAB antiga sem o plugin nativo, client web não configurado) e é o único
+   * tipo que justifica cair no Custom Tab.
+   *
+   * @throws o erro do plugin com `code === 'USER_CANCELLED'` quando a pessoa fecha o
+   *         seletor — o chamador distingue isso de falha real e **não** cai no fallback
+   */
+  private async pickGoogleIdToken(): Promise<string> {
+    await this.initSocialLogin();
+
+    const { SocialLogin } = await import('@capgo/capacitor-social-login');
+    // Sem `scopes`: o plugin já pede email, profile e openid. Qualquer `scopes`, mesmo
+    // esses, exige MainActivity modificada e o login rejeita sempre.
+    const { result } = await SocialLogin.login({
+      provider: 'google',
+      options: {},
+    });
+
+    if (result.responseType !== 'online' || !result.idToken) {
+      throw new Error('Google sign-in did not return an ID token');
+    }
+
+    return result.idToken;
+  }
+
+  /**
+   * Fase do backend no login nativo: troca o ID token pelo JWT do app em
+   * `POST /auth/google/native`, que responde no mesmo shape do login por e-mail.
+   *
+   * Erro aqui **não** cai no Custom Tab. O seletor já funcionou; se o backend recusou,
+   * abrir o browser esconderia a causa (`GOOGLE_CLIENT_ID` diferente do client web, por
+   * exemplo) e ainda contornaria a checagem de `email_verified`.
+   *
+   * Não emite `onLoginGoogleSuccess`: quem chamou recebe o usuário e navega, como no
+   * fake login. O evento é só do deep link, que chega fora da chamada.
+   *
+   * @param idToken ID token devolvido pelo seletor
+   * @param language idioma do app; o backend só usa ao criar a conta
+   * @throws `Error` com a mensagem já traduzida, pronta para o toast da LoginPage
+   */
+  private async signInWithGoogleIdToken(idToken: string, language: string): Promise<User> {
+    let data;
+    try {
+      const response = await this.authAxios.post('/auth/google/native', { idToken, language });
+      data = response.data;
+    } catch (error) {
+      // 4xx/5xx: o axios lança; os dados do erro estão em error.response.data.
+      throw new Error(ErrorTranslationService.translateError(error));
+    }
+
+    if (!data.success) {
+      throw new Error(ErrorTranslationService.translateError(data));
+    }
+
+    return this.finalizeAuthenticatedSession(data.token, data.user);
+  }
+
   async signInWithGoogle(): Promise<User> {
     if (import.meta.env.VITE_USE_FAKE_LOGIN === 'true') {
       return this.fakeLogin();
@@ -130,6 +227,23 @@ class AuthService {
     const settingsStore = useSettingsStore();
     const language = settingsStore.language || 'en';
     const isMobile = Capacitor.isNativePlatform();
+
+    if (isMobile) {
+      let idToken: string | null = null;
+      try {
+        idToken = await this.pickGoogleIdToken();
+      } catch (error: any) {
+        // Fechou o seletor. Abrir o Custom Tab aqui seria ignorar a desistência.
+        if (error?.code === 'USER_CANCELLED') throw error;
+        logger.warn('Native Google picker failed, falling back to Custom Tab:', error);
+      }
+
+      // Com ID token, o seletor funcionou: recusa do backend vira erro, não Custom Tab.
+      if (idToken) {
+        return this.signInWithGoogleIdToken(idToken, language);
+      }
+    }
+
     const queryParams = isMobile
       ? `?mobile=true&language=${language}`
       : `?language=${language}`;

@@ -21,6 +21,14 @@ const hoisted = vi.hoisted(() => ({
   mockApp: {
     addListener: vi.fn(),
   },
+  mockBrowser: {
+    open: vi.fn(),
+    close: vi.fn(),
+  },
+  mockSocialLogin: {
+    initialize: vi.fn(),
+    login: vi.fn(),
+  },
   mockSettingsStore: {
     language: 'pt',
     loadSettings: vi.fn(async () => {}),
@@ -33,10 +41,11 @@ vi.mock('axios', () => ({
 }));
 
 vi.mock('@capacitor/browser', () => ({
-  Browser: {
-    open: vi.fn(),
-    close: vi.fn(),
-  },
+  Browser: hoisted.mockBrowser,
+}));
+
+vi.mock('@capgo/capacitor-social-login', () => ({
+  SocialLogin: hoisted.mockSocialLogin,
 }));
 
 vi.mock('@capacitor/core', () => ({
@@ -88,6 +97,8 @@ describe('authService', () => {
   beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    vi.stubEnv('VITE_GOOGLE_WEB_CLIENT_ID', 'web-client-id.apps.googleusercontent.com');
     setActivePinia(createPinia());
 
     hoisted.mockAxios.create.mockReturnValue(hoisted.mockAuthAxios);
@@ -98,6 +109,11 @@ describe('authService', () => {
     hoisted.mockCapacitor.isNativePlatform.mockReturnValue(false);
     hoisted.mockCapacitor.getPlatform.mockReturnValue('web');
     hoisted.mockApp.addListener.mockResolvedValue({ remove: vi.fn(async () => {}) });
+    hoisted.mockBrowser.open.mockResolvedValue(undefined);
+    hoisted.mockBrowser.close.mockResolvedValue(undefined);
+    // Padrão: seletor indisponível, como num AAB sem o plugin — cai no Custom Tab.
+    hoisted.mockSocialLogin.initialize.mockResolvedValue(undefined);
+    hoisted.mockSocialLogin.login.mockRejectedValue(new Error('plugin unavailable'));
     hoisted.mockSettingsStore.loadSettings.mockResolvedValue(undefined);
     hoisted.mockSettingsStore.clearUserScopedPreferences.mockResolvedValue(undefined);
   });
@@ -212,5 +228,119 @@ describe('authService', () => {
     expect(hoisted.mockPreferences.remove).toHaveBeenCalledWith({ key: 'auth_token' });
     // Sem isto o app fica com isAuthenticated true e sem token: 401 mudo, sem volta ao /login.
     expect(useUserStore().currentUser).toBeNull();
+  });
+
+  describe('native Google sign-in', () => {
+    /** Resposta do seletor nativo em modo `online`. */
+    const nativePickerResult = {
+      provider: 'google',
+      result: {
+        responseType: 'online',
+        idToken: 'google-id-token',
+        accessToken: null,
+        profile: { email: 'user@example.com', name: 'User' },
+      },
+    };
+
+    beforeEach(() => {
+      hoisted.mockCapacitor.isNativePlatform.mockReturnValue(true);
+      hoisted.mockCapacitor.getPlatform.mockReturnValue('android');
+    });
+
+    it('exchanges the ID token for the app JWT without opening the browser', async () => {
+      hoisted.mockSocialLogin.login.mockResolvedValue(nativePickerResult);
+      hoisted.mockAuthAxios.post.mockResolvedValueOnce({
+        data: {
+          success: true,
+          token: 'jwt-token',
+          user: { id: 'user-1', email: 'user@example.com', name: 'User', provider: 'google' },
+        },
+      });
+
+      const { authService } = await import('@/services/auth.service');
+      const loginSuccess = vi.fn();
+      authService.onLoginGoogleSuccess(loginSuccess);
+
+      const user = await authService.signInWithGoogle();
+
+      // Sem `scopes`: com eles o plugin rejeita no Android se a MainActivity não for
+      // modificada — e o fallback esconderia isso para sempre.
+      expect(hoisted.mockSocialLogin.login).toHaveBeenCalledWith({
+        provider: 'google',
+        options: {},
+      });
+      expect(hoisted.mockAuthAxios.post).toHaveBeenCalledWith('/auth/google/native', {
+        idToken: 'google-id-token',
+        language: 'pt',
+      });
+      expect(hoisted.mockBrowser.open).not.toHaveBeenCalled();
+      expect(hoisted.mockPreferences.set).toHaveBeenCalledWith({
+        key: 'auth_token',
+        value: 'jwt-token',
+      });
+      // A LoginPage navega pelo retorno; emitir aqui faria o `goAfterLogin` rodar duas vezes.
+      expect(loginSuccess).not.toHaveBeenCalled();
+      expect(user.id).toBe('user-1');
+    });
+
+    it('does not fall back to the browser when the user dismisses the picker', async () => {
+      const cancelled = Object.assign(new Error('The user canceled the sign-in flow'), {
+        code: 'USER_CANCELLED',
+      });
+      hoisted.mockSocialLogin.login.mockRejectedValue(cancelled);
+
+      const { authService } = await import('@/services/auth.service');
+
+      await expect(authService.signInWithGoogle()).rejects.toMatchObject({
+        code: 'USER_CANCELLED',
+      });
+      expect(hoisted.mockBrowser.open).not.toHaveBeenCalled();
+      expect(hoisted.mockAuthAxios.post).not.toHaveBeenCalled();
+    });
+
+    it('does not fall back to the browser when the backend rejects the ID token', async () => {
+      hoisted.mockSocialLogin.login.mockResolvedValue(nativePickerResult);
+      // Ex.: 403 EMAIL_NOT_VERIFIED, ou 401 por GOOGLE_CLIENT_ID diferente do client web.
+      hoisted.mockAuthAxios.post.mockRejectedValueOnce(
+        Object.assign(new Error('Google has not verified this email address'), {
+          response: { status: 403, data: { success: false, code: 'EMAIL_NOT_VERIFIED' } },
+        })
+      );
+
+      const { authService } = await import('@/services/auth.service');
+
+      await expect(authService.signInWithGoogle()).rejects.toThrow(
+        'Google has not verified this email address'
+      );
+      // O Custom Tab contornaria o `email_verified` e esconderia erro de configuração.
+      expect(hoisted.mockApp.addListener).not.toHaveBeenCalled();
+      expect(hoisted.mockBrowser.open).not.toHaveBeenCalled();
+      expect(hoisted.mockPreferences.set).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the Custom Tab when the native picker fails', async () => {
+      // Ex.: aparelho sem Google Play Services, ou client Android sem o SHA-1.
+      hoisted.mockSocialLogin.login.mockRejectedValue(new Error('DEVELOPER_ERROR'));
+
+      const { authService } = await import('@/services/auth.service');
+
+      await expect(authService.signInWithGoogle()).rejects.toThrow('REDIRECT_PENDING');
+      expect(hoisted.mockBrowser.open).toHaveBeenCalledWith({
+        url: expect.stringContaining('/auth/google?mobile=true&language=pt'),
+      });
+    });
+
+    it('uses only the Custom Tab while the web client ID is not configured', async () => {
+      // Estado de fábrica do starter: sem projeto no Google Cloud, o seletor fica fora.
+      vi.stubEnv('VITE_GOOGLE_WEB_CLIENT_ID', '');
+      hoisted.mockSocialLogin.login.mockResolvedValue(nativePickerResult);
+
+      const { authService } = await import('@/services/auth.service');
+
+      await expect(authService.signInWithGoogle()).rejects.toThrow('REDIRECT_PENDING');
+      expect(hoisted.mockSocialLogin.initialize).not.toHaveBeenCalled();
+      expect(hoisted.mockSocialLogin.login).not.toHaveBeenCalled();
+      expect(hoisted.mockBrowser.open).toHaveBeenCalled();
+    });
   });
 });

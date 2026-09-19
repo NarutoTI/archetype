@@ -1,6 +1,8 @@
 import passport from 'passport';
 import jwt from 'jsonwebtoken';
 import type { SignOptions } from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
+import type { TokenPayload } from 'google-auth-library';
 import logger from './logger.js';
 import type { AppUser, JwtUserPayload } from '../types/schemas.js';
 
@@ -84,6 +86,50 @@ export async function isGoogleOAuthEnabled(): Promise<boolean> {
     await configureGoogleOAuth();
   }
   return googleOAuthEnabled;
+}
+
+/**
+ * Client ID **web** do Google, ou `null` quando não configurado.
+ *
+ * O seletor nativo só precisa dele — secret e callback são do Custom Tab. Exportado para
+ * o controller responder `OAUTH_NOT_CONFIGURED` antes de tentar verificar qualquer coisa.
+ */
+export function getGoogleClientId(): string | null {
+  return process.env.GOOGLE_CLIENT_ID || null;
+}
+
+let googleIdTokenClient: OAuth2Client | null = null;
+
+/**
+ * Verifica o ID token devolvido pelo seletor nativo do Google (Credential Manager no
+ * Android) e entrega o payload já validado.
+ *
+ * A `google-auth-library` confere assinatura, emissor e expiração; o `audience` é o
+ * `GOOGLE_CLIENT_ID` — o mesmo client web que o app passa como `webClientId` ao plugin
+ * (`VITE_GOOGLE_WEB_CLIENT_ID`). Divergir os dois é o erro silencioso clássico: o token é
+ * legítimo e mesmo assim é recusado por audiência.
+ *
+ * O `email_verified` **não** é conferido aqui: quem decide o que fazer com um e-mail não
+ * atestado é o controller, junto da criação da conta.
+ *
+ * @param idToken JWT do Google vindo do app
+ * @returns payload validado, ou `null` se o token não prestar
+ */
+export async function verifyGoogleIdToken(idToken: string): Promise<TokenPayload | null> {
+  const clientId = getGoogleClientId();
+  if (!clientId) {
+    logger.warn('Google ID token verification skipped: no client ID configured');
+    return null;
+  }
+
+  try {
+    googleIdTokenClient ??= new OAuth2Client(clientId);
+    const ticket = await googleIdTokenClient.verifyIdToken({ idToken, audience: clientId });
+    return ticket.getPayload() ?? null;
+  } catch (error) {
+    logger.warn('Google ID token rejected: %s', getErrorMessage(error));
+    return null;
+  }
 }
 
 passport.serializeUser((user, done) => done(null, user));

@@ -63,6 +63,13 @@ const config: CapacitorConfig = {
       // Assinatura key-v2 (opcional): gere a chave com `@capgo/cli key create` e a
       // publicKey será injetada aqui. Ver docs/native/OTA.md § Ligar a assinatura.
       // publicKey: '-----BEGIN RSA PUBLIC KEY----- ...',
+    },
+    SocialLogin: {
+      // Só o Google é usado. Ligado (padrão), o SDK do Facebook injeta AD_ID e a Play recusa a
+      // AAB declarada "sem ID de publicidade". Vale no próximo `npx cap sync` (docs/native/GOOGLE-LOGIN.md).
+      providers: {
+        facebook: false
+      }
     }
   },
   android: {

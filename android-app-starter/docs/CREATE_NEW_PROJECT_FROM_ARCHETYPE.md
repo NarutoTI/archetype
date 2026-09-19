@@ -120,6 +120,14 @@ OAuth:
 - Configurar `GOOGLE_CALLBACK_URL`.
 - No Google Cloud Console, cadastrar callback web e deep link mobile quando o
   fluxo mobile for usado.
+- Seletor nativo no Android (opcional; sem ele o app usa só o Custom Tab):
+  `VITE_GOOGLE_WEB_CLIENT_ID` no front com o **mesmo** valor do `GOOGLE_CLIENT_ID`,
+  e um client OAuth **Android** por SHA-1 (debug e, depois da primeira AAB, o da
+  chave de assinatura da Play). Passo a passo: `docs/native/GOOGLE-LOGIN.md`.
+- Gerar a keystore de debug **do projeto** (`android/app/debug.keystore`), ligar
+  no `signingConfigs.debug` e liberar só ela no `.gitignore` — o SHA-1 de debug
+  fica fixo entre máquinas. O archetype não traz uma de propósito. Comandos em
+  `docs/native/GOOGLE-LOGIN.md` § Keystore de debug do projeto.
 
 ## Decidir Sobre as Demos
 

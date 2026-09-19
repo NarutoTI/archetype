@@ -5,7 +5,8 @@ Backend TypeScript + Node.js + Express + MongoDB para o Android App Starter.
 ## O que vem pronto
 
 - Auth por email/senha com confirmação de email.
-- Login Google OAuth com escopos `profile` e `email`.
+- Login Google OAuth com escopos `profile` e `email`, pelo Custom Tab (`GET /auth/google`)
+  ou pelo seletor nativo do Android (`POST /auth/google/native`, com o ID token).
 - Reset de senha por email.
 - Solicitação de exclusão de conta por email.
 - `fake-login` para desenvolvimento.
@@ -63,6 +64,10 @@ Configure por env:
 - `GOOGLE_CALLBACK_URL`
 
 Sem essas variáveis, o login Google fica desabilitado.
+
+O seletor nativo (`POST /auth/google/native`) usa só o `GOOGLE_CLIENT_ID`, que tem que
+ser igual ao `VITE_GOOGLE_WEB_CLIENT_ID` do frontend. Guia completo:
+[`GOOGLE-LOGIN.md`](../android-app-starter/docs/native/GOOGLE-LOGIN.md).
 
 ## Relação com o frontend
 

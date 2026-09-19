@@ -42,6 +42,9 @@ Notas:
 
 - Sem `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `GOOGLE_CALLBACK_URL`, o
   login Google fica desabilitado. Isso é esperado.
+- O seletor nativo do Google (Android) só liga com `VITE_GOOGLE_WEB_CLIENT_ID` no
+  front e o client Android com o SHA-1 de debug cadastrado; sem isso o app abre o
+  Custom Tab. Ver [GOOGLE-LOGIN.md](./native/GOOGLE-LOGIN.md).
 - Em desenvolvimento, se SMTP não estiver configurado, emails são apenas
   registrados no log.
 - Se o `bcrypt` falhar por binário nativo ausente no Windows, rode:

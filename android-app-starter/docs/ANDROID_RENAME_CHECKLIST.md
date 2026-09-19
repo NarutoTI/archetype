@@ -14,6 +14,8 @@ Ao criar um app real a partir do starter, troque:
 - Backend: `MOBILE_DEEP_LINK_SCHEME` no `.env`.
 - Frontend: `VITE_DEEP_LINK_SCHEME` no `.env`.
 - Google OAuth: callback web e callback mobile no Google Cloud Console.
+- Seletor nativo do Google: os clients OAuth **Android** amarram o `applicationId`
+  ao SHA-1 — trocar o pacote exige clients novos. Ver `docs/native/GOOGLE-LOGIN.md`.
 
 Evite publicar com `com.example.*`: é bom para template, mas deve ser substituído
 antes da Play Store.

@@ -62,6 +62,14 @@
 - Release de loja: `node scripts/build-and-sync.js` (`build:android`) — bump só no frontend. AAB recusa canal staging; `assertSignedPublicKey` só se o gate signed-only estiver ligado. `ota:release` continua exigindo OTA ligado.
 - Antes de alterar `ota.service`, `ota-channel.service`, `version.service`, o `versionService` do backend ou `scripts/ota/*`, ler o guia. Nunca assar `VITE_OTA_CHANNEL=staging` num build de produção (o `ota:release` aborta se detectar).
 
+## Login com Google (seletor nativo)
+
+- Guia e fonte da verdade: `android-app-starter/docs/native/GOOGLE-LOGIN.md`. Nasce **dormente**: sem `VITE_GOOGLE_WEB_CLIENT_ID`, só Custom Tab.
+- Só falha do **plugin** cai no Custom Tab. `USER_CANCELLED` e recusa do backend (`/auth/google/native`) **não** — abrir o navegador esconderia erro de configuração e contornaria o `email_verified`.
+- Não passar `scopes` ao `SocialLogin.login` (exige `MainActivity` modificada; rejeita sempre). Não emitir `onLoginGoogleSuccess` no caminho nativo: a `LoginPage` navega pelo retorno.
+- `SocialLogin.providers.facebook: false` no `capacitor.config.ts` fica — o SDK do Facebook traz `AD_ID` e a Play recusa a AAB.
+- Não versionar keystore no archetype; a de debug é gerada por projeto (guia acima).
+
 ## Unlock biométrico (boot)
 
 - `checkBiometricAuth()` na Fase 1: **dispensado** preserva o token e chama `exitApp()`; **recusado** apaga o token. O `main.ts` não lê o boolean.

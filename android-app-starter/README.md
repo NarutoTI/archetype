@@ -5,7 +5,8 @@ O backend complementar fica em [`../android-app-starter-backend`](../android-app
 
 ## O que vem pronto
 
-- Autenticação por email/senha e Google OAuth.
+- Autenticação por email/senha e Google OAuth — no Android, seletor de contas nativo com
+  fallback no Custom Tab ([`docs/native/GOOGLE-LOGIN.md`](docs/native/GOOGLE-LOGIN.md)).
 - Deep link mobile `androidstarter://auth`.
 - Biometria opcional no boot do app.
 - Serviços base de alert, toast, API, versionamento, localização, notificações locais + cliente push Android, imagem/galeria, arquivos e share intent Android.

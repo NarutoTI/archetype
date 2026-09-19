@@ -18,7 +18,12 @@
               <span>{{ $t('auth.or') }}</span>
             </div>
 
-            <ion-button expand="block" class="google-button" @click="signInWithGoogle">
+            <ion-button
+              expand="block"
+              class="google-button"
+              :disabled="connectingGoogle"
+              @click="signInWithGoogle"
+            >
               <ion-icon :icon="logoGoogle" slot="start" />
               {{ $t('auth.loginWithGoogle') }}
             </ion-button>
@@ -42,7 +47,7 @@ import {
   IonPage,
 } from '@ionic/vue';
 import { logoGoogle } from 'ionicons/icons';
-import { onMounted, onUnmounted } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import EmailAuthForm from '@/views/components/EmailAuthForm.vue';
@@ -57,6 +62,8 @@ import { logger } from '@/utils/logger';
 const router = useRouter();
 const { t } = useI18n();
 const settingsStore = useSettingsStore();
+// Segura o duplo toque enquanto o seletor ou o Custom Tab está abrindo.
+const connectingGoogle = ref(false);
 
 const promptBiometricSetup = async () => {
   if (!(await biometricService.canPromptForAuth()) || settingsStore.biometryEnabled) return;
@@ -98,7 +105,16 @@ const handleRegistrationSuccess = async (message: string) => {
   await toastService.presentToastSuccess(message);
 };
 
+/**
+ * Login pelo Google. Dois jeitos de terminar, cada um navega uma vez só:
+ * - seletor nativo e fake login devolvem o usuário aqui → `goAfterLogin()` abaixo;
+ * - Custom Tab lança `REDIRECT_PENDING` e o deep link, que volta depois, chama
+ *   `goAfterLogin` pelo `onLoginGoogleSuccess`.
+ */
 const signInWithGoogle = async () => {
+  if (connectingGoogle.value) return;
+  connectingGoogle.value = true;
+
   try {
     await authService.signInWithGoogle();
     await goAfterLogin();
@@ -107,13 +123,23 @@ const signInWithGoogle = async () => {
       await toastService.presentToastSuccess(t('auth.redirectingToProvider'));
       return;
     }
+    // Fechou o seletor de contas: desistência, não falha.
+    if (error?.code === 'USER_CANCELLED') return;
     logger.error('Google login error:', error);
     await toastService.presentToastError(`${t('auth.loginFailed')} ${error.message || ''}`);
+  } finally {
+    connectingGoogle.value = false;
   }
 };
 
 onMounted(() => {
   authService.onLoginGoogleSuccess(goAfterLogin);
+
+  // Aquece o seletor nativo aqui, não no boot. Sem `await`: falhando, o
+  // `signInWithGoogle` tenta de novo e, não dando, cai no Custom Tab.
+  void authService.initSocialLogin().catch((error) => {
+    logger.warn('SocialLogin warm-up failed:', error);
+  });
 });
 
 onUnmounted(() => {

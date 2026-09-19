@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import passport, { isGoogleOAuthEnabled } from '../../config/passport.js';
+import passport, { getGoogleClientId, isGoogleOAuthEnabled, verifyGoogleIdToken } from '../../config/passport.js';
 import * as userService from '../../services/userService.js';
 import logger from '../../config/logger.js';
 import {
@@ -18,6 +18,11 @@ type GoogleAuthUser = AppUser & {
   email: string;
   name: string;
 };
+
+interface GoogleNativeAuthBody {
+  idToken: string;
+  language?: string;
+}
 
 function getFrontendUrl(): string {
   if (process.env.NODE_ENV === 'development') {
@@ -266,6 +271,90 @@ export async function handleGoogleCallback(req: Request, res: Response) {
   } catch (error) {
     logger.error({ err: error }, 'Google OAuth callback error');
     return res.redirect(generateRedirectUrl(req, null, false, 'callback_failed'));
+  }
+}
+
+/**
+ * Autentica pelo seletor nativo do Google (Credential Manager no Android).
+ * POST /auth/google/native
+ *
+ * O app abre o seletor sem sair da tela, recebe o **ID token** e manda aqui. Este
+ * endpoint verifica assinatura, emissor, expiração e audiência e devolve o JWT do app no
+ * mesmo shape do login por e-mail (`success`, `token`, `user`, `message`), para o
+ * `finalizeAuthenticatedSession` do front consumir sem caso especial.
+ *
+ * Conta existente recebe o mesmo tratamento do `handleGoogleCallback` (nome, foto,
+ * `emailVerified`). O `language` do corpo vale só na criação: em conta existente o idioma
+ * é do usuário e não se mexe.
+ *
+ * Só precisa do `GOOGLE_CLIENT_ID`; secret e callback continuam sendo do Custom Tab.
+ */
+export async function handleGoogleNativeAuth(
+  req: Request<unknown, unknown, GoogleNativeAuthBody>,
+  res: Response
+) {
+  try {
+    if (!getGoogleClientId()) {
+      logger.error('Google native auth called without GOOGLE_CLIENT_ID');
+      return sendError(
+        res,
+        HTTP_STATUS.SERVICE_UNAVAILABLE,
+        ERROR_CODES.OAUTH_NOT_CONFIGURED,
+        'Google authentication is not configured'
+      );
+    }
+
+    const { idToken, language = 'en' } = req.body;
+
+    const payload = await verifyGoogleIdToken(idToken);
+    if (!payload?.email) {
+      return sendError(res, HTTP_STATUS.UNAUTHORIZED, ERROR_CODES.OAUTH_FAILED, 'Invalid Google ID token');
+    }
+
+    // O `createUser` marca `emailVerified` sozinho por ser provider OAuth. Sem este
+    // confere, um e-mail que o Google não atesta entraria como verificado.
+    if (payload.email_verified !== true) {
+      logger.warn('Google ID token with unverified email: %s', payload.email);
+      return sendError(
+        res,
+        HTTP_STATUS.FORBIDDEN,
+        ERROR_CODES.EMAIL_NOT_VERIFIED,
+        'Google has not verified this email address'
+      );
+    }
+
+    let user = await authService.findUserByEmail(payload.email);
+
+    if (!user) {
+      user = await authService.createUser({
+        name: payload.name || payload.email.split('@')[0],
+        email: payload.email,
+        provider: USER_PROVIDERS.GOOGLE,
+        picture: payload.picture,
+        emailVerified: true,
+        language
+      });
+    } else {
+      user.name = payload.name || user.name;
+      user.picture = payload.picture || user.picture;
+      user.emailVerified = true;
+      await authService.updateLastLogin(user);
+    }
+
+    return res.json({
+      success: true,
+      token: authService.generateAuthToken(user),
+      user: authService.sanitizeUserData(user),
+      message: SUCCESS_MESSAGES.LOGIN_SUCCESS
+    });
+  } catch (error) {
+    logger.error({ err: error }, 'Google native auth error');
+    return sendError(
+      res,
+      HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      ERROR_CODES.INTERNAL_SERVER_ERROR,
+      'Google authentication failed'
+    );
   }
 }
 

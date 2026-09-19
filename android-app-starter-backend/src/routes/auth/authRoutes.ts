@@ -8,6 +8,7 @@ import {
   resetPassword,
   initGoogleAuth,
   handleGoogleCallback,
+  handleGoogleNativeAuth,
   processToken,
   verifyToken,
   requestAccountDeletion,
@@ -36,6 +37,12 @@ const validatePasswordReset = [
     .withMessage(`Password must be at least ${VALIDATION_RULES.PASSWORD_MIN_LENGTH} characters long`)
     .isLength({ max: VALIDATION_RULES.PASSWORD_MAX_LENGTH })
     .withMessage(`Password must be less than ${VALIDATION_RULES.PASSWORD_MAX_LENGTH} characters long`),
+  handleValidationErrors
+];
+
+const validateGoogleNativeAuth = [
+  body('idToken').isString().notEmpty().withMessage('Google ID token is required'),
+  body('language').optional().isIn(supportedEmailTemplateLanguages).withMessage(supportedLanguagesMessage),
   handleValidationErrors
 ];
 
@@ -72,6 +79,8 @@ router.post('/reset-password', sensitiveRateLimit, validatePasswordReset, resetP
 
 router.get('/google', initGoogleAuth);
 router.get('/google/callback', handleGoogleCallback);
+// Seletor nativo: o app manda o ID token do Google e recebe o JWT do app, sem sair da tela.
+router.post('/google/native', loginRateLimit, validateGoogleNativeAuth, handleGoogleNativeAuth);
 
 router.post('/process-token', validateTokenProcessing, processToken);
 router.get('/verify', verifyToken);
@@ -97,6 +106,7 @@ router.get('/routes', (_req: Request, res: Response) => {
       { method: 'POST', path: '/auth/forgot-password', body: ['email', '?language'] },
       { method: 'POST', path: '/auth/reset-password', body: ['token', 'newPassword'] },
       { method: 'GET', path: '/auth/google', query: ['?mobile=true', '?language'] },
+      { method: 'POST', path: '/auth/google/native', body: ['idToken', '?language'] },
       { method: 'POST', path: '/auth/process-token', body: ['token'] },
       { method: 'GET', path: '/auth/verify', headers: ['Authorization: Bearer <token>'] },
       { method: 'POST', path: '/auth/delete-account-request', body: ['token', '?language'] },
