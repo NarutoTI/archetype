@@ -79,6 +79,36 @@ const givenPreferences = (values: Record<string, string | null>) => {
   }));
 };
 
+describe('biometricService.isAvailable / getBiometryType', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    biometricService.resetCache();
+    hoisted.mockIsAvailable.mockResolvedValue({
+      isAvailable: true,
+      biometryType: BiometryType.FINGERPRINT,
+    });
+  });
+
+  // API reservada: sem chamador de produção. Não usar para prompt nem toggle.
+  it('consulta o nativo sem fallback de credencial do aparelho', async () => {
+    await expect(biometricService.isAvailable()).resolves.toBe(true);
+
+    expect(hoisted.mockIsAvailable).toHaveBeenCalledTimes(1);
+    expect(hoisted.mockIsAvailable).toHaveBeenCalledWith();
+  });
+
+  it('guarda em cache a resposta só de digital/face', async () => {
+    await biometricService.isAvailable();
+    await biometricService.isAvailable();
+
+    expect(hoisted.mockIsAvailable).toHaveBeenCalledTimes(1);
+  });
+
+  it('devolve o tipo de biometria cadastrado', async () => {
+    await expect(biometricService.getBiometryType()).resolves.toBe(BiometryType.FINGERPRINT);
+  });
+});
+
 describe('biometricService.authenticate', () => {
   beforeEach(() => {
     vi.clearAllMocks();

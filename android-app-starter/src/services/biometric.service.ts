@@ -33,8 +33,12 @@ class BiometricService {
   private canPromptCache: boolean | null = null;
 
   /**
-   * Este aparelho tem digital/face cadastrada? Não decide o interruptor do menu —
-   * isso é `canPromptForAuth`.
+   * Há digital/face cadastrada neste aparelho? (`useFallback: false` no nativo.)
+   *
+   * Sem chamador de produção hoje: interruptor, convite pós-login e boot usam
+   * `canPromptForAuth`. Mantido para tela futura que precise dessa pergunta
+   * estreita — **não** para decidir prompt nem o toggle. Testes em
+   * `biometric.service.spec.ts`.
    */
   async isAvailable(): Promise<boolean> {
     if (!Capacitor.isNativePlatform()) return false;
@@ -82,6 +86,10 @@ class BiometricService {
     }
   }
 
+  /**
+   * Tipo cadastrado (digital, face, etc.). Sem chamador de produção hoje.
+   * Não decide prompt nem interruptor — isso é `canPromptForAuth`.
+   */
   async getBiometryType(): Promise<BiometryType | null> {
     if (this.biometryTypeCache !== null) return this.biometryTypeCache;
     try {

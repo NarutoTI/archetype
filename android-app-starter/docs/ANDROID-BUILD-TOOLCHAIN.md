@@ -114,6 +114,9 @@ Contrato do unlock no boot (`checkBiometricAuth`), congelado em
    o PIN do aparelho**. O interruptor do menu usa `canPromptForAuth` e **aparece**, para ligar
    ou desligar.
 
+`isAvailable()` e `getBiometryType()` não têm chamador de produção. Permanecem como pergunta
+estreita (só digital/face); **não** decidir prompt nem toggle. Testes no spec.
+
 O `main.ts` **não lê** o boolean de `checkBiometricAuth`. A sessão segue do `auth_token` no
 disco. Não endurecer o `catch` desse método (ver JSDoc). Detalhe de OTA se o prompt fechar o
 app **antes** do `notifyAppReady`: [OTA.md](./native/OTA.md).
