@@ -92,10 +92,13 @@ Android nativo:
   target.
 - `android/app/src/main/java/.../MainActivity.java`: mover diretório para o
   novo pacote e alterar a linha `package`.
-- Ícones em `android/app/src/main/res/mipmap-*` (`ic_launcher` e
-  `ic_launcher_round`, um PNG por densidade: 48, 72, 96, 144 e 192 px) e em
-  `public/` quando houver marca final. Não há splash drawable: a abertura no
-  Android 12+ mostra esse ícone.
+- Ícones: quando houver marca final, troque os de `public/`. O
+  `android-chrome-512x512.png` precisa ser um quadrado cheio e opaco. Depois rode
+  `npm run icons:organize` (requer Python 3 com Pillow). Ele grava
+  `ic_launcher` e `ic_launcher_round` em `android/app/src/main/res/mipmap-*`
+  (48, 72, 96, 144 e 192 px) e avisa se a origem tiver transparência. Alguns
+  geradores entregam uma borda translúcida de 1 a 2 px, que viraria moldura no
+  ícone. Não há splash drawable: a abertura no Android 12+ mostra esse ícone.
 
 Mantenha `android/` versionado. Ignore apenas build/cache/config local/keystore.
 

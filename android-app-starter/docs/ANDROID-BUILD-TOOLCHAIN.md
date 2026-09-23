@@ -93,8 +93,14 @@ O de APIs descontinuadas de ponta a ponta pode voltar: o `EdgeToEdge.enable` do
 AndroidX ainda chama essas APIs abaixo do Android 15. Ver
 [EDGE-TO-EDGE-SAFE-AREA.md](./EDGE-TO-EDGE-SAFE-AREA.md).
 
-Este starter ainda não teve AAB de release medido depois dessa mudança. A medição
-e o teste de abertura no aparelho foram feitos no My Memories.
+Em **23/09/2026** o `:app:assembleRelease` deste starter passou com R8 (2 min).
+O APK de release, assinado só com a chave de debug para o emulador, abriu
+`com.example.androidstarter` sem crash. O DEX ficou em cerca de 2,0 MB, com
+`mapping.txt` gerado. O `capacitor-updater` está no `package.json`, mas não está
+no projeto Android sincronizado, então o WorkManager não entrou neste pacote e
+o crash do `WorkDatabase_Impl` não foi exercitado aqui. A regra do Room fica
+para quando o plugin for sincronizado. Os percentuais da Play saem do `r8.json`
+de um AAB; este teste foi um APK.
 
 ## Biometria
 
