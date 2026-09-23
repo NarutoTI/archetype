@@ -59,7 +59,42 @@ próprio AGP:
 
 Por isso `android/app/build.gradle` usa `proguard-android-optimize.txt`. Como
 `getDefaultProguardFile()` é resolvido na **fase de configuração**, manter o nome antigo
-faria o build falhar mesmo com `minifyEnabled false` (que é o padrão do archetype).
+faria o build falhar mesmo com `minifyEnabled false`.
+
+Desde **23/09/2026** o release do starter usa `minifyEnabled true` e
+`shrinkResources true`, como no My Memories **134 (1.1.4)**. O debug não passa pelo R8.
+O `proguard-rules.pro` preserva o construtor vazio das classes Room
+(`-keepclassmembers class * extends androidx.room.RoomDatabase { <init>(); }`).
+Sem isso o release fecha na abertura: o OTA sobe o WorkManager no boot e o Room
+cria `WorkDatabase_Impl` por reflexão. A regra da biblioteca Room 2.6.1 guarda a
+classe e, no full mode do R8, não guarda o construtor. A regra é inofensiva num
+projeto que ainda não use WorkManager.
+
+O `shrinkResources` apaga do release o recurso Android que o código nativo e o
+`AndroidManifest.xml` não referenciam. Um recurso cujo nome só aparece no JavaScript
+ou no `capacitor.config.ts` fica invisível para essa análise. Exemplos: som de
+notificação em `res/raw` ou `smallIcon` passado por nome. O build não acusa nada, o
+debug funciona e o release pode perder o arquivo. Para esses recursos, crie
+`android/app/src/main/res/raw/<pacote>_keep.xml` (ex.: `com_exemplo_app_keep.xml`;
+só minúsculas, números e `_`):
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/meu_som,@drawable/ic_stat_meu_app" />
+```
+
+Ícone já referenciado no manifesto, como o `default_notification_icon` do FCM, não
+precisa entrar. O starter hoje não tem recurso nessa situação. Referência:
+[preservação de recursos Android](https://developer.android.com/topic/performance/app-optimization/customize-which-resources-to-keep).
+
+O aviso da Play de símbolos nativos das `.so` de terceiros continua não bloqueante.
+O de APIs descontinuadas de ponta a ponta pode voltar: o `EdgeToEdge.enable` do
+AndroidX ainda chama essas APIs abaixo do Android 15. Ver
+[EDGE-TO-EDGE-SAFE-AREA.md](./EDGE-TO-EDGE-SAFE-AREA.md).
+
+Este starter ainda não teve AAB de release medido depois dessa mudança. A medição
+e o teste de abertura no aparelho foram feitos no My Memories.
 
 ## Biometria
 

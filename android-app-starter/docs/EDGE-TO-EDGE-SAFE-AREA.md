@@ -11,7 +11,9 @@ Com targetSdk 36 (Android 16), o edge-to-edge é obrigatório: o WebView sempre 
 - **Reaplica os valores após o carregamento da página** (`onPageCommitVisible` + `DOMContentLoaded` via bridge) — imune a corrida de cold start.
 - Trata teclado (IME), inclusive workarounds para WebViews antigos.
 - Aparência dos ícones das barras: API JS `SystemBars.setStyle` de `@capacitor/core` — usada em `settingsStore.syncStatusBar()` para acompanhar o tema do app (`ion-palette-dark`), cobrindo as **duas** barras.
-- Android ≤ 14: sem edge-to-edge forçado → layout clássico, sem bug. Capacitor 8.4.0+ disponibiliza `--safe-area-inset-*` também em API ≤ 34.
+- `MainActivity` chama só `EdgeToEdge.enable(this)` antes do `super.onCreate`. No Android 15+ o sistema já desenha até a borda; no 14 para trás essa chamada faz o mesmo. Capacitor 8.4.0+ disponibiliza `--safe-area-inset-*` também em API ≤ 34. O fundo pode chegar atrás do relógio; o menu e o título não.
+- O tema não declara `statusBarColor`, `navigationBarColor` nem `shortEdges`. O aviso da Play sobre essas APIs pode voltar: o `EdgeToEdge.enable` do AndroidX Activity 1.11 ainda as chama abaixo do Android 15 (`EdgeToEdgeApi26`, `Api28` e `Api29`). No Android 11 ou mais novo a biblioteca grava `always`. O R8 não apaga esse código. O aviso não bloqueia. Não trocar a biblioteca por isso.
+- O `windowLayoutInDisplayCutoutMode` `always` do tema é sobrescrito na execução pelo `enable`. No Android 9 e 10 o valor usado é `shortEdges`, porque `always` só existe a partir do Android 11.
 
 ## O que NÃO fazer (lição aprendida no My Memories, jul/2026)
 
@@ -22,7 +24,7 @@ O My Memories tinha um `MainActivity` customizado (de 2025, pré-Capacitor 8) co
 
 Portanto, nos projetos gerados a partir deste archetype:
 
-- **Não** adicionar `OnApplyWindowInsetsListener` no `MainActivity` — ele deve permanecer um `BridgeActivity` puro.
+- **Não** adicionar `OnApplyWindowInsetsListener` no `MainActivity`. O `EdgeToEdge.enable` antes do `super.onCreate` fica. Um listener que devolve `CONSUMED` impede o SystemBars de aplicar o recuo.
 - **Não** injetar `--ion-safe-area-*` inline via `evaluateJavascript`.
 - **Não** instalar `@capacitor/status-bar` — com targetSdk 36 suas APIs (`overlaysWebView`, `backgroundColor`) são no-op; usar `SystemBars` de `@capacitor/core`.
 - **Não** setar `android:fitsSystemWindows` no tema.

@@ -19,3 +19,12 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# O WorkManager (OTA, @capgo/capacitor-updater) sobe no boot pelo
+# InitializationProvider. O Room instancia WorkDatabase_Impl por reflexão.
+# No full mode do R8, o -keep da biblioteca preserva a classe e remove o
+# construtor vazio. Sem esta regra o release fecha na abertura:
+# NoSuchMethodException: androidx.work.impl.WorkDatabase_Impl.<init> []
+-keepclassmembers class * extends androidx.room.RoomDatabase {
+    <init>();
+}

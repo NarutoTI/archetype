@@ -92,8 +92,10 @@ Android nativo:
   target.
 - `android/app/src/main/java/.../MainActivity.java`: mover diretório para o
   novo pacote e alterar a linha `package`.
-- Ícones e splash em `android/app/src/main/res` e `public/` quando houver marca
-  final.
+- Ícones em `android/app/src/main/res/mipmap-*` (`ic_launcher` e
+  `ic_launcher_round`, um PNG por densidade: 48, 72, 96, 144 e 192 px) e em
+  `public/` quando houver marca final. Não há splash drawable: a abertura no
+  Android 12+ mostra esse ícone.
 
 Mantenha `android/` versionado. Ignore apenas build/cache/config local/keystore.
 
@@ -186,6 +188,11 @@ Mantém notificação **local**, **cliente push** Android e o **backend push**
 No produto: adapte a materialização do `push` da entidade real (hoje: Task
 `dueDate` + `09:00`). Use `routePath` no toque/badge. Detalhes:
 [PUSH-NOTIFICATIONS.md](./PUSH-NOTIFICATIONS.md).
+
+Som próprio em `res/raw`, ou ícone de notificação chamado só pelo nome no
+JavaScript, precisa de `tools:keep`. Sem isso o release pode apagá-lo, e o debug
+não mostra o problema. Ver
+[ANDROID-BUILD-TOOLCHAIN.md § ProGuard / R8](./ANDROID-BUILD-TOOLCHAIN.md#proguard--r8).
 
 Se o usuário não estiver autenticado, o guard redireciona para login e a
 intenção da notificação não é preservada; aceitável no starter.

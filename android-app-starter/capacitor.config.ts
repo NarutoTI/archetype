@@ -14,21 +14,6 @@ const config: CapacitorConfig = {
     ]
   },
   plugins: {
-    SplashScreen: {
-      launchShowDuration: 3000,
-      launchAutoHide: true,
-      backgroundColor: "#00000000",
-      androidSplashResourceName: "splash",
-      androidScaleType: "CENTER_CROP",
-      showSpinner: true,
-      androidSpinnerStyle: "large",
-      iosSpinnerStyle: "small",
-      spinnerColor: "#999999",
-      splashFullScreen: false,
-      splashImmersive: false,
-      layoutName: "launch_screen",
-      useDialog: true,
-    },
     LocalNotifications: {
       // Define channels at runtime on Android to avoid referencing missing resources here.
       // channel: {
